@@ -58,6 +58,12 @@
      <property name="sortingEnabled"><bool>true</bool></property>
     </widget>
    </item>
+   <item>
+    <widget class="QLabel" name="statusLabel">
+     <property name="text"><string>Tasks: 0</string></property>
+     <property name="alignment"><set>Qt::AlignLeft|Qt::AlignVCenter</set></property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

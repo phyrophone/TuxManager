@@ -28,6 +28,7 @@ class ProcessesWidget : public QWidget
         void onRefreshRateChanged(int comboIndex);
         void onHeaderContextMenu(const QPoint &pos);
         void onTableContextMenu(const QPoint &pos);
+        void updateStatusBar();
 
     private:
         Ui::ProcessesWidget      *ui;

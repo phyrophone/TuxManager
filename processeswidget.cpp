@@ -7,6 +7,7 @@
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
+#include <QScrollBar>
 #include <QStyle>
 
 #include <signal.h>
@@ -32,8 +33,17 @@ ProcessesWidget::ProcessesWidget(QWidget *parent)
     connect(this->m_refreshTimer, &QTimer::timeout,
             this, &ProcessesWidget::onTimerTick);
 
+    // Update status bar whenever the proxy's visible row count changes
+    // (model reset after refresh, or filter toggle)
+    connect(this->m_proxy, &QAbstractItemModel::modelReset,
+            this, &ProcessesWidget::updateStatusBar);
+    connect(this->m_proxy, &QAbstractItemModel::rowsInserted,
+            this, &ProcessesWidget::updateStatusBar);
+    connect(this->m_proxy, &QAbstractItemModel::rowsRemoved,
+            this, &ProcessesWidget::updateStatusBar);
+
     // First sample (no CPU% yet)
-    this->m_model->refresh();
+    this->m_model->Refresh();
     // Second tick gives CPU%
     this->m_refreshTimer->start(CFG->RefreshRateMs);
 }
@@ -121,6 +131,10 @@ void ProcessesWidget::setupRefreshCombo()
 
 void ProcessesWidget::onTimerTick()
 {
+    // Preserve scroll position and selection across refresh
+    QScrollBar *vsb       = this->ui->tableView->verticalScrollBar();
+    const int   scrollPos = vsb->value();
+
     // Remember which PID row is selected so we can restore it after refresh
     const QModelIndex proxyIdx = this->ui->tableView->currentIndex();
     QVariant selectedPid;
@@ -131,7 +145,7 @@ void ProcessesWidget::onTimerTick()
         selectedPid = this->m_model->data(srcIdx, Qt::UserRole);
     }
 
-    this->m_model->refresh();
+    this->m_model->Refresh();
 
     // Restore selection by PID
     if (!selectedPid.isNull())
@@ -148,6 +162,10 @@ void ProcessesWidget::onTimerTick()
             }
         }
     }
+
+    // Restore scroll position (do this after selection restore so
+    // setCurrentIndex() does not scroll the view away)
+    vsb->setValue(scrollPos);
 }
 
 void ProcessesWidget::onRefreshRateChanged(int comboIndex)
@@ -284,6 +302,18 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+void ProcessesWidget::updateStatusBar()
+{
+    const int total   = this->m_model->rowCount();
+    const int visible = this->m_proxy->rowCount();
+
+    QString text = tr("Tasks: %1").arg(total);
+    if (visible != total)
+        text += tr("  (Showing %1)").arg(visible);
+
+    this->ui->statusLabel->setText(text);
+}
 
 QList<pid_t> ProcessesWidget::selectedPids() const
 {

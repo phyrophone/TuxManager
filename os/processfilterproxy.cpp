@@ -1,14 +1,14 @@
 #include "processfilterproxy.h"
-#include "logger.h"
 
 #include <unistd.h>
 
 namespace Os
 {
 
-ProcessFilterProxy::ProcessFilterProxy(QObject *parent) : QSortFilterProxyModel(parent)
+ProcessFilterProxy::ProcessFilterProxy(QObject *parent)
+    : QSortFilterProxyModel(parent)
+    , m_myUid(::getuid())
 {
-    this->m_myUid = ::getuid();
     this->setSortRole(Qt::UserRole);
     this->setFilterRole(Qt::DisplayRole);
     this->setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -20,7 +20,8 @@ void ProcessFilterProxy::applyFilters()
     this->invalidateFilter();
 }
 
-bool ProcessFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
+bool ProcessFilterProxy::filterAcceptsRow(int sourceRow,
+                                          const QModelIndex &sourceParent) const
 {
     const auto *model = qobject_cast<const ProcessModel *>(this->sourceModel());
     if (!model)
@@ -38,11 +39,7 @@ bool ProcessFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sour
 
     // ── Other-users filter ───────────────────────────────────────────────────
     if (!this->ShowOtherUsersProcs && proc.uid != this->m_myUid)
-    {
-        LOG_INFO("Proc ID: " + QString::number(proc.uid));
-        LOG_INFO("This ID: " + QString::number(this->m_myUid));
         return false;
-    }
 
     // ── Free-text search (delegate to base class) ────────────────────────────
     return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
@@ -51,10 +48,10 @@ bool ProcessFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sour
 // static
 bool ProcessFilterProxy::isKernelTask(const Process &proc)
 {
-    // Kernel threads have an empty /proc/pid/cmdline; the isKernelThread flag
-    // is set during Process::loadOne() before cmdline is filled with brackets.
-    // Also unconditionally treat PID 1 and 2 as kernel roots.
-    return proc.isKernelThread || proc.pid <= 2;
+    // Rely solely on the PF_KTHREAD flag read from /proc/pid/stat (same as
+    // htop). PID 1 (systemd/init) is NOT a kernel thread and must NOT be
+    // hidden. PID 2 (kthreadd) has PF_KTHREAD set so it is covered naturally.
+    return proc.isKernelThread;
 }
 
 } // namespace Os

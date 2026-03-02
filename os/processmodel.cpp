@@ -1,5 +1,5 @@
 #include "processmodel.h"
-#include <QDateTime>
+#include <QFile>
 #include <unistd.h>
 
 namespace Os
@@ -114,38 +114,71 @@ Qt::ItemFlags ProcessModel::flags(const QModelIndex &index) const
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 
-void ProcessModel::refresh()
+void ProcessModel::Refresh()
 {
-    const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-    const double elapsedSec =
-        (this->m_prevMs > 0) ? (nowMs - this->m_prevMs) / 1000.0 : 0.0;
-
-    const long clkTck = sysconf(_SC_CLK_TCK);
+    // Read total elapsed CPU jiffies (all CPUs, all states) from /proc/stat.
+    // Using the actual CPU time budget as the denominator — rather than wall
+    // clock time — matches htop's approach and gives accurate results even
+    // when the timer fires slightly early or late.
+    const quint64 totalJiffies = readTotalCpuJiffies();
+    const quint64 periodJiffies =
+        (this->m_prevCpuTotalTicks > 0 && totalJiffies > this->m_prevCpuTotalTicks)
+        ? (totalJiffies - this->m_prevCpuTotalTicks) : 0;
 
     QList<Process> fresh = Process::loadAll();
 
-    // Calculate CPU% per process using delta ticks
-    for (Process &proc : fresh)
+    // Calculate CPU% per process: (delta process ticks) / (period per CPU) * 100
+    if (periodJiffies > 0)
     {
-        if (elapsedSec > 0.0 && this->m_prevTicks.contains(proc.pid))
+        const double periodPerCpu =
+            static_cast<double>(periodJiffies) / this->m_numCpus;
+
+        for (Process &proc : fresh)
         {
-            const quint64 deltaTicks = proc.cpuTicks - this->m_prevTicks.value(proc.pid);
-            proc.cpuPercent =
-                (static_cast<double>(deltaTicks)
-                 / (elapsedSec * this->m_numCpus * clkTck))
-                * 100.0;
+            if (this->m_prevTicks.contains(proc.pid))
+            {
+                const quint64 prevTicks = this->m_prevTicks.value(proc.pid);
+                if (proc.cpuTicks >= prevTicks)
+                {
+                    const double pct = static_cast<double>(proc.cpuTicks - prevTicks) / periodPerCpu * 100.0;
+                    // Cap at 100 % × num_cpus (matches htop's MINIMUM() clamp)
+                    proc.cpuPercent = qMin(pct, 100.0 * this->m_numCpus);
+                }
+            }
         }
     }
 
-    // Store tick snapshot for next sample
+    // Store snapshots for next sample
     this->m_prevTicks.clear();
     for (const Process &proc : fresh)
         this->m_prevTicks.insert(proc.pid, proc.cpuTicks);
-    this->m_prevMs = nowMs;
+    this->m_prevCpuTotalTicks = totalJiffies;
 
     beginResetModel();
     this->m_processes = std::move(fresh);
     endResetModel();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+quint64 ProcessModel::readTotalCpuJiffies()
+{
+    QFile f("/proc/stat");
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return 0;
+
+    const QByteArray line = f.readLine(); // first line: "cpu  user nice system ..."
+    f.close();
+
+    // Format: cpu user nice system idle iowait irq softirq steal [guest guestnice]
+    // guest/guestnice are already included in user/nice, so sum only fields 1–8.
+    const QList<QByteArray> parts = line.simplified().split(' ');
+    quint64 total = 0;
+    // parts[0] = "cpu", parts[1..8] = user nice system idle iowait irq softirq steal
+    const int last = qMin(parts.size() - 1, 8);
+    for (int i = 1; i <= last; ++i)
+        total += parts[i].toULongLong();
+    return total;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -168,8 +201,8 @@ QString ProcessModel::columnHeader(Column col)
         case ColUser:     return "User";
         case ColState:    return "State";
         case ColCpu:      return "CPU %";
-        case ColMemRss:   return "Memory";
-        case ColMemVirt:  return "Virtual";
+        case ColMemRss:   return "MEM RES";
+        case ColMemVirt:  return "MEM VIRT";
         case ColThreads:  return "Threads";
         case ColPriority: return "Priority";
         case ColNice:     return "Nice";

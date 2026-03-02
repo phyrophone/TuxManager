@@ -43,16 +43,20 @@ class ProcessModel : public QAbstractTableModel
 
         /// Reload all process data from /proc and update CPU%.
         /// Call this on a timer tick.
-        void refresh();
+        void Refresh();
 
         /// The raw process list (read-only access for external use).
         const QList<Process> &processes() const { return this->m_processes; }
 
     private:
         QList<Process>          m_processes;
-        QHash<pid_t, quint64>   m_prevTicks;      ///< cpuTicks from previous sample
-        qint64                  m_prevMs { 0 };   ///< Timestamp of previous sample (ms)
-        int                     m_numCpus { 1 };  ///< Online CPU count for normalisation
+        QHash<pid_t, quint64>   m_prevTicks;               ///< cpuTicks from previous sample
+        quint64                 m_prevCpuTotalTicks { 0 }; ///< Total CPU jiffies from previous /proc/stat sample
+        int                     m_numCpus { 1 };           ///< Online CPU count for normalisation
+
+        /// Read the total elapsed CPU jiffies from /proc/stat (all CPUs, all states).
+        /// Returns 0 on error.
+        static quint64 readTotalCpuJiffies();
 
         static QString formatMemory(quint64 kb);
         static QString columnHeader(Column col);
