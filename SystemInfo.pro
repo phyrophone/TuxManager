@@ -20,7 +20,13 @@ SOURCES += \
     os/process.cpp \
     os/processmodel.cpp \
     os/processfilterproxy.cpp \
-    os/processhelper.cpp
+    os/processhelper.cpp \
+    perf/perfdataprovider.cpp \
+    perf/graphwidget.cpp \
+    perf/sidepanelitem.cpp \
+    perf/sidepanel.cpp \
+    perf/cpudetailwidget.cpp \
+    perf/memorydetailwidget.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -33,14 +39,22 @@ HEADERS += \
     os/process.h \
     os/processmodel.h \
     os/processfilterproxy.h \
-    os/processhelper.h
+    os/processhelper.h \
+    perf/perfdataprovider.h \
+    perf/graphwidget.h \
+    perf/sidepanelitem.h \
+    perf/sidepanel.h \
+    perf/cpudetailwidget.h \
+    perf/memorydetailwidget.h
 
 FORMS += \
     mainwindow.ui \
     processeswidget.ui \
     performancewidget.ui \
     userswidget.ui \
-    serviceswidget.ui
+    serviceswidget.ui \
+    perf/cpudetailwidget.ui \
+    perf/memorydetailwidget.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
