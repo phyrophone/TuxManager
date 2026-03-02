@@ -25,6 +25,12 @@ void Configuration::Load()
 
     // General
     this->RefreshRateMs  = s.value("General/RefreshRateMs", this->RefreshRateMs).toInt();
+
+    // Processes
+    this->ShowKernelTasks        = s.value("Processes/ShowKernelTasks",        this->ShowKernelTasks).toBool();
+    this->ShowOtherUsersProcs    = s.value("Processes/ShowOtherUsersProcs",    this->ShowOtherUsersProcs).toBool();
+    this->ProcessListSortColumn  = s.value("Processes/SortColumn",             this->ProcessListSortColumn).toInt();
+    this->ProcessListSortOrder   = s.value("Processes/SortOrder",              this->ProcessListSortOrder).toInt();
 }
 
 void Configuration::Save()
@@ -38,6 +44,12 @@ void Configuration::Save()
 
     // General
     s.setValue("General/RefreshRateMs", this->RefreshRateMs);
+
+    // Processes
+    s.setValue("Processes/ShowKernelTasks",     this->ShowKernelTasks);
+    s.setValue("Processes/ShowOtherUsersProcs", this->ShowOtherUsersProcs);
+    s.setValue("Processes/SortColumn",          this->ProcessListSortColumn);
+    s.setValue("Processes/SortOrder",           this->ProcessListSortOrder);
 
     s.sync();
 }

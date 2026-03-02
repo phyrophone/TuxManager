@@ -28,6 +28,12 @@ class Configuration : public QObject
         // ── General ──────────────────────────────────────────────────────────────
         int RefreshRateMs { 1000 };  ///< How often live data is refreshed (ms)
 
+        // ── Processes tab ─────────────────────────────────────────────────────────
+        bool ShowKernelTasks     { true };  ///< Show kernel threads in the process list
+        bool ShowOtherUsersProcs { true };  ///< Show processes of other users
+        int  ProcessListSortColumn { 4 };   ///< ColCpu — column index to sort by
+        int  ProcessListSortOrder  { 1 };   ///< Qt::DescendingOrder
+
     private:
         explicit Configuration(QObject *parent = nullptr);
         ~Configuration() override = default;

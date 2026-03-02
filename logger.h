@@ -7,7 +7,7 @@
 // ── Convenience macros ───────────────────────────────────────────────────────
 #define LOG_DEBUG(msg) Logger::instance()->Log(Logger::Debug, QString(msg))
 #define LOG_INFO(msg)  Logger::instance()->Log(Logger::Info,  QString(msg))
-#define LOG_WARN(msg)  Logger::instance()->log(Logger::Warn,  QString(msg))
+#define LOG_WARN(msg)  Logger::instance()->Log(Logger::Warn,  QString(msg))
 #define LOG_ERROR(msg) Logger::instance()->Log(Logger::Error, QString(msg))
 
 class Logger : public QObject

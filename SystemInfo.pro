@@ -16,7 +16,11 @@ SOURCES += \
     processeswidget.cpp \
     performancewidget.cpp \
     userswidget.cpp \
-    serviceswidget.cpp
+    serviceswidget.cpp \
+    os/process.cpp \
+    os/processmodel.cpp \
+    os/processfilterproxy.cpp \
+    os/processhelper.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -25,7 +29,11 @@ HEADERS += \
     processeswidget.h \
     performancewidget.h \
     userswidget.h \
-    serviceswidget.h
+    serviceswidget.h \
+    os/process.h \
+    os/processmodel.h \
+    os/processfilterproxy.h \
+    os/processhelper.h
 
 FORMS += \
     mainwindow.ui \

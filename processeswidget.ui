@@ -6,19 +6,56 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>900</width>
     <height>600</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="leftMargin"><number>4</number></property>
+   <property name="topMargin"><number>4</number></property>
+   <property name="rightMargin"><number>4</number></property>
+   <property name="bottomMargin"><number>4</number></property>
+   <property name="spacing"><number>4</number></property>
    <item>
-    <widget class="QLabel" name="placeholderLabel">
-     <property name="text">
-      <string>Processes — coming soon</string>
+    <layout class="QHBoxLayout" name="toolbarLayout">
+     <item>
+      <widget class="QLabel" name="searchLabel">
+       <property name="text"><string>Search:</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="searchEdit">
+       <property name="placeholderText"><string>Filter processes…</string></property>
+       <property name="clearButtonEnabled"><bool>true</bool></property>
+       <property name="maximumWidth"><number>240</number></property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation"><enum>Qt::Horizontal</enum></property>
+       <property name="sizeHint" stdset="0">
+        <size><width>40</width><height>20</height></size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="refreshLabel">
+       <property name="text"><string>Refresh:</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="refreshCombo"/>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTableView" name="tableView">
+     <property name="selectionBehavior">
+      <enum>QAbstractItemView::SelectRows</enum>
      </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
+     <property name="alternatingRowColors"><bool>true</bool></property>
+     <property name="showGrid"><bool>false</bool></property>
+     <property name="sortingEnabled"><bool>true</bool></property>
     </widget>
    </item>
   </layout>
