@@ -81,6 +81,7 @@ void PerformanceWidget::setupSidePanel()
     this->m_stack->addWidget(this->m_memDetail);
 
     this->setupDiskPanels();
+    this->setupGpuPanels();
 
     // Side-panel selection drives the stacked widget page
     connect(this->m_sidePanel, &Perf::SidePanel::currentChanged,
@@ -105,6 +106,27 @@ void PerformanceWidget::setupDiskPanels()
         detail->setDiskIndex(i);
         this->m_stack->addWidget(detail);
         this->m_diskDetails.append(detail);
+    }
+}
+
+void PerformanceWidget::setupGpuPanels()
+{
+    const int count = this->m_provider->gpuCount();
+    for (int i = 0; i < count; ++i)
+    {
+        const QString gpuName = this->m_provider->gpuName(i);
+        this->m_gpuNames.append(gpuName);
+
+        auto *item = new Perf::SidePanelItem(tr("GPU %1").arg(i), this);
+        item->setGraphColor(QColor(0x44, 0xa8, 0xff), QColor(0x1e, 0x4d, 0x82, 110));
+        this->m_sidePanel->addItem(item);
+        this->m_gpuItems.append(item);
+
+        auto *detail = new Perf::GpuDetailWidget(this);
+        detail->setProvider(this->m_provider);
+        detail->setGpuIndex(i);
+        this->m_stack->addWidget(detail);
+        this->m_gpuDetails.append(detail);
     }
 }
 
@@ -145,6 +167,20 @@ void PerformanceWidget::onProviderUpdated()
                                 .arg(this->m_provider->diskType(i))
                                 .arg(QString::number(this->m_provider->diskActivePercent(i), 'f', 0) + "%");
         item->update(diskSub, this->m_provider->diskActiveHistory(i));
+    }
+
+    for (int i = 0; i < this->m_gpuItems.size(); ++i)
+    {
+        if (i >= this->m_provider->gpuCount())
+            break;
+        auto *item = this->m_gpuItems.at(i);
+        if (!item)
+            continue;
+
+        const QString gpuSub = tr("%1%2")
+                               .arg(QString::number(this->m_provider->gpuUtilPercent(i), 'f', 0))
+                               .arg("%");
+        item->update(gpuSub, this->m_provider->gpuUtilHistory(i));
     }
 }
 

@@ -7,8 +7,11 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QHash>
+#include <QProcess>
 #include <QRegularExpression>
+#include <QStandardPaths>
 #include <QStringList>
+#include <QXmlStreamReader>
 #include <sys/statvfs.h>
 #include <unistd.h>
 
@@ -25,11 +28,13 @@ PerfDataProvider::PerfDataProvider(QObject *parent)
 
     this->readCpuMetadata();
     this->readHardwareMetadata();
+    this->detectGpuBackends();
 
     // Prime CPU baseline — first real sample will have a valid delta
     this->sampleCpu();
     this->sampleMemory();
     this->sampleDisks();
+    this->sampleGpus();
     if (this->m_processStatsEnabled)
         this->sampleProcessStats();
 
@@ -54,6 +59,7 @@ void PerfDataProvider::setActive(bool active)
         this->sampleCpu();
         this->sampleMemory();
         this->sampleDisks();
+        this->sampleGpus();
         if (this->m_processStatsEnabled)
             this->sampleProcessStats();
         this->readCurrentFreq();
@@ -192,6 +198,102 @@ const QVector<double> &PerfDataProvider::diskWriteHistory(int i) const
     return this->m_disks.at(i).writeHistory;
 }
 
+QString PerfDataProvider::gpuName(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return {};
+    return this->m_gpus.at(i).name;
+}
+
+QString PerfDataProvider::gpuDriverVersion(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return {};
+    return this->m_gpus.at(i).driverVersion;
+}
+
+QString PerfDataProvider::gpuBackendName(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return {};
+    return this->m_gpus.at(i).backend;
+}
+
+double PerfDataProvider::gpuUtilPercent(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return 0.0;
+    return this->m_gpus.at(i).utilPct;
+}
+
+qint64 PerfDataProvider::gpuMemUsedMiB(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return 0;
+    return this->m_gpus.at(i).memUsedMiB;
+}
+
+qint64 PerfDataProvider::gpuMemTotalMiB(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return 0;
+    return this->m_gpus.at(i).memTotalMiB;
+}
+
+const QVector<double> &PerfDataProvider::gpuUtilHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_gpus.size())
+        return empty;
+    return this->m_gpus.at(i).utilHistory;
+}
+
+const QVector<double> &PerfDataProvider::gpuMemUsageHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_gpus.size())
+        return empty;
+    return this->m_gpus.at(i).memUsageHistory;
+}
+
+int PerfDataProvider::gpuEngineCount(int gpuIndex) const
+{
+    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
+        return 0;
+    return this->m_gpus.at(gpuIndex).engines.size();
+}
+
+QString PerfDataProvider::gpuEngineName(int gpuIndex, int engineIndex) const
+{
+    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
+        return {};
+    const auto &engines = this->m_gpus.at(gpuIndex).engines;
+    if (engineIndex < 0 || engineIndex >= engines.size())
+        return {};
+    return engines.at(engineIndex).label;
+}
+
+double PerfDataProvider::gpuEnginePercent(int gpuIndex, int engineIndex) const
+{
+    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
+        return 0.0;
+    const auto &engines = this->m_gpus.at(gpuIndex).engines;
+    if (engineIndex < 0 || engineIndex >= engines.size())
+        return 0.0;
+    return engines.at(engineIndex).pct;
+}
+
+const QVector<double> &PerfDataProvider::gpuEngineHistory(int gpuIndex, int engineIndex) const
+{
+    static const QVector<double> empty;
+    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
+        return empty;
+    const auto &engines = this->m_gpus.at(gpuIndex).engines;
+    if (engineIndex < 0 || engineIndex >= engines.size())
+        return empty;
+    return engines.at(engineIndex).history;
+}
+
 // ── Private slots ─────────────────────────────────────────────────────────────
 
 void PerfDataProvider::onTimer()
@@ -202,6 +304,7 @@ void PerfDataProvider::onTimer()
     this->sampleCpu();
     this->sampleMemory();
     this->sampleDisks();
+    this->sampleGpus();
     if (this->m_processStatsEnabled)
         this->sampleProcessStats();
     this->readCurrentFreq();
@@ -680,6 +783,236 @@ bool PerfDataProvider::sampleDisks()
     }
 
     return true;
+}
+
+// ── GPU sampling ──────────────────────────────────────────────────────────────
+
+void PerfDataProvider::detectGpuBackends()
+{
+    this->m_nvidiaSmiPath = QStandardPaths::findExecutable("nvidia-smi");
+    this->m_hasNvidiaSmi = false;
+
+    if (this->m_nvidiaSmiPath.isEmpty())
+        return;
+
+    QProcess p;
+    p.start(this->m_nvidiaSmiPath, QStringList() << "-L");
+    if (!p.waitForStarted(250) || !p.waitForFinished(800))
+    {
+        p.kill();
+        p.waitForFinished(100);
+        return;
+    }
+
+    if (p.exitStatus() != QProcess::NormalExit || p.exitCode() != 0)
+        return;
+
+    const QString out = QString::fromUtf8(p.readAllStandardOutput());
+    this->m_hasNvidiaSmi = out.contains("GPU ", Qt::CaseInsensitive);
+}
+
+bool PerfDataProvider::sampleGpus()
+{
+    if (this->m_hasNvidiaSmi)
+        return this->sampleNvidiaSmi();
+
+    this->m_gpus.clear();
+    return true;
+}
+
+bool PerfDataProvider::sampleNvidiaSmi()
+{
+    QProcess p;
+    p.start(this->m_nvidiaSmiPath, QStringList() << "-q" << "-x");
+    if (!p.waitForStarted(250) || !p.waitForFinished(1200))
+    {
+        p.kill();
+        p.waitForFinished(100);
+        return false;
+    }
+    if (p.exitStatus() != QProcess::NormalExit || p.exitCode() != 0)
+        return false;
+
+    struct ParsedGpu
+    {
+        QString id;
+        QString name;
+        QString driverVersion;
+        QString gpuUtil;
+        QString memUtil;
+        QString encUtil;
+        QString decUtil;
+        QString memUsed;
+        QString memTotal;
+    };
+
+    QVector<ParsedGpu> parsed;
+    ParsedGpu current;
+    QString driverVersion;
+    bool inGpu = false;
+    QStringList pathStack;
+
+    QXmlStreamReader xml(p.readAllStandardOutput());
+    for (;;)
+    {
+        const auto tok = xml.readNext();
+        if (tok == QXmlStreamReader::Invalid || tok == QXmlStreamReader::EndDocument)
+            break;
+
+        if (tok == QXmlStreamReader::StartElement)
+        {
+            const QString name = xml.name().toString();
+            pathStack.append(name);
+            if (pathStack.join('/') == "nvidia_smi_log/gpu")
+            {
+                inGpu = true;
+                current = ParsedGpu{};
+            }
+            continue;
+        }
+
+        if (tok == QXmlStreamReader::Characters)
+        {
+            if (xml.isWhitespace())
+                continue;
+
+            const QString path = pathStack.join('/');
+            const QString text = xml.text().toString().trimmed();
+            if (text.isEmpty())
+                continue;
+
+            if (path == "nvidia_smi_log/driver_version")
+            {
+                driverVersion = text;
+                continue;
+            }
+
+            if (!inGpu)
+                continue;
+
+            const QString rel = path.mid(QString("nvidia_smi_log/gpu/").size());
+            if (rel == "uuid")
+                current.id = text;
+            else if (rel == "product_name")
+                current.name = text;
+            else if (rel == "utilization/gpu_util")
+                current.gpuUtil = text;
+            else if (rel == "utilization/memory_util")
+                current.memUtil = text;
+            else if (rel == "utilization/encoder_util")
+                current.encUtil = text;
+            else if (rel == "utilization/decoder_util")
+                current.decUtil = text;
+            else if (rel == "fb_memory_usage/used")
+                current.memUsed = text;
+            else if (rel == "fb_memory_usage/total")
+                current.memTotal = text;
+            continue;
+        }
+
+        if (tok == QXmlStreamReader::EndElement)
+        {
+            const QString ended = xml.name().toString();
+            if (ended == "gpu" && inGpu)
+            {
+                if (current.id.isEmpty())
+                    current.id = current.name;
+                current.driverVersion = driverVersion;
+                parsed.append(current);
+                inGpu = false;
+            }
+            if (!pathStack.isEmpty())
+                pathStack.removeLast();
+        }
+    }
+
+    if (xml.hasError())
+        return false;
+
+    QHash<QString, GpuSample> oldById;
+    oldById.reserve(this->m_gpus.size());
+    for (const GpuSample &g : this->m_gpus)
+        oldById.insert(g.id, g);
+
+    QVector<GpuSample> rebuilt;
+    rebuilt.reserve(parsed.size());
+
+    for (const ParsedGpu &pg : parsed)
+    {
+        GpuSample g = oldById.value(pg.id);
+        g.id = pg.id;
+        g.name = pg.name;
+        g.driverVersion = pg.driverVersion;
+        g.backend = "nvidia-smi";
+        g.utilPct = qBound(0.0, parsePercentField(pg.gpuUtil), 100.0);
+        g.memUsedMiB = qMax<qint64>(0, parseMiBField(pg.memUsed));
+        g.memTotalMiB = qMax<qint64>(0, parseMiBField(pg.memTotal));
+        appendHistory(g.utilHistory, g.utilPct);
+        const double memPct = (g.memTotalMiB > 0)
+                              ? (static_cast<double>(g.memUsedMiB) / static_cast<double>(g.memTotalMiB)) * 100.0
+                              : 0.0;
+        appendHistory(g.memUsageHistory, memPct);
+
+        QHash<QString, GpuEngineSample> oldEngines;
+        for (const GpuEngineSample &e : g.engines)
+            oldEngines.insert(e.key, e);
+
+        const struct
+        {
+            const char *key;
+            const char *label;
+            const QString *field;
+        } engineMap[] = {
+            { "3d", "3D", &pg.gpuUtil },
+            { "cuda", "CUDA", &pg.gpuUtil },
+            { "copy", "Copy", &pg.memUtil },
+            { "video-encode", "Video Encode", &pg.encUtil },
+            { "video-decode", "Video Decode", &pg.decUtil }
+        };
+
+        QVector<GpuEngineSample> engines;
+        for (const auto &e : engineMap)
+        {
+            const double pct = parsePercentField(*e.field);
+            if (pct < 0.0)
+                continue;
+
+            GpuEngineSample eng = oldEngines.value(QString::fromLatin1(e.key));
+            eng.key = QString::fromLatin1(e.key);
+            eng.label = QString::fromLatin1(e.label);
+            eng.pct = qBound(0.0, pct, 100.0);
+            appendHistory(eng.history, eng.pct);
+            engines.append(eng);
+        }
+
+        g.engines = engines;
+        rebuilt.append(g);
+    }
+
+    this->m_gpus = rebuilt;
+    return true;
+}
+
+double PerfDataProvider::parsePercentField(const QString &field)
+{
+    static const QRegularExpression re("([0-9]+(?:\\.[0-9]+)?)");
+    const QRegularExpressionMatch m = re.match(field);
+    if (!m.hasMatch())
+        return -1.0;
+    bool ok = false;
+    const double v = m.captured(1).toDouble(&ok);
+    return ok ? v : -1.0;
+}
+
+qint64 PerfDataProvider::parseMiBField(const QString &field)
+{
+    static const QRegularExpression re("([0-9]+)");
+    const QRegularExpressionMatch m = re.match(field);
+    if (!m.hasMatch())
+        return -1;
+    bool ok = false;
+    const qint64 v = m.captured(1).toLongLong(&ok);
+    return ok ? v : -1;
 }
 
 // ── Process / thread counts ───────────────────────────────────────────────────

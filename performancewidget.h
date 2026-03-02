@@ -6,6 +6,7 @@
 #include "perf/cpudetailwidget.h"
 #include "perf/memorydetailwidget.h"
 #include "perf/diskdetailwidget.h"
+#include "perf/gpudetailwidget.h"
 
 #include <QStackedWidget>
 #include <QVector>
@@ -39,6 +40,9 @@ class PerformanceWidget : public QWidget
         QVector<Perf::SidePanelItem *>   m_diskItems;
         QVector<Perf::DiskDetailWidget *> m_diskDetails;
         QVector<QString>                 m_diskNames;
+        QVector<Perf::SidePanelItem *>   m_gpuItems;
+        QVector<Perf::GpuDetailWidget *> m_gpuDetails;
+        QVector<QString>                 m_gpuNames;
         bool                             m_active { false };
 
         enum PanelIndex { PanelCpu = 0, PanelMemory = 1 };
@@ -46,6 +50,7 @@ class PerformanceWidget : public QWidget
         void setupLayout();
         void setupSidePanel();
         void setupDiskPanels();
+        void setupGpuPanels();
 };
 
 #endif // PERFORMANCEWIDGET_H

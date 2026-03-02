@@ -88,6 +88,21 @@ class PerfDataProvider : public QObject
         const QVector<double> &diskReadHistory(int i) const;
         const QVector<double> &diskWriteHistory(int i) const;
 
+        // ── GPUs (tooling-backed, currently nvidia-smi) ──────────────────────
+        int gpuCount() const { return this->m_gpus.size(); }
+        QString gpuName(int i) const;
+        QString gpuDriverVersion(int i) const;
+        QString gpuBackendName(int i) const;
+        double gpuUtilPercent(int i) const;
+        qint64 gpuMemUsedMiB(int i) const;
+        qint64 gpuMemTotalMiB(int i) const;
+        const QVector<double> &gpuUtilHistory(int i) const;
+        const QVector<double> &gpuMemUsageHistory(int i) const;
+        int gpuEngineCount(int gpuIndex) const;
+        QString gpuEngineName(int gpuIndex, int engineIndex) const;
+        double gpuEnginePercent(int gpuIndex, int engineIndex) const;
+        const QVector<double> &gpuEngineHistory(int gpuIndex, int engineIndex) const;
+
     signals:
         void updated();
 
@@ -123,6 +138,28 @@ class PerfDataProvider : public QObject
             QVector<double> activeHistory;
             QVector<double> readHistory;
             QVector<double> writeHistory;
+        };
+
+        struct GpuEngineSample
+        {
+            QString         key;
+            QString         label;
+            double          pct { 0.0 };
+            QVector<double> history;
+        };
+
+        struct GpuSample
+        {
+            QString         id;
+            QString         name;
+            QString         driverVersion;
+            QString         backend;
+            double          utilPct { 0.0 };
+            qint64          memUsedMiB { 0 };
+            qint64          memTotalMiB { 0 };
+            QVector<double> utilHistory;
+            QVector<double> memUsageHistory;
+            QVector<GpuEngineSample> engines;
         };
 
         QTimer *m_timer;
@@ -170,14 +207,24 @@ class PerfDataProvider : public QObject
         QElapsedTimer       m_diskTimer;
         qint64              m_prevDiskSampleMs { 0 };
 
+        // GPU state
+        QVector<GpuSample>  m_gpus;
+        bool                m_hasNvidiaSmi { false };
+        QString             m_nvidiaSmiPath;
+
         bool sampleCpu();
         bool sampleMemory();
         bool sampleDisks();
+        bool sampleGpus();
         void sampleProcessStats();
         void readCpuMetadata();
         void readCurrentFreq();
         void readHardwareMetadata();
         void refreshDisks(const QSet<QString> &measurableDevices);
+        void detectGpuBackends();
+        bool sampleNvidiaSmi();
+        static double parsePercentField(const QString &field);
+        static qint64 parseMiBField(const QString &field);
 
         static QSet<QString> resolveBaseBlockDevices(const QString &devName);
         static bool shouldIgnoreBlockDevice(const QString &baseName);

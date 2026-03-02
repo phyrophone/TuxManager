@@ -10,11 +10,7 @@ namespace Perf
 GraphWidget::GraphWidget(QWidget *parent)
     : QWidget(parent)
 {
-    // Dark background — matches the Windows Task Manager look
-    QPalette pal = this->palette();
-    pal.setColor(QPalette::Window, QColor(0x0a, 0x0a, 0x0a));
-    this->setPalette(pal);
-    this->setAutoFillBackground(true);
+    this->setAutoFillBackground(false);
 }
 
 void GraphWidget::setHistory(const QVector<double> &data, double maxVal)
@@ -55,14 +51,18 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     const int   h = r.height();
 
     // ── Background ────────────────────────────────────────────────────────────
-    p.fillRect(r, QColor(0x0a, 0x0a, 0x0a));
+    const QPalette pal = this->palette();
+    const QColor bg = pal.color(QPalette::Base);
+    p.fillRect(r, bg);
 
     // Fixed time axis slot geometry.
     const int sampleCount = qMax(2, this->m_sampleCapacity);
     const double stepX = static_cast<double>(w) / static_cast<double>(sampleCount - 1);
 
     // ── Grid ──────────────────────────────────────────────────────────────────
-    const QColor gridColor(0x28, 0x28, 0x28);
+    QColor gridColor = pal.color(QPalette::Midlight);
+    if (gridColor.alpha() == 255)
+        gridColor.setAlpha(150);
     p.setPen(QPen(gridColor, 1));
 
     // Denser grid on larger widgets while keeping existing configured minimum.

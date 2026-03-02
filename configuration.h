@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QVector>
 
 // Convenience macro for global config access: CFG->SomeSetting
 #define CFG (Configuration::instance())
@@ -33,6 +34,12 @@ class Configuration : public QObject
         bool ShowOtherUsersProcs { true };  ///< Show processes of other users
         int  ProcessListSortColumn { 4 };   ///< ColCpu — column index to sort by
         int  ProcessListSortOrder  { 1 };   ///< Qt::DescendingOrder
+
+        // ── Performance tab (GPU) ─────────────────────────────────────────────
+        /// Selected engine indices for the 4 GPU engine selectors.
+        QVector<int> GpuEngineSelectorIndices { 0, 1, 2, 3 };
+        /// CPU graph mode: 0 = overall, 1 = logical processors.
+        int CpuGraphMode { 0 };
 
     private:
         explicit Configuration(QObject *parent = nullptr);

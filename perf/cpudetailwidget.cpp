@@ -1,5 +1,6 @@
 #include "cpudetailwidget.h"
 #include "ui_cpudetailwidget.h"
+#include "configuration.h"
 
 #include <QAction>
 #include <QApplication>
@@ -26,6 +27,11 @@ CpuDetailWidget::CpuDetailWidget(QWidget *parent)
 
     connect(this->m_graphArea, &CpuGraphArea::contextMenuRequested,
             this, &CpuDetailWidget::onContextMenuRequested);
+
+    this->m_graphArea->setMode(
+                CFG->CpuGraphMode == 1
+                ? CpuGraphArea::GraphMode::PerCore
+                : CpuGraphArea::GraphMode::Overall);
 }
 
 CpuDetailWidget::~CpuDetailWidget()
@@ -140,9 +146,11 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
 
     connect(actOverall, &QAction::triggered, this, [this]() {
         this->m_graphArea->setMode(CpuGraphArea::GraphMode::Overall);
+        CFG->CpuGraphMode = 0;
     });
     connect(actPerCore, &QAction::triggered, this, [this]() {
         this->m_graphArea->setMode(CpuGraphArea::GraphMode::PerCore);
+        CFG->CpuGraphMode = 1;
     });
 
     menu.addSeparator();

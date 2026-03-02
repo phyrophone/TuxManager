@@ -5,7 +5,7 @@
   <property name="geometry">
    <rect><x>0</x><y>0</y><width>760</width><height>620</height></rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0,0,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,5,0,0,2,0,0">
    <property name="leftMargin"><number>12</number></property>
    <property name="topMargin"><number>10</number></property>
    <property name="rightMargin"><number>12</number></property>
