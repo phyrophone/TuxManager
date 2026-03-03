@@ -1,6 +1,7 @@
 #include "gpudetailwidget.h"
 #include "configuration.h"
 
+#include <algorithm>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QPalette>
@@ -126,6 +127,28 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent)
     sharedTimeAxis->addStretch(1);
     sharedTimeAxis->addWidget(new QLabel(tr("0"), this));
     root->addLayout(sharedTimeAxis);
+
+    auto *copyHeader = new QHBoxLayout();
+    copyHeader->addWidget(new QLabel(tr("Copy bandwidth"), this));
+    this->m_copyBwLegendLabel = new QLabel(tr("Light: TX  Dark: RX"), this);
+    this->m_copyBwLegendLabel->setStyleSheet("color:#888;");
+    this->m_copyBwLegendLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    copyHeader->addWidget(this->m_copyBwLegendLabel, 1);
+    this->m_copyBwGraphMaxLabel = new QLabel(tr("0 KB/s"), this);
+    this->m_copyBwGraphMaxLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    copyHeader->addWidget(this->m_copyBwGraphMaxLabel);
+    root->addLayout(copyHeader);
+
+    this->m_copyBwGraph = new GraphWidget(this);
+    configureGraph(this->m_copyBwGraph);
+    this->m_copyBwGraph->setMinimumHeight(70);
+    root->addWidget(this->m_copyBwGraph);
+
+    auto *copyTimeAxis = new QHBoxLayout();
+    copyTimeAxis->addWidget(new QLabel(tr("60 seconds"), this));
+    copyTimeAxis->addStretch(1);
+    copyTimeAxis->addWidget(new QLabel(tr("0"), this));
+    root->addLayout(copyTimeAxis);
 
     auto *stats = new QGridLayout();
     stats->setHorizontalSpacing(20);
@@ -294,6 +317,18 @@ void GpuDetailWidget::onUpdated()
 
     this->m_sharedMemGraph->setHistory(this->m_sharedMemHistory, 100.0);
     this->m_sharedMemGraphMaxLabel->setText(formatMemMib(sharedTotalMiB));
+
+    const QVector<double> &txHistory = this->m_provider->gpuCopyTxHistory(this->m_gpuIndex);
+    const QVector<double> &rxHistory = this->m_provider->gpuCopyRxHistory(this->m_gpuIndex);
+    double maxCopyRate = 1024.0;
+    for (double v : txHistory)
+        maxCopyRate = std::max(maxCopyRate, v);
+    for (double v : rxHistory)
+        maxCopyRate = std::max(maxCopyRate, v);
+    this->m_copyBwGraph->setHistory(txHistory, maxCopyRate);
+    this->m_copyBwGraph->setSecondaryHistory(rxHistory);
+    this->m_copyBwGraphMaxLabel->setText(formatRate(maxCopyRate));
+    this->m_copyBwGraph->setToolTip(tr("Copy bandwidth: light trace = TX, dark trace = RX"));
 }
 
 QString GpuDetailWidget::formatMemMib(qint64 mib)
@@ -304,6 +339,13 @@ QString GpuDetailWidget::formatMemMib(qint64 mib)
     if (gb >= 10.0)
         return QString::number(gb, 'f', 1) + QObject::tr(" GB");
     return QString::number(gb, 'f', 2) + QObject::tr(" GB");
+}
+
+QString GpuDetailWidget::formatRate(double bytesPerSec)
+{
+    if (bytesPerSec >= 1024.0 * 1024.0)
+        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + QObject::tr(" MB/s");
+    return QString::number(bytesPerSec / 1024.0, 'f', 0) + QObject::tr(" KB/s");
 }
 
 } // namespace Perf

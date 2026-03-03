@@ -28,6 +28,7 @@ class GpuDetailWidget : public QWidget
 
     private:
         static QString formatMemMib(qint64 mib);
+        static QString formatRate(double bytesPerSec);
 
         PerfDataProvider *m_provider { nullptr };
         int               m_gpuIndex { -1 };
@@ -42,6 +43,8 @@ class GpuDetailWidget : public QWidget
         QLabel *m_backendValueLabel { nullptr };
         QLabel *m_dedicatedMemGraphMaxLabel { nullptr };
         QLabel *m_sharedMemGraphMaxLabel { nullptr };
+        QLabel *m_copyBwGraphMaxLabel { nullptr };
+        QLabel *m_copyBwLegendLabel { nullptr };
 
         QVector<QComboBox *>  m_engineSelectors;
         QVector<QLabel *>     m_engineValueLabels;
@@ -50,6 +53,7 @@ class GpuDetailWidget : public QWidget
 
         GraphWidget *m_dedicatedMemGraph { nullptr };
         GraphWidget *m_sharedMemGraph { nullptr };
+        GraphWidget *m_copyBwGraph { nullptr };
         QVector<double> m_sharedMemHistory;
 
         void rebuildEngineSelectors();

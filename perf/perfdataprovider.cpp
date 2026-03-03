@@ -48,6 +48,7 @@ using FnNvmlDeviceGetUtilizationRates = NvmlReturn (*)(NvmlDevice, NvmlUtilizati
 using FnNvmlDeviceGetMemoryInfo = NvmlReturn (*)(NvmlDevice, NvmlMemory *);
 using FnNvmlDeviceGetEncoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned int *, unsigned int *);
 using FnNvmlDeviceGetDecoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned int *, unsigned int *);
+using FnNvmlDeviceGetPcieThroughput = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
 
 FnNvmlInitV2 pNvmlInitV2 = nullptr;
 FnNvmlShutdown pNvmlShutdown = nullptr;
@@ -60,6 +61,7 @@ FnNvmlDeviceGetUtilizationRates pNvmlDeviceGetUtilizationRates = nullptr;
 FnNvmlDeviceGetMemoryInfo pNvmlDeviceGetMemoryInfo = nullptr;
 FnNvmlDeviceGetEncoderUtilization pNvmlDeviceGetEncoderUtilization = nullptr;
 FnNvmlDeviceGetDecoderUtilization pNvmlDeviceGetDecoderUtilization = nullptr;
+FnNvmlDeviceGetPcieThroughput pNvmlDeviceGetPcieThroughput = nullptr;
 }
 
 // ── Construction ──────────────────────────────────────────────────────────────
@@ -303,6 +305,22 @@ const QVector<double> &PerfDataProvider::gpuMemUsageHistory(int i) const
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).memUsageHistory;
+}
+
+const QVector<double> &PerfDataProvider::gpuCopyTxHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_gpus.size())
+        return empty;
+    return this->m_gpus.at(i).copyTxHistory;
+}
+
+const QVector<double> &PerfDataProvider::gpuCopyRxHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_gpus.size())
+        return empty;
+    return this->m_gpus.at(i).copyRxHistory;
 }
 
 int PerfDataProvider::gpuEngineCount(int gpuIndex) const
@@ -867,6 +885,8 @@ void PerfDataProvider::detectGpuBackends()
                 ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetEncoderUtilization"));
     pNvmlDeviceGetDecoderUtilization = reinterpret_cast<FnNvmlDeviceGetDecoderUtilization>(
                 ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetDecoderUtilization"));
+    pNvmlDeviceGetPcieThroughput = reinterpret_cast<FnNvmlDeviceGetPcieThroughput>(
+                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
 
     if (!pNvmlInitV2 || !pNvmlShutdown || !pNvmlDeviceGetCountV2
         || !pNvmlDeviceGetHandleByIndexV2 || !pNvmlDeviceGetName
@@ -920,6 +940,7 @@ void PerfDataProvider::unloadGpuBackends()
     pNvmlDeviceGetMemoryInfo = nullptr;
     pNvmlDeviceGetEncoderUtilization = nullptr;
     pNvmlDeviceGetDecoderUtilization = nullptr;
+    pNvmlDeviceGetPcieThroughput = nullptr;
 
     if (this->m_nvmlLibHandle)
     {
@@ -952,6 +973,9 @@ bool PerfDataProvider::sampleNvml()
 
     for (unsigned int i = 0; i < count; ++i)
     {
+        static constexpr unsigned int kNvmlPcieTxBytes = 0;
+        static constexpr unsigned int kNvmlPcieRxBytes = 1;
+
         NvmlDevice dev = nullptr;
         if (pNvmlDeviceGetHandleByIndexV2(i, &dev) != NVML_SUCCESS || !dev)
             continue;
@@ -970,6 +994,12 @@ bool PerfDataProvider::sampleNvml()
         NvmlMemory mem{};
         const bool hasUtil = (pNvmlDeviceGetUtilizationRates(dev, &util) == NVML_SUCCESS);
         const bool hasMem = (pNvmlDeviceGetMemoryInfo(dev, &mem) == NVML_SUCCESS);
+        unsigned int txKBps = 0;
+        unsigned int rxKBps = 0;
+        const bool hasTx = pNvmlDeviceGetPcieThroughput
+                           && (pNvmlDeviceGetPcieThroughput(dev, kNvmlPcieTxBytes, &txKBps) == NVML_SUCCESS);
+        const bool hasRx = pNvmlDeviceGetPcieThroughput
+                           && (pNvmlDeviceGetPcieThroughput(dev, kNvmlPcieRxBytes, &rxKBps) == NVML_SUCCESS);
 
         GpuSample g = oldById.value(id);
         g.id = id;
@@ -979,11 +1009,15 @@ bool PerfDataProvider::sampleNvml()
         g.utilPct = hasUtil ? qBound(0.0, static_cast<double>(util.gpu), 100.0) : 0.0;
         g.memUsedMiB = hasMem ? static_cast<qint64>(mem.used / (1024ULL * 1024ULL)) : 0;
         g.memTotalMiB = hasMem ? static_cast<qint64>(mem.total / (1024ULL * 1024ULL)) : 0;
+        g.copyTxBps = hasTx ? static_cast<double>(txKBps) * 1024.0 : 0.0;
+        g.copyRxBps = hasRx ? static_cast<double>(rxKBps) * 1024.0 : 0.0;
         appendHistory(g.utilHistory, g.utilPct);
         const double memPct = (g.memTotalMiB > 0)
                               ? (static_cast<double>(g.memUsedMiB) / static_cast<double>(g.memTotalMiB)) * 100.0
                               : 0.0;
         appendHistory(g.memUsageHistory, memPct);
+        appendHistory(g.copyTxHistory, g.copyTxBps);
+        appendHistory(g.copyRxHistory, g.copyRxBps);
 
         QHash<QString, GpuEngineSample> oldEngines;
         for (const GpuEngineSample &e : g.engines)

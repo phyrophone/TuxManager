@@ -99,6 +99,8 @@ class PerfDataProvider : public QObject
         qint64 gpuMemTotalMiB(int i) const;
         const QVector<double> &gpuUtilHistory(int i) const;
         const QVector<double> &gpuMemUsageHistory(int i) const;
+        const QVector<double> &gpuCopyTxHistory(int i) const;
+        const QVector<double> &gpuCopyRxHistory(int i) const;
         int gpuEngineCount(int gpuIndex) const;
         QString gpuEngineName(int gpuIndex, int engineIndex) const;
         double gpuEnginePercent(int gpuIndex, int engineIndex) const;
@@ -158,8 +160,12 @@ class PerfDataProvider : public QObject
             double          utilPct { 0.0 };
             qint64          memUsedMiB { 0 };
             qint64          memTotalMiB { 0 };
+            double          copyTxBps { 0.0 };
+            double          copyRxBps { 0.0 };
             QVector<double> utilHistory;
             QVector<double> memUsageHistory;
+            QVector<double> copyTxHistory;
+            QVector<double> copyRxHistory;
             QVector<GpuEngineSample> engines;
         };
 
