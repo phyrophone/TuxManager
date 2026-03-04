@@ -2,7 +2,7 @@
 
 A Linux system monitor application built with Qt6, inspired by the Windows Task Manager but designed to go further — providing deep visibility into system processes, performance metrics, users, and services.
 
-![Screenshot](screenshots/perf.png)
+![Screenshot](screenshots/readme.png)
 
 ## Features
 
