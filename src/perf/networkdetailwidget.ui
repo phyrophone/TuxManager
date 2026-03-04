@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>NetworkDetailWidget</class>
+ <widget class="QWidget" name="NetworkDetailWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>620</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,4,0,0,2">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>12</number>
+   </property>
+   <property name="topMargin">
+    <number>10</number>
+   </property>
+   <property name="rightMargin">
+    <number>12</number>
+   </property>
+   <property name="bottomMargin">
+    <number>10</number>
+   </property>
+   <item>
+    <layout class="QHBoxLayout" name="headerLayout">
+     <item>
+      <widget class="QLabel" name="titleLabel">
+       <property name="styleSheet">
+        <string>font-size: 18pt; font-weight: bold; color: #db8b3a;</string>
+       </property>
+       <property name="text">
+        <string>Ethernet</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>0</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="throughputGraphMaxLabel">
+       <property name="styleSheet">
+        <string>color:#888; font-size: 8pt;</string>
+       </property>
+       <property name="text">
+        <string>0 KB/s</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="throughputLabel">
+     <property name="styleSheet">
+      <string>color:#888; font-size: 8pt;</string>
+     </property>
+     <property name="text">
+      <string>Throughput</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="Perf::GraphWidget" name="throughputGraphWidget" native="true"/>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="timeAxisLayout">
+     <item>
+      <widget class="QLabel" name="timeLeftLabel">
+       <property name="styleSheet">
+        <string>color: #666; font-size: 8pt;</string>
+       </property>
+       <property name="text">
+        <string>60 seconds</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>0</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QLabel" name="timeRightLabel">
+       <property name="styleSheet">
+        <string>color: #666; font-size: 8pt;</string>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="statsGrid">
+     <property name="horizontalSpacing">
+      <number>24</number>
+     </property>
+     <property name="verticalSpacing">
+      <number>8</number>
+     </property>
+     <item row="0" column="0">
+      <widget class="QLabel" name="sendLabel">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>Send</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QLabel" name="sendValueLabel">
+       <property name="text">
+        <string>0 KB/s</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QLabel" name="adapterLabel">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>Adapter</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="3">
+      <widget class="QLabel" name="adapterValueLabel">
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="receiveLabel">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>Receive</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLabel" name="receiveValueLabel">
+       <property name="text">
+        <string>0 KB/s</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QLabel" name="typeLabel">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>Connection type</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3">
+      <widget class="QLabel" name="typeValueLabel">
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLabel" name="speedLabel">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>Link speed</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QLabel" name="speedValueLabel">
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLabel" name="ipv4Label">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>IPv4 address</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="3">
+      <widget class="QLabel" name="ipv4ValueLabel">
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QLabel" name="ipv6Label">
+       <property name="styleSheet">
+        <string>color:#888;</string>
+       </property>
+       <property name="text">
+        <string>IPv6 address</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="3">
+      <widget class="QLabel" name="ipv6ValueLabel">
+       <property name="text">
+        <string>—</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Perf::GraphWidget</class>
+   <extends>QWidget</extends>
+   <header>perf/graphwidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

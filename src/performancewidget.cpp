@@ -54,7 +54,7 @@ PerformanceWidget::PerformanceWidget(QWidget *parent)
     });
     this->m_provider->SetProcessStatsEnabled(this->m_sidePanel->GetCurrentIndex() == PanelCpu);
 
-    this->setActive(false);
+    this->SetActive(false);
 
     LOG_DEBUG("PerformanceWidget initialised");
 }
@@ -97,6 +97,7 @@ void PerformanceWidget::setupSidePanel()
     this->m_stack->addWidget(this->m_memDetail);
 
     this->setupDiskPanels();
+    this->setupNetworkPanels();
     this->setupGpuPanels();
 
     // Side-panel selection drives the stacked widget page
@@ -142,6 +143,27 @@ void PerformanceWidget::setupGpuPanels()
         detail->SetGpuIndex(i);
         this->m_stack->addWidget(detail);
         this->m_gpuDetails.append(detail);
+    }
+}
+
+void PerformanceWidget::setupNetworkPanels()
+{
+    const int count = this->m_provider->NetworkCount();
+    for (int i = 0; i < count; ++i)
+    {
+        const QString ifName = this->m_provider->NetworkName(i);
+        this->m_networkNames.append(ifName);
+
+        auto *item = new Perf::SidePanelItem(tr("NIC (%1)").arg(ifName), this);
+        item->SetGraphColor(QColor(0xdb, 0x8b, 0x3a), QColor(0x66, 0x3f, 0x1f, 110));
+        this->m_sidePanel->AddItem(item);
+        this->m_networkItems.append(item);
+
+        auto *detail = new Perf::NetworkDetailWidget(this);
+        detail->SetProvider(this->m_provider);
+        detail->SetNetworkIndex(i);
+        this->m_stack->addWidget(detail);
+        this->m_networkDetails.append(detail);
     }
 }
 
@@ -197,9 +219,32 @@ void PerformanceWidget::onProviderUpdated()
                                .arg("%");
         item->Update(gpuSub, this->m_provider->GpuUtilHistory(i));
     }
+
+    for (int i = 0; i < this->m_networkItems.size(); ++i)
+    {
+        if (i >= this->m_provider->NetworkCount())
+            break;
+        auto *item = this->m_networkItems.at(i);
+        if (!item)
+            continue;
+
+        const double tx = this->m_provider->NetworkTxBytesPerSec(i);
+        const double rx = this->m_provider->NetworkRxBytesPerSec(i);
+        const QVector<double> &rxHistory = this->m_provider->NetworkRxHistory(i);
+        const QVector<double> &txHistory = this->m_provider->NetworkTxHistory(i);
+        const QString netSub = tr("U:%1 D:%2")
+                               .arg(formatNetRate(tx))
+                               .arg(formatNetRate(rx));
+        double maxRate = 1024.0; // keep at least 1KB/s visual range
+        for (double v : rxHistory)
+            maxRate = qMax(maxRate, v);
+        for (double v : txHistory)
+            maxRate = qMax(maxRate, v);
+        item->Update(netSub, rxHistory, maxRate);
+    }
 }
 
-void PerformanceWidget::setActive(bool active)
+void PerformanceWidget::SetActive(bool active)
 {
     if (this->m_active == active)
         return;
@@ -208,4 +253,13 @@ void PerformanceWidget::setActive(bool active)
     this->m_provider->SetActive(active);
     if (active)
         this->onProviderUpdated();
+}
+
+QString PerformanceWidget::formatNetRate(double bytesPerSec)
+{
+    if (bytesPerSec >= 1024.0 * 1024.0)
+        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + tr("M/s");
+    if (bytesPerSec >= 1024.0)
+        return QString::number(bytesPerSec / 1024.0, 'f', 0) + tr("K/s");
+    return QString::number(bytesPerSec, 'f', 0) + tr("B/s");
 }

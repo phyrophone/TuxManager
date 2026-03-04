@@ -31,6 +31,7 @@ SOURCES += \
     perf/cpugrapharea.cpp \
     perf/cpudetailwidget.cpp \
     perf/diskdetailwidget.cpp \
+    perf/networkdetailwidget.cpp \
     perf/gpudetailwidget.cpp \
     perf/memorybar.cpp \
     perf/memorydetailwidget.cpp
@@ -56,6 +57,7 @@ HEADERS += \
     perf/cpugrapharea.h \
     perf/cpudetailwidget.h \
     perf/diskdetailwidget.h \
+    perf/networkdetailwidget.h \
     perf/gpudetailwidget.h \
     perf/memorybar.h \
     perf/memorydetailwidget.h
@@ -68,6 +70,7 @@ FORMS += \
     serviceswidget.ui \
     perf/cpudetailwidget.ui \
     perf/diskdetailwidget.ui \
+    perf/networkdetailwidget.ui \
     perf/memorydetailwidget.ui
 
 RESOURCES += \

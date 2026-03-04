@@ -1,0 +1,118 @@
+/*
+ * Tux Manager - Linux system monitor
+ * Copyright (C) 2026 Petr Bena <petr@bena.rocks>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "networkdetailwidget.h"
+#include "ui_networkdetailwidget.h"
+
+#include <algorithm>
+
+using namespace Perf;
+
+NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::NetworkDetailWidget)
+{
+    this->ui->setupUi(this);
+
+    this->ui->throughputGraphWidget->SetColor(QColor(0xdb, 0x8b, 0x3a),
+                                              QColor(0x66, 0x3f, 0x1f, 110));
+    this->ui->throughputGraphWidget->SetSampleCapacity(HISTORY_SIZE);
+    this->ui->throughputGraphWidget->SetGridColumns(6);
+    this->ui->throughputGraphWidget->SetGridRows(4);
+    this->ui->throughputGraphWidget->SetSeriesNames(tr("Receive"), tr("Send"));
+    this->ui->throughputGraphWidget->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
+}
+
+NetworkDetailWidget::~NetworkDetailWidget()
+{
+    delete this->ui;
+}
+
+void NetworkDetailWidget::SetProvider(PerfDataProvider *provider)
+{
+    if (this->m_provider)
+    {
+        disconnect(this->m_provider, &PerfDataProvider::updated,
+                   this, &NetworkDetailWidget::onUpdated);
+    }
+
+    this->m_provider = provider;
+
+    if (this->m_provider)
+    {
+        connect(this->m_provider, &PerfDataProvider::updated,
+                this, &NetworkDetailWidget::onUpdated);
+        this->onUpdated();
+    }
+}
+
+void NetworkDetailWidget::SetNetworkIndex(int index)
+{
+    this->m_networkIndex = index;
+    this->onUpdated();
+}
+
+void NetworkDetailWidget::onUpdated()
+{
+    if (!this->m_provider || this->m_networkIndex < 0
+        || this->m_networkIndex >= this->m_provider->NetworkCount())
+    {
+        return;
+    }
+
+    const QString name = this->m_provider->NetworkName(this->m_networkIndex);
+    const QString type = this->m_provider->NetworkType(this->m_networkIndex);
+    const int speedMbps = this->m_provider->NetworkLinkSpeedMbps(this->m_networkIndex);
+    const QString ipv4 = this->m_provider->NetworkIpv4(this->m_networkIndex);
+    const QString ipv6 = this->m_provider->NetworkIpv6(this->m_networkIndex);
+    const double rxBps = this->m_provider->NetworkRxBytesPerSec(this->m_networkIndex);
+    const double txBps = this->m_provider->NetworkTxBytesPerSec(this->m_networkIndex);
+    const QVector<double> &rxHistory = this->m_provider->NetworkRxHistory(this->m_networkIndex);
+    const QVector<double> &txHistory = this->m_provider->NetworkTxHistory(this->m_networkIndex);
+
+    this->ui->titleLabel->setText(tr("NIC (%1)").arg(name));
+    this->ui->adapterValueLabel->setText(name);
+    this->ui->typeValueLabel->setText(type);
+    this->ui->speedValueLabel->setText(speedMbps > 0
+                                       ? QString::number(speedMbps) + tr(" Mbps")
+                                       : tr("Unknown"));
+    this->ui->ipv4ValueLabel->setText(ipv4.isEmpty() ? tr("—") : ipv4);
+    this->ui->ipv6ValueLabel->setText(ipv6.isEmpty() ? tr("—") : ipv6);
+
+    this->ui->sendValueLabel->setText(formatRate(txBps));
+    this->ui->receiveValueLabel->setText(formatRate(rxBps));
+
+    double maxRate = 1024.0; // at least 1KB/s scale
+    for (double v : rxHistory)
+        maxRate = std::max(maxRate, v);
+    for (double v : txHistory)
+        maxRate = std::max(maxRate, v);
+
+    this->ui->throughputGraphWidget->SetHistory(rxHistory, maxRate);
+    this->ui->throughputGraphWidget->SetSecondaryHistory(txHistory);
+    this->ui->throughputGraphMaxLabel->setText(formatRate(maxRate));
+}
+
+QString NetworkDetailWidget::formatRate(double bytesPerSec)
+{
+    if (bytesPerSec >= 1024.0 * 1024.0)
+        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + tr(" MB/s");
+    if (bytesPerSec >= 1024.0)
+        return QString::number(bytesPerSec / 1024.0, 'f', 0) + tr(" KB/s");
+    return QString::number(bytesPerSec, 'f', 0) + tr(" B/s");
+}

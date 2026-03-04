@@ -84,24 +84,43 @@ void SidePanelItem::paintEvent(QPaintEvent *event)
 
     p.fillRect(r, bg);
 
-    // Title (top-left, bold, slightly brighter when selected)
+    // Title/subtitle (single row): elide both sides to prevent overlap.
     QFont titleFont = this->font();
     titleFont.setBold(true);
     titleFont.setPointSize(8);
-    p.setFont(titleFont);
-    p.setPen(this->m_selected ? Qt::white : QColor(0xcc, 0xcc, 0xcc));
-    p.drawText(QRect(6, 4, r.width() - 8, 16),
-               Qt::AlignLeft | Qt::AlignVCenter,
-               this->m_title);
-
-    // Subtitle (top-right, small, muted)
+    const QFontMetrics titleFm(titleFont);
     QFont subFont = this->font();
     subFont.setPointSize(7);
-    p.setFont(subFont);
-    p.setPen(QColor(0x88, 0xaa, 0xcc));
-    p.drawText(QRect(6, 4, r.width() - 12, 16),
-               Qt::AlignRight | Qt::AlignVCenter,
-               this->m_subtitle);
+    const QFontMetrics subFm(subFont);
+
+    const int left = 6;
+    const int right = 6;
+    const int top = 4;
+    const int textH = 16;
+    const int fullW = qMax(0, r.width() - left - right);
+
+    // Allow a longer subtitle while keeping enough room for a readable title.
+    const int maxSubW = (fullW * 58) / 100;
+    const QString subText = subFm.elidedText(this->m_subtitle, Qt::ElideLeft, maxSubW);
+    const int subW = subFm.horizontalAdvance(subText);
+
+    const int titleMaxW = qMax(0, fullW - (subW > 0 ? subW + 6 : 0));
+    const QString titleText = titleFm.elidedText(this->m_title, Qt::ElideRight, titleMaxW);
+
+    p.setFont(titleFont);
+    p.setPen(this->m_selected ? Qt::white : QColor(0xcc, 0xcc, 0xcc));
+    p.drawText(QRect(left, top, titleMaxW, textH),
+               Qt::AlignLeft | Qt::AlignVCenter,
+               titleText);
+
+    if (!subText.isEmpty())
+    {
+        p.setFont(subFont);
+        p.setPen(QColor(0x88, 0xaa, 0xcc));
+        p.drawText(QRect(r.width() - right - subW, top, subW, textH),
+                   Qt::AlignRight | Qt::AlignVCenter,
+                   subText);
+    }
 
     // Selection border
     if (this->m_selected)
@@ -133,4 +152,3 @@ void SidePanelItem::leaveEvent(QEvent *event)
     this->m_hovered = false;
     this->repaint();
 }
-

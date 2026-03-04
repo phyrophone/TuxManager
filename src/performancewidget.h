@@ -24,6 +24,7 @@
 #include "perf/cpudetailwidget.h"
 #include "perf/memorydetailwidget.h"
 #include "perf/diskdetailwidget.h"
+#include "perf/networkdetailwidget.h"
 #include "perf/gpudetailwidget.h"
 
 #include <QStackedWidget>
@@ -41,8 +42,8 @@ class PerformanceWidget : public QWidget
     public:
         explicit PerformanceWidget(QWidget *parent = nullptr);
         ~PerformanceWidget();
-        void setActive(bool active);
-        bool isActive() const { return this->m_active; }
+        void SetActive(bool active);
+        bool IsActive() const { return this->m_active; }
 
     private slots:
         void onProviderUpdated();
@@ -58,6 +59,9 @@ class PerformanceWidget : public QWidget
         QVector<Perf::SidePanelItem *>   m_diskItems;
         QVector<Perf::DiskDetailWidget *> m_diskDetails;
         QVector<QString>                 m_diskNames;
+        QVector<Perf::SidePanelItem *>   m_networkItems;
+        QVector<Perf::NetworkDetailWidget *> m_networkDetails;
+        QVector<QString>                 m_networkNames;
         QVector<Perf::SidePanelItem *>   m_gpuItems;
         QVector<Perf::GpuDetailWidget *> m_gpuDetails;
         QVector<QString>                 m_gpuNames;
@@ -68,7 +72,9 @@ class PerformanceWidget : public QWidget
         void setupLayout();
         void setupSidePanel();
         void setupDiskPanels();
+        void setupNetworkPanels();
         void setupGpuPanels();
+        static QString formatNetRate(double bytesPerSec);
 };
 
 #endif // PERFORMANCEWIDGET_H

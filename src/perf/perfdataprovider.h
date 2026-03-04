@@ -106,6 +106,18 @@ namespace Perf
             const QVector<double> &DiskReadHistory(int i) const;
             const QVector<double> &DiskWriteHistory(int i) const;
 
+            // ── Network interfaces (active, non-loopback) ──────────────────────
+            int NetworkCount() const { return this->m_networks.size(); }
+            QString NetworkName(int i) const;
+            QString NetworkType(int i) const;
+            int NetworkLinkSpeedMbps(int i) const;
+            QString NetworkIpv4(int i) const;
+            QString NetworkIpv6(int i) const;
+            double NetworkRxBytesPerSec(int i) const;
+            double NetworkTxBytesPerSec(int i) const;
+            const QVector<double> &NetworkRxHistory(int i) const;
+            const QVector<double> &NetworkTxHistory(int i) const;
+
             // ── GPUs (tooling-backed, currently NVML runtime-loaded) ─────────────
             int GpuCount() const { return this->m_gpus.size(); }
             QString GpuName(int i) const;
@@ -186,6 +198,21 @@ namespace Perf
                 QVector<GpuEngineSample> engines;
             };
 
+            struct NetworkSample
+            {
+                QString         name;      ///< Interface name, e.g. enp5s0
+                QString         type;      ///< Ethernet/Wi-Fi/Other
+                QString         ipv4;
+                QString         ipv6;
+                int             linkSpeedMbps { 0 };
+                quint64         prevRxBytes { 0 };
+                quint64         prevTxBytes { 0 };
+                double          rxBps { 0.0 };
+                double          txBps { 0.0 };
+                QVector<double> rxHistory;
+                QVector<double> txHistory;
+            };
+
             QTimer *m_timer;
             int     m_intervalMs { 1000 };
             bool    m_active { true };
@@ -231,6 +258,11 @@ namespace Perf
             QElapsedTimer       m_diskTimer;
             qint64              m_prevDiskSampleMs { 0 };
 
+            // Network state
+            QVector<NetworkSample> m_networks;
+            QElapsedTimer          m_netTimer;
+            qint64                 m_prevNetSampleMs { 0 };
+
             // GPU state
             QVector<GpuSample>  m_gpus;
             bool                m_hasNvml { false };
@@ -239,6 +271,7 @@ namespace Perf
             bool sampleCpu();
             bool sampleMemory();
             bool sampleDisks();
+            bool sampleNetworks();
             bool sampleGpus();
             void sampleProcessStats();
             void readCpuMetadata();
@@ -254,6 +287,9 @@ namespace Perf
             static QSet<QString> resolveBaseBlockDevices(const QString &devName);
             static bool shouldIgnoreBlockDevice(const QString &baseName);
             static QString readSysTextFile(const QString &path);
+            static bool isActiveNetworkInterface(const QString &name);
+            static QString networkTypeFromArpType(int arpType);
+            static int readLinkSpeedMbps(const QString &name);
             static quint16 readLe16(const QByteArray &raw, int off);
             static quint32 readLe32(const QByteArray &raw, int off);
 

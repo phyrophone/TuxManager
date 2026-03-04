@@ -28,7 +28,11 @@
 #include <QRegularExpression>
 #include <QStringList>
 #include <dlfcn.h>
+#include <ifaddrs.h>
+#include <netdb.h>
+#include <netinet/in.h>
 #include <stdint.h>
+#include <sys/socket.h>
 #include <sys/statvfs.h>
 #include <unistd.h>
 
@@ -95,6 +99,7 @@ PerfDataProvider::PerfDataProvider(QObject *parent) : QObject(parent), m_timer(n
     this->sampleCpu();
     this->sampleMemory();
     this->sampleDisks();
+    this->sampleNetworks();
     this->sampleGpus();
     if (this->m_processStatsEnabled)
         this->sampleProcessStats();
@@ -125,6 +130,7 @@ void PerfDataProvider::SetActive(bool active)
         this->sampleCpu();
         this->sampleMemory();
         this->sampleDisks();
+        this->sampleNetworks();
         this->sampleGpus();
         if (this->m_processStatsEnabled)
             this->sampleProcessStats();
@@ -264,6 +270,71 @@ const QVector<double> &PerfDataProvider::DiskWriteHistory(int i) const
     return this->m_disks.at(i).writeHistory;
 }
 
+QString PerfDataProvider::NetworkName(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return {};
+    return this->m_networks.at(i).name;
+}
+
+QString PerfDataProvider::NetworkType(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return {};
+    return this->m_networks.at(i).type;
+}
+
+int PerfDataProvider::NetworkLinkSpeedMbps(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return 0;
+    return this->m_networks.at(i).linkSpeedMbps;
+}
+
+QString PerfDataProvider::NetworkIpv4(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return {};
+    return this->m_networks.at(i).ipv4;
+}
+
+QString PerfDataProvider::NetworkIpv6(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return {};
+    return this->m_networks.at(i).ipv6;
+}
+
+double PerfDataProvider::NetworkRxBytesPerSec(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return 0.0;
+    return this->m_networks.at(i).rxBps;
+}
+
+double PerfDataProvider::NetworkTxBytesPerSec(int i) const
+{
+    if (i < 0 || i >= this->m_networks.size())
+        return 0.0;
+    return this->m_networks.at(i).txBps;
+}
+
+const QVector<double> &PerfDataProvider::NetworkRxHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_networks.size())
+        return empty;
+    return this->m_networks.at(i).rxHistory;
+}
+
+const QVector<double> &PerfDataProvider::NetworkTxHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_networks.size())
+        return empty;
+    return this->m_networks.at(i).txHistory;
+}
+
 QString PerfDataProvider::GpuName(int i) const
 {
     if (i < 0 || i >= this->m_gpus.size())
@@ -386,6 +457,7 @@ void PerfDataProvider::onTimer()
     this->sampleCpu();
     this->sampleMemory();
     this->sampleDisks();
+    this->sampleNetworks();
     this->sampleGpus();
     if (this->m_processStatsEnabled)
         this->sampleProcessStats();
@@ -867,6 +939,199 @@ bool PerfDataProvider::sampleDisks()
     return true;
 }
 
+// ── Network sampling ─────────────────────────────────────────────────────────
+
+bool PerfDataProvider::isActiveNetworkInterface(const QString &name)
+{
+    if (name.isEmpty() || name == "lo")
+        return false;
+
+    const QString operState = readSysTextFile(QString("/sys/class/net/%1/operstate").arg(name)).toLower();
+    if (operState != "up")
+        return false;
+
+    const QString carrierStr = readSysTextFile(QString("/sys/class/net/%1/carrier").arg(name));
+    if (!carrierStr.isEmpty() && carrierStr != "1")
+        return false;
+
+    return true;
+}
+
+QString PerfDataProvider::networkTypeFromArpType(int arpType)
+{
+    // ARPHRD_ETHER (1), ARPHRD_LOOPBACK (772), ARPHRD_IEEE80211* (801+)
+    if (arpType == 1)
+        return "Ethernet";
+    if (arpType == 772)
+        return "Loopback";
+    if (arpType >= 801 && arpType <= 804)
+        return "Wi-Fi";
+    return tr("Network");
+}
+
+int PerfDataProvider::readLinkSpeedMbps(const QString &name)
+{
+    bool ok = false;
+    const int speed = readSysTextFile(QString("/sys/class/net/%1/speed").arg(name)).toInt(&ok);
+    if (!ok || speed <= 0)
+        return 0;
+    return speed;
+}
+
+bool PerfDataProvider::sampleNetworks()
+{
+    QFile f("/proc/net/dev");
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+
+    struct NetCounters
+    {
+        quint64 rxBytes { 0 };
+        quint64 txBytes { 0 };
+    };
+    QHash<QString, NetCounters> countersByName;
+    QStringList activeNames;
+
+    int lineNo = 0;
+    for (;;)
+    {
+        const QByteArray line = f.readLine();
+        if (line.isNull())
+            break;
+        ++lineNo;
+        if (lineNo <= 2)
+            continue; // headers
+
+        const int colon = line.indexOf(':');
+        if (colon < 0)
+            continue;
+
+        const QString ifName = QString::fromUtf8(line.left(colon)).trimmed();
+        if (!isActiveNetworkInterface(ifName))
+            continue;
+
+        const QList<QByteArray> fields = line.mid(colon + 1).simplified().split(' ');
+        if (fields.size() < 9)
+            continue;
+
+        NetCounters c;
+        c.rxBytes = fields.at(0).toULongLong();
+        c.txBytes = fields.at(8).toULongLong();
+        countersByName.insert(ifName, c);
+        activeNames.append(ifName);
+    }
+    f.close();
+
+    std::sort(activeNames.begin(), activeNames.end());
+
+    // Best-effort interface metadata (IP addresses + type) from getifaddrs.
+    struct IfAddrInfo
+    {
+        QString ipv4;
+        QString ipv6;
+    };
+    QHash<QString, IfAddrInfo> ifaddrByName;
+    struct ifaddrs *ifaddr = nullptr;
+    if (::getifaddrs(&ifaddr) == 0)
+    {
+        for (struct ifaddrs *ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+        {
+            if (!ifa->ifa_name || !ifa->ifa_addr)
+                continue;
+            const QString name = QString::fromUtf8(ifa->ifa_name);
+            if (!countersByName.contains(name))
+                continue;
+
+            char host[NI_MAXHOST] = {};
+            const int fam = ifa->ifa_addr->sa_family;
+            if (fam != AF_INET && fam != AF_INET6)
+                continue;
+
+            const socklen_t addrLen = (fam == AF_INET)
+                                      ? static_cast<socklen_t>(sizeof(sockaddr_in))
+                                      : static_cast<socklen_t>(sizeof(sockaddr_in6));
+            if (::getnameinfo(ifa->ifa_addr, addrLen,
+                              host, sizeof(host),
+                              nullptr, 0,
+                              NI_NUMERICHOST) != 0)
+            {
+                continue;
+            }
+
+            IfAddrInfo &info = ifaddrByName[name];
+            if (fam == AF_INET && info.ipv4.isEmpty())
+                info.ipv4 = QString::fromLatin1(host);
+            else if (fam == AF_INET6 && info.ipv6.isEmpty())
+                info.ipv6 = QString::fromLatin1(host);
+        }
+        ::freeifaddrs(ifaddr);
+    }
+
+    QHash<QString, NetworkSample> oldByName;
+    oldByName.reserve(this->m_networks.size());
+    for (const NetworkSample &n : this->m_networks)
+        oldByName.insert(n.name, n);
+
+    QVector<NetworkSample> rebuilt;
+    rebuilt.reserve(activeNames.size());
+    for (const QString &name : activeNames)
+    {
+        NetworkSample n = oldByName.value(name);
+        n.name = name;
+
+        const int arpType = readSysTextFile(QString("/sys/class/net/%1/type").arg(name)).toInt();
+        n.type = networkTypeFromArpType(arpType);
+        n.linkSpeedMbps = readLinkSpeedMbps(name);
+        n.ipv4 = ifaddrByName.value(name).ipv4;
+        n.ipv6 = ifaddrByName.value(name).ipv6;
+        rebuilt.append(n);
+    }
+
+    this->m_networks = rebuilt;
+
+    if (!this->m_netTimer.isValid())
+        this->m_netTimer.start();
+
+    const qint64 nowMs = this->m_netTimer.elapsed();
+    const qint64 dtMs = (this->m_prevNetSampleMs > 0) ? (nowMs - this->m_prevNetSampleMs) : 0;
+    this->m_prevNetSampleMs = nowMs;
+
+    for (NetworkSample &n : this->m_networks)
+    {
+        const auto it = countersByName.constFind(n.name);
+        if (it == countersByName.cend())
+        {
+            n.rxBps = 0.0;
+            n.txBps = 0.0;
+            appendHistory(n.rxHistory, 0.0);
+            appendHistory(n.txHistory, 0.0);
+            continue;
+        }
+
+        const NetCounters c = it.value();
+        if (dtMs <= 0)
+        {
+            n.prevRxBytes = c.rxBytes;
+            n.prevTxBytes = c.txBytes;
+            appendHistory(n.rxHistory, 0.0);
+            appendHistory(n.txHistory, 0.0);
+            continue;
+        }
+
+        const quint64 dRx = (c.rxBytes >= n.prevRxBytes) ? (c.rxBytes - n.prevRxBytes) : 0;
+        const quint64 dTx = (c.txBytes >= n.prevTxBytes) ? (c.txBytes - n.prevTxBytes) : 0;
+        n.prevRxBytes = c.rxBytes;
+        n.prevTxBytes = c.txBytes;
+
+        n.rxBps = static_cast<double>(dRx) * 1000.0 / static_cast<double>(dtMs);
+        n.txBps = static_cast<double>(dTx) * 1000.0 / static_cast<double>(dtMs);
+        appendHistory(n.rxHistory, n.rxBps);
+        appendHistory(n.txHistory, n.txBps);
+    }
+
+    return true;
+}
+
 // ── GPU sampling ──────────────────────────────────────────────────────────────
 
 void PerfDataProvider::detectGpuBackends()
@@ -1315,4 +1580,3 @@ void PerfDataProvider::appendHistory(QVector<double> &vec, double val)
     while (vec.size() > HISTORY_SIZE)
         vec.removeFirst();
 }
-
