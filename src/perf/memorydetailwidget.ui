@@ -197,7 +197,7 @@
         <string>color:#aaa; font-size: 8pt;</string>
        </property>
        <property name="text">
-        <string>Cached</string>
+        <string>Free (Cached)</string>
        </property>
       </widget>
      </item>
