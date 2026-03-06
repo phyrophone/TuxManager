@@ -226,8 +226,8 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
             procItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         }
 
-        userItem->setExpanded(!this->m_hasExpansionSnapshot
-                              || this->m_expandedUsers.contains(uid));
+        userItem->setExpanded(this->m_hasExpansionSnapshot
+                              && this->m_expandedUsers.contains(uid));
     }
 
     this->ui->statusLabel->setText(tr("Logged in users: %1").arg(agg.size()));
