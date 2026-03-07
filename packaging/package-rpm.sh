@@ -207,7 +207,7 @@ popd
 %install
 rm -rf %{buildroot}
 install -Dm755 release/tux-manager %{buildroot}%{_bindir}/$APP_NAME
-install -Dm644 src/README.md %{buildroot}%{_docdir}/$APP_NAME/README.md
+install -Dm644 README.md %{buildroot}%{_docdir}/$APP_NAME/README.md
 install -Dm644 LICENSE %{buildroot}%{_docdir}/$APP_NAME/LICENSE
 
 install -d %{buildroot}%{_datadir}/applications
