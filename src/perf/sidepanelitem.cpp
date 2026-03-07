@@ -19,10 +19,12 @@
 #include "sidepanelitem.h"
 #include "perfdataprovider.h"
 
-#include <QEnterEvent>
 #include <QPainter>
 #include <QPaintEvent>
 #include <QVBoxLayout>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QEnterEvent>
+#endif
 
 using namespace Perf;
 
@@ -139,7 +141,11 @@ void SidePanelItem::mousePressEvent(QMouseEvent *event)
     emit this->clicked();
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 void SidePanelItem::enterEvent(QEnterEvent *event)
+#else
+void SidePanelItem::enterEvent(QEvent *event)
+#endif
 {
     QWidget::enterEvent(event);
     this->m_hovered = true;
