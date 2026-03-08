@@ -26,7 +26,9 @@
 #include "perf/diskdetailwidget.h"
 #include "perf/networkdetailwidget.h"
 #include "perf/gpudetailwidget.h"
+#include "perf/swapdetailwidget.h"
 
+#include <QPoint>
 #include <QStackedWidget>
 #include <QVector>
 #include <QWidget>
@@ -47,6 +49,7 @@ class PerformanceWidget : public QWidget
 
     private slots:
         void onProviderUpdated();
+        void onSidePanelContextMenu(int index, const QPoint &globalPos);
 
     private:
         Ui::PerformanceWidget      *ui;
@@ -56,6 +59,7 @@ class PerformanceWidget : public QWidget
         QStackedWidget             *m_stack;
         Perf::CpuDetailWidget      *m_cpuDetail;
         Perf::MemoryDetailWidget   *m_memDetail;
+        Perf::SwapDetailWidget     *m_swapDetail;
         QVector<Perf::SidePanelItem *>   m_diskItems;
         QVector<Perf::DiskDetailWidget *> m_diskDetails;
         QVector<QString>                 m_diskNames;
@@ -66,14 +70,26 @@ class PerformanceWidget : public QWidget
         QVector<Perf::GpuDetailWidget *> m_gpuDetails;
         QVector<QString>                 m_gpuNames;
         bool                             m_active { false };
-
-        enum PanelIndex { PanelCpu = 0, PanelMemory = 1 };
+        int                              m_cpuPanelIndex { -1 };
+        int                              m_memoryPanelIndex { -1 };
+        int                              m_swapPanelIndex { -1 };
+        int                              m_diskPanelStart { -1 };
+        int                              m_networkPanelStart { -1 };
+        int                              m_gpuPanelStart { -1 };
 
         void setupLayout();
         void setupSidePanel();
         void setupDiskPanels();
         void setupNetworkPanels();
         void setupGpuPanels();
+        void applyPanelVisibility();
+        void updateSamplingPolicy();
+        bool anyPanelVisibleAfterToggle(bool cpu,
+                                        bool memory,
+                                        bool swap,
+                                        bool disks,
+                                        bool network,
+                                        bool gpu) const;
         static QString formatNetRate(double bytesPerSec);
 };
 

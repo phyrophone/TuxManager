@@ -1,0 +1,207 @@
+/*
+ * Tux Manager - Linux system monitor
+ * Copyright (C) 2026 Petr Bena <petr@bena.rocks>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "swapdetailwidget.h"
+
+#include <algorithm>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+
+using namespace Perf;
+
+SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
+{
+    auto *root = new QVBoxLayout(this);
+    root->setContentsMargins(12, 10, 12, 10);
+    root->setSpacing(6);
+
+    auto *header = new QHBoxLayout();
+    auto *title = new QLabel(tr("Swap"), this);
+    QFont titleFont = title->font();
+    titleFont.setPointSize(18);
+    titleFont.setBold(true);
+    title->setFont(titleFont);
+
+    this->m_totalLabel = new QLabel(tr("0 GB"), this);
+    this->m_totalLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    QFont totalFont = this->m_totalLabel->font();
+    totalFont.setPointSize(11);
+    this->m_totalLabel->setFont(totalFont);
+
+    header->addWidget(title, 1);
+    header->addWidget(this->m_totalLabel, 1);
+    root->addLayout(header);
+
+    auto *usageHeader = new QHBoxLayout();
+    usageHeader->addWidget(new QLabel(tr("Swap usage"), this), 1);
+    this->m_usageValueLabel = new QLabel(tr("0%"), this);
+    this->m_usageValueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    usageHeader->addWidget(this->m_usageValueLabel);
+    root->addLayout(usageHeader);
+
+    this->m_usageGraph = new GraphWidget(this);
+    this->m_usageGraph->SetColor(QColor(0xcc, 0x88, 0x44), QColor(0x66, 0x33, 0x11, 120));
+    this->m_usageGraph->SetSampleCapacity(HISTORY_SIZE);
+    this->m_usageGraph->SetGridColumns(6);
+    this->m_usageGraph->SetGridRows(4);
+    this->m_usageGraph->SetSeriesNames(tr("Swap usage"));
+    this->m_usageGraph->SetValueFormat(GraphWidget::ValueFormat::Percent);
+    this->m_usageGraph->setMinimumHeight(220);
+    root->addWidget(this->m_usageGraph, 1);
+
+    auto *usageTimeAxis = new QHBoxLayout();
+    usageTimeAxis->addWidget(new QLabel(tr("60 seconds"), this));
+    usageTimeAxis->addStretch(1);
+    usageTimeAxis->addWidget(new QLabel(tr("0"), this));
+    root->addLayout(usageTimeAxis);
+
+    auto *activityHeader = new QHBoxLayout();
+    activityHeader->addWidget(new QLabel(tr("Swap activity"), this), 1);
+    this->m_activityMaxLabel = new QLabel(tr("0 KB/s"), this);
+    this->m_activityMaxLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    activityHeader->addWidget(this->m_activityMaxLabel);
+    root->addLayout(activityHeader);
+
+    this->m_activityGraph = new GraphWidget(this);
+    this->m_activityGraph->SetColor(QColor(0xcc, 0xaa, 0x66), QColor(0x66, 0x44, 0x22, 100));
+    this->m_activityGraph->SetSampleCapacity(HISTORY_SIZE);
+    this->m_activityGraph->SetGridColumns(6);
+    this->m_activityGraph->SetGridRows(4);
+    this->m_activityGraph->SetSeriesNames(tr("Swap in"), tr("Swap out"));
+    this->m_activityGraph->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
+    this->m_activityGraph->setToolTip(
+                tr("Swap in: disk -> RAM (pages read back into memory)\n"
+                   "Swap out: RAM -> disk (pages written to swap storage)"));
+    this->m_activityGraph->setMinimumHeight(110);
+    root->addWidget(this->m_activityGraph);
+
+    auto *activityTimeAxis = new QHBoxLayout();
+    activityTimeAxis->addWidget(new QLabel(tr("60 seconds"), this));
+    activityTimeAxis->addStretch(1);
+    activityTimeAxis->addWidget(new QLabel(tr("0"), this));
+    root->addLayout(activityTimeAxis);
+
+    auto *stats = new QGridLayout();
+    stats->setHorizontalSpacing(24);
+    stats->setVerticalSpacing(8);
+
+    auto mk = [this](const QString &txt)
+    {
+        auto *l = new QLabel(txt, this);
+        l->setStyleSheet("color:#888;");
+        return l;
+    };
+
+    this->m_inUseValueLabel = new QLabel(tr("0 GB"), this);
+    this->m_freeValueLabel = new QLabel(tr("0 GB"), this);
+    this->m_inRateValueLabel = new QLabel(tr("0 KB/s"), this);
+    this->m_outRateValueLabel = new QLabel(tr("0 KB/s"), this);
+    this->m_inRateValueLabel->setToolTip(tr("Swap in direction: disk -> RAM"));
+    this->m_outRateValueLabel->setToolTip(tr("Swap out direction: RAM -> disk"));
+
+    stats->addWidget(mk(tr("In use")), 0, 0);
+    stats->addWidget(this->m_inUseValueLabel, 0, 1);
+    stats->addWidget(mk(tr("Free")), 0, 2);
+    stats->addWidget(this->m_freeValueLabel, 0, 3);
+    QLabel *swapInLabel = mk(tr("Swap in"));
+    swapInLabel->setToolTip(tr("Swap in direction: disk -> RAM"));
+    stats->addWidget(swapInLabel, 1, 0);
+    stats->addWidget(this->m_inRateValueLabel, 1, 1);
+    QLabel *swapOutLabel = mk(tr("Swap out"));
+    swapOutLabel->setToolTip(tr("Swap out direction: RAM -> disk"));
+    stats->addWidget(swapOutLabel, 1, 2);
+    stats->addWidget(this->m_outRateValueLabel, 1, 3);
+    root->addLayout(stats);
+}
+
+void SwapDetailWidget::SetProvider(PerfDataProvider *provider)
+{
+    if (this->m_provider)
+    {
+        disconnect(this->m_provider, &PerfDataProvider::updated,
+                   this, &SwapDetailWidget::onUpdated);
+    }
+
+    this->m_provider = provider;
+    if (this->m_provider)
+    {
+        connect(this->m_provider, &PerfDataProvider::updated,
+                this, &SwapDetailWidget::onUpdated);
+        this->onUpdated();
+    }
+}
+
+void SwapDetailWidget::onUpdated()
+{
+    if (!this->m_provider)
+        return;
+
+    const qint64 totalKb = this->m_provider->SwapTotalKb();
+    const qint64 usedKb = this->m_provider->SwapUsedKb();
+    const qint64 freeKb = this->m_provider->SwapFreeKb();
+    const double inBps = this->m_provider->SwapInBytesPerSec();
+    const double outBps = this->m_provider->SwapOutBytesPerSec();
+    const QVector<double> &usageHistory = this->m_provider->SwapUsageHistory();
+    const QVector<double> &inHistory = this->m_provider->SwapInHistory();
+    const QVector<double> &outHistory = this->m_provider->SwapOutHistory();
+
+    const double usedPct = (totalKb > 0)
+                           ? static_cast<double>(usedKb) * 100.0 / static_cast<double>(totalKb)
+                           : 0.0;
+
+    this->m_totalLabel->setText(formatSizeKb(totalKb));
+    this->m_usageValueLabel->setText(QString::number(usedPct, 'f', 0) + "%");
+
+    this->m_inUseValueLabel->setText(formatSizeKb(usedKb));
+    this->m_freeValueLabel->setText(formatSizeKb(freeKb));
+    this->m_inRateValueLabel->setText(formatRate(inBps));
+    this->m_outRateValueLabel->setText(formatRate(outBps));
+
+    this->m_usageGraph->SetPercentTooltipAbsolute(static_cast<double>(totalKb) / (1024.0 * 1024.0),
+                                                  tr("GB"),
+                                                  2);
+    this->m_usageGraph->SetHistory(usageHistory, 100.0);
+
+    double maxRate = 1024.0;
+    for (double v : inHistory)
+        maxRate = std::max(maxRate, v);
+    for (double v : outHistory)
+        maxRate = std::max(maxRate, v);
+
+    this->m_activityGraph->SetHistory(inHistory, maxRate);
+    this->m_activityGraph->SetSecondaryHistory(outHistory);
+    this->m_activityMaxLabel->setText(formatRate(maxRate));
+}
+
+QString SwapDetailWidget::formatRate(double bytesPerSec)
+{
+    if (bytesPerSec >= 1024.0 * 1024.0)
+        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + QObject::tr(" MB/s");
+    if (bytesPerSec >= 1024.0)
+        return QString::number(bytesPerSec / 1024.0, 'f', 0) + QObject::tr(" KB/s");
+    return QString::number(bytesPerSec, 'f', 0) + QObject::tr(" B/s");
+}
+
+QString SwapDetailWidget::formatSizeKb(qint64 kb)
+{
+    const double gb = static_cast<double>(kb) / (1024.0 * 1024.0);
+    if (gb >= 10.0)
+        return QString::number(gb, 'f', 1) + QObject::tr(" GB");
+    return QString::number(gb, 'f', 2) + QObject::tr(" GB");
+}

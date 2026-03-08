@@ -65,6 +65,10 @@ int SidePanel::AddItem(SidePanelItem *item)
     {
         this->SetCurrentIndex(index);
     });
+    connect(item, &SidePanelItem::contextMenuRequested, this, [this, index](const QPoint &globalPos)
+    {
+        emit this->itemContextMenuRequested(index, globalPos);
+    });
 
     // Auto-select the first item added
     if (index == 0)
@@ -76,6 +80,8 @@ int SidePanel::AddItem(SidePanelItem *item)
 void SidePanel::SetCurrentIndex(int index)
 {
     if (index < 0 || index >= this->m_items.size())
+        return;
+    if (!this->IsItemVisible(index))
         return;
     if (index == this->m_currentIndex)
         return;
@@ -90,10 +96,42 @@ void SidePanel::SetCurrentIndex(int index)
     emit this->currentChanged(index);
 }
 
+void SidePanel::SetItemVisible(int index, bool visible)
+{
+    SidePanelItem *item = this->GetItemAt(index);
+    if (!item)
+        return;
+
+    item->setVisible(visible);
+    if (!visible && this->m_currentIndex == index)
+    {
+        const int next = this->FirstVisibleIndex();
+        if (next >= 0)
+            this->SetCurrentIndex(next);
+        else
+            this->m_currentIndex = -1;
+    }
+}
+
+bool SidePanel::IsItemVisible(int index) const
+{
+    SidePanelItem *item = this->GetItemAt(index);
+    return item && item->isVisible();
+}
+
+int SidePanel::FirstVisibleIndex() const
+{
+    for (int i = 0; i < this->m_items.size(); ++i)
+    {
+        if (this->m_items.at(i)->isVisible())
+            return i;
+    }
+    return -1;
+}
+
 SidePanelItem *SidePanel::GetItemAt(int index) const
 {
     if (index < 0 || index >= this->m_items.size())
         return nullptr;
     return this->m_items.at(index);
 }
-

@@ -70,6 +70,12 @@ void Configuration::Load()
         this->CpuGraphMode = 0;
     this->CpuShowKernelTimes = s.value("Performance/CpuShowKernelTimes",
                                        this->CpuShowKernelTimes).toBool();
+    this->PerfShowCpu = s.value("Performance/ShowCpu", this->PerfShowCpu).toBool();
+    this->PerfShowMemory = s.value("Performance/ShowMemory", this->PerfShowMemory).toBool();
+    this->PerfShowSwap = s.value("Performance/ShowSwap", this->PerfShowSwap).toBool();
+    this->PerfShowDisks = s.value("Performance/ShowDisks", this->PerfShowDisks).toBool();
+    this->PerfShowNetwork = s.value("Performance/ShowNetwork", this->PerfShowNetwork).toBool();
+    this->PerfShowGpu = s.value("Performance/ShowGpu", this->PerfShowGpu).toBool();
 }
 
 void Configuration::Save()
@@ -97,6 +103,12 @@ void Configuration::Save()
     s.setValue("Performance/GpuEngineSelectorIndices", gpuSel);
     s.setValue("Performance/CpuGraphMode", this->CpuGraphMode);
     s.setValue("Performance/CpuShowKernelTimes", this->CpuShowKernelTimes);
+    s.setValue("Performance/ShowCpu", this->PerfShowCpu);
+    s.setValue("Performance/ShowMemory", this->PerfShowMemory);
+    s.setValue("Performance/ShowSwap", this->PerfShowSwap);
+    s.setValue("Performance/ShowDisks", this->PerfShowDisks);
+    s.setValue("Performance/ShowNetwork", this->PerfShowNetwork);
+    s.setValue("Performance/ShowGpu", this->PerfShowGpu);
 
     s.sync();
 }

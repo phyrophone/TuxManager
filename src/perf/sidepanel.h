@@ -21,6 +21,7 @@
 
 #include "sidepanelitem.h"
 
+#include <QPoint>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -43,12 +44,16 @@ namespace Perf
 
             void SetCurrentIndex(int index);
             int  GetCurrentIndex() const { return this->m_currentIndex; }
+            void SetItemVisible(int index, bool visible);
+            bool IsItemVisible(int index) const;
+            int  FirstVisibleIndex() const;
 
             SidePanelItem *GetItemAt(int index) const;
             int            GetCount() const { return this->m_items.size(); }
 
         signals:
             void currentChanged(int index);
+            void itemContextMenuRequested(int index, const QPoint &globalPos);
 
         private:
             QScrollArea          *m_scrollArea;

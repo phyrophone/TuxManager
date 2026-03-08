@@ -21,6 +21,7 @@
 
 #include "graphwidget.h"
 
+#include <QPoint>
 #include <QVector>
 #include <QWidget>
 #include <QtGlobal>
@@ -51,6 +52,7 @@ namespace Perf
 
         signals:
             void clicked();
+            void contextMenuRequested(const QPoint &globalPos);
 
         protected:
             void paintEvent(QPaintEvent *event) override;

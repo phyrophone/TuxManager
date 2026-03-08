@@ -138,7 +138,16 @@ void SidePanelItem::paintEvent(QPaintEvent *event)
 void SidePanelItem::mousePressEvent(QMouseEvent *event)
 {
     QWidget::mousePressEvent(event);
-    emit this->clicked();
+    if (event->button() == Qt::LeftButton)
+        emit this->clicked();
+    else if (event->button() == Qt::RightButton)
+    {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        emit this->contextMenuRequested(event->globalPosition().toPoint());
+#else
+        emit this->contextMenuRequested(event->globalPos());
+#endif
+    }
 }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)

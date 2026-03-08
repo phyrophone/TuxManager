@@ -60,6 +60,13 @@ class Configuration : public QObject
         int CpuGraphMode { 0 };
         /// CPU overlay toggle in Performance -> CPU.
         bool CpuShowKernelTimes { false };
+        /// Performance selector visibility toggles.
+        bool PerfShowCpu { true };
+        bool PerfShowMemory { true };
+        bool PerfShowSwap { true };
+        bool PerfShowDisks { true };
+        bool PerfShowNetwork { true };
+        bool PerfShowGpu { true };
 
     private:
         explicit Configuration(QObject *parent = nullptr);

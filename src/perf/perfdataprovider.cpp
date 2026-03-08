@@ -95,12 +95,17 @@ PerfDataProvider::PerfDataProvider(QObject *parent) : QObject(parent), m_timer(n
     this->readHardwareMetadata();
     this->detectGpuBackends();
 
-    // Prime CPU baseline — first real sample will have a valid delta
-    this->sampleCpu();
-    this->sampleMemory();
-    this->sampleDisks();
-    this->sampleNetworks();
-    this->sampleGpus();
+    // Prime baselines — first real sample will have valid deltas.
+    if (this->m_cpuSamplingEnabled)
+        this->sampleCpu();
+    if (this->m_memorySamplingEnabled)
+        this->sampleMemory();
+    if (this->m_diskSamplingEnabled)
+        this->sampleDisks();
+    if (this->m_networkSamplingEnabled)
+        this->sampleNetworks();
+    if (this->m_gpuSamplingEnabled)
+        this->sampleGpus();
     if (this->m_processStatsEnabled)
         this->sampleProcessStats();
 
@@ -127,14 +132,20 @@ void PerfDataProvider::SetActive(bool active)
     if (active)
     {
         // Refresh once immediately when entering Performance tab.
-        this->sampleCpu();
-        this->sampleMemory();
-        this->sampleDisks();
-        this->sampleNetworks();
-        this->sampleGpus();
+        if (this->m_cpuSamplingEnabled)
+            this->sampleCpu();
+        if (this->m_memorySamplingEnabled)
+            this->sampleMemory();
+        if (this->m_diskSamplingEnabled)
+            this->sampleDisks();
+        if (this->m_networkSamplingEnabled)
+            this->sampleNetworks();
+        if (this->m_gpuSamplingEnabled)
+            this->sampleGpus();
         if (this->m_processStatsEnabled)
             this->sampleProcessStats();
-        this->readCurrentFreq();
+        if (this->m_cpuSamplingEnabled)
+            this->readCurrentFreq();
         emit this->updated();
         this->m_timer->start(this->m_intervalMs);
     }
@@ -454,14 +465,20 @@ void PerfDataProvider::onTimer()
     if (!this->m_active)
         return;
 
-    this->sampleCpu();
-    this->sampleMemory();
-    this->sampleDisks();
-    this->sampleNetworks();
-    this->sampleGpus();
+    if (this->m_cpuSamplingEnabled)
+        this->sampleCpu();
+    if (this->m_memorySamplingEnabled)
+        this->sampleMemory();
+    if (this->m_diskSamplingEnabled)
+        this->sampleDisks();
+    if (this->m_networkSamplingEnabled)
+        this->sampleNetworks();
+    if (this->m_gpuSamplingEnabled)
+        this->sampleGpus();
     if (this->m_processStatsEnabled)
         this->sampleProcessStats();
-    this->readCurrentFreq();
+    if (this->m_cpuSamplingEnabled)
+        this->readCurrentFreq();
     emit this->updated();
 }
 
@@ -582,6 +599,7 @@ bool PerfDataProvider::sampleMemory()
     qint64 memTotal = 0, memAvail = 0, memFree = 0;
     qint64 buffers  = 0, cached   = 0, sReclaimable = 0, shmem = 0;
     qint64 dirty    = 0, writeback = 0;
+    qint64 swapTotal = 0, swapFree = 0;
 
     for (;;)
     {
@@ -612,6 +630,8 @@ bool PerfDataProvider::sampleMemory()
         else if (key == "Shmem")        shmem        = val;
         else if (key == "Dirty")        dirty        = val;
         else if (key == "Writeback")    writeback    = val;
+        else if (key == "SwapTotal")    swapTotal    = val;
+        else if (key == "SwapFree")     swapFree     = val;
     }
     f.close();
 
@@ -628,12 +648,70 @@ bool PerfDataProvider::sampleMemory()
     this->m_memCachedKb  = buffers + pageCache;
     // htop's "used" (processes' non-reclaimable footprint)
     this->m_memUsedKb    = qMax(0LL, memTotal - memFree - buffers - pageCache);
+    this->m_swapTotalKb  = swapTotal;
+    this->m_swapFreeKb   = swapFree;
+    this->m_swapUsedKb   = qMax<qint64>(0, swapTotal - swapFree);
 
     // Graph tracks used / total (htop formula matches the green bar)
     const double frac = (memTotal > 0)
                         ? static_cast<double>(this->m_memUsedKb) / static_cast<double>(memTotal)
                         : 0.0;
     appendHistory(this->m_memHistory, frac * 100.0);
+
+    if (this->m_swapSamplingEnabled)
+    {
+        const double swapFrac = (swapTotal > 0)
+                                ? static_cast<double>(this->m_swapUsedKb) / static_cast<double>(swapTotal)
+                                : 0.0;
+        appendHistory(this->m_swapUsageHistory, swapFrac * 100.0);
+
+        quint64 pswpin = 0;
+        quint64 pswpout = 0;
+        QFile vmf("/proc/vmstat");
+        if (vmf.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            for (;;)
+            {
+                const QByteArray line = vmf.readLine();
+                if (line.isNull())
+                    break;
+                const QList<QByteArray> parts = line.simplified().split(' ');
+                if (parts.size() < 2)
+                    continue;
+                if (parts.at(0) == "pswpin")
+                    pswpin = parts.at(1).toULongLong();
+                else if (parts.at(0) == "pswpout")
+                    pswpout = parts.at(1).toULongLong();
+            }
+            vmf.close();
+        }
+
+        if (!this->m_swapTimer.isValid())
+            this->m_swapTimer.start();
+        const qint64 nowMs = this->m_swapTimer.elapsed();
+        const qint64 dtMs = (this->m_prevSwapSampleMs > 0) ? (nowMs - this->m_prevSwapSampleMs) : 0;
+        this->m_prevSwapSampleMs = nowMs;
+
+        if (dtMs > 0)
+        {
+            const quint64 dInPages = (pswpin >= this->m_prevSwapInPages) ? (pswpin - this->m_prevSwapInPages) : 0;
+            const quint64 dOutPages = (pswpout >= this->m_prevSwapOutPages) ? (pswpout - this->m_prevSwapOutPages) : 0;
+            const long pageSize = ::sysconf(_SC_PAGESIZE);
+            const double bytesPerPage = (pageSize > 0) ? static_cast<double>(pageSize) : 4096.0;
+            this->m_swapInBps = static_cast<double>(dInPages) * bytesPerPage * 1000.0 / static_cast<double>(dtMs);
+            this->m_swapOutBps = static_cast<double>(dOutPages) * bytesPerPage * 1000.0 / static_cast<double>(dtMs);
+        }
+        else
+        {
+            this->m_swapInBps = 0.0;
+            this->m_swapOutBps = 0.0;
+        }
+
+        this->m_prevSwapInPages = pswpin;
+        this->m_prevSwapOutPages = pswpout;
+        appendHistory(this->m_swapInHistory, this->m_swapInBps);
+        appendHistory(this->m_swapOutHistory, this->m_swapOutBps);
+    }
     return true;
 }
 

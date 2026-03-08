@@ -47,6 +47,12 @@ namespace Perf
             void SetActive(bool active);
             bool IsActive() const { return this->m_active; }
             void SetProcessStatsEnabled(bool enabled) { this->m_processStatsEnabled = enabled; }
+            void SetCpuSamplingEnabled(bool enabled) { this->m_cpuSamplingEnabled = enabled; }
+            void SetMemorySamplingEnabled(bool enabled) { this->m_memorySamplingEnabled = enabled; }
+            void SetSwapSamplingEnabled(bool enabled) { this->m_swapSamplingEnabled = enabled; }
+            void SetDiskSamplingEnabled(bool enabled) { this->m_diskSamplingEnabled = enabled; }
+            void SetNetworkSamplingEnabled(bool enabled) { this->m_networkSamplingEnabled = enabled; }
+            void SetGpuSamplingEnabled(bool enabled) { this->m_gpuSamplingEnabled = enabled; }
 
             // ── Aggregate CPU ─────────────────────────────────────────────────────
             double CpuPercent()  const { return this->m_cpuHistory.isEmpty() ? 0.0
@@ -89,6 +95,16 @@ namespace Perf
             int MemSpeedMtps()      const { return this->m_memSpeedMtps;      }
             double MemFraction()  const;
             const QVector<double> &MemHistory() const { return this->m_memHistory; }
+
+            // ── Swap ─────────────────────────────────────────────────────────────
+            qint64 SwapTotalKb() const { return this->m_swapTotalKb; }
+            qint64 SwapUsedKb()  const { return this->m_swapUsedKb;  }
+            qint64 SwapFreeKb()  const { return this->m_swapFreeKb;  }
+            double SwapInBytesPerSec()  const { return this->m_swapInBps;  }
+            double SwapOutBytesPerSec() const { return this->m_swapOutBps; }
+            const QVector<double> &SwapUsageHistory() const { return this->m_swapUsageHistory; }
+            const QVector<double> &SwapInHistory()    const { return this->m_swapInHistory;    }
+            const QVector<double> &SwapOutHistory()   const { return this->m_swapOutHistory;   }
 
             // ── Disks (base block devices backing mounted/swap paths) ────────────
             int DiskCount() const { return this->m_disks.size(); }
@@ -217,6 +233,12 @@ namespace Perf
             int     m_intervalMs { 1000 };
             bool    m_active { true };
             bool    m_processStatsEnabled { false };
+            bool    m_cpuSamplingEnabled { true };
+            bool    m_memorySamplingEnabled { true };
+            bool    m_swapSamplingEnabled { true };
+            bool    m_diskSamplingEnabled { true };
+            bool    m_networkSamplingEnabled { true };
+            bool    m_gpuSamplingEnabled { true };
 
             // Aggregate CPU state
             quint64          m_prevCpuIdle   { 0 };
@@ -252,6 +274,20 @@ namespace Perf
             int              m_memDimmSlotsUsed  { 0 };
             int              m_memSpeedMtps      { 0 };
             QVector<double>  m_memHistory;
+
+            // Swap state
+            qint64           m_swapTotalKb   { 0 };
+            qint64           m_swapUsedKb    { 0 };
+            qint64           m_swapFreeKb    { 0 };
+            quint64          m_prevSwapInPages  { 0 };
+            quint64          m_prevSwapOutPages { 0 };
+            double           m_swapInBps  { 0.0 };
+            double           m_swapOutBps { 0.0 };
+            QVector<double>  m_swapUsageHistory;
+            QVector<double>  m_swapInHistory;
+            QVector<double>  m_swapOutHistory;
+            QElapsedTimer    m_swapTimer;
+            qint64           m_prevSwapSampleMs { 0 };
 
             // Disk state
             QVector<DiskSample> m_disks;

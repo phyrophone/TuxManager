@@ -24,6 +24,7 @@
 #include <QPainterPath>
 #include <QPaintEvent>
 #include <QToolTip>
+#include <QtGlobal>
 
 using namespace Perf;
 
@@ -221,7 +222,12 @@ void GraphWidget::mouseMoveEvent(QMouseEvent *event)
 {
     const int sampleCount = qMax(2, this->m_sampleCapacity);
     const double stepX = static_cast<double>(qMax(1, this->width())) / static_cast<double>(sampleCount - 1);
-    const int slot = qBound(0, static_cast<int>(std::lround(event->position().x() / stepX)), sampleCount - 1);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    const double mouseX = event->position().x();
+#else
+    const double mouseX = event->pos().x();
+#endif
+    const int slot = qBound(0, static_cast<int>(std::lround(mouseX / stepX)), sampleCount - 1);
 
     if (slot != this->m_hoverSlot)
     {
@@ -248,7 +254,11 @@ void GraphWidget::mouseMoveEvent(QMouseEvent *event)
             const int secAgo = sampleCount - 1 - slot;
             if (!tip.isEmpty())
                 tip += tr("\n%1 s ago").arg(secAgo);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
             QToolTip::showText(event->globalPosition().toPoint(), tip, this);
+#else
+            QToolTip::showText(event->globalPos(), tip, this);
+#endif
         }
         else
         {

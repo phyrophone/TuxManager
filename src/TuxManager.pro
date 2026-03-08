@@ -33,6 +33,7 @@ SOURCES += \
     perf/diskdetailwidget.cpp \
     perf/networkdetailwidget.cpp \
     perf/gpudetailwidget.cpp \
+    perf/swapdetailwidget.cpp \
     perf/memorybar.cpp \
     perf/memorydetailwidget.cpp
 
@@ -59,6 +60,7 @@ HEADERS += \
     perf/diskdetailwidget.h \
     perf/networkdetailwidget.h \
     perf/gpudetailwidget.h \
+    perf/swapdetailwidget.h \
     perf/memorybar.h \
     perf/memorydetailwidget.h
 
