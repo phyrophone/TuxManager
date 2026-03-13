@@ -187,6 +187,13 @@ const QVector<double> &PerfDataProvider::CoreKernelHistory(int i) const
     return this->m_cores.at(i).kernelHistory;
 }
 
+double PerfDataProvider::CoreCurrentMhz(int i) const
+{
+    if (i < 0 || i >= this->m_coreCurrentMhz.size())
+        return 0.0;
+    return this->m_coreCurrentMhz.at(i);
+}
+
 QString PerfDataProvider::DiskName(int i) const
 {
     if (i < 0 || i >= this->m_disks.size())
@@ -1512,38 +1519,74 @@ void PerfDataProvider::readCpuMetadata()
 
 void PerfDataProvider::readCurrentFreq()
 {
-    // sysfs gives the actual current frequency per CPU0
-    QFile sf("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
-    if (sf.open(QIODevice::ReadOnly))
-    {
-        const double kHz = sf.readAll().trimmed().toDouble();
-        sf.close();
-        if (kHz > 0.0)
-        {
-            this->m_cpuCurrentMhz = kHz / 1000.0;
-            return;
-        }
-    }
-    // Fallback: first "cpu MHz" line from /proc/cpuinfo
-    QFile f("/proc/cpuinfo");
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-    for (;;)
-    {
-        const QByteArray line = f.readLine();
-        if (line.isNull())
-            break;
+    const int coreCount = qMax(this->m_cores.size(), this->m_cpuLogicalCount);
+    QVector<double> coreMhz(coreCount, 0.0);
 
-        const int        colon = line.indexOf(':');
-        if (colon < 0)
-            continue;
-        if (line.left(colon).trimmed() == "cpu MHz")
+    // Parse per-core live frequencies from /proc/cpuinfo.
+    int currentProcessor = -1;
+    QFile f("/proc/cpuinfo");
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        for (;;)
         {
-            this->m_cpuCurrentMhz = line.mid(colon + 1).trimmed().toDouble();
-            break;
+            const QByteArray line = f.readLine();
+            if (line.isNull())
+                break;
+
+            const int colon = line.indexOf(':');
+            if (colon < 0)
+                continue;
+
+            const QByteArray key = line.left(colon).trimmed();
+            const QByteArray val = line.mid(colon + 1).trimmed();
+            if (key == "processor")
+            {
+                currentProcessor = val.toInt();
+            }
+            else if (key == "cpu MHz" && currentProcessor >= 0 && currentProcessor < coreMhz.size())
+            {
+                coreMhz[currentProcessor] = val.toDouble();
+            }
+        }
+        f.close();
+    }
+
+    double sumMhz = 0.0;
+    int countMhz = 0;
+    for (double mhz : coreMhz)
+    {
+        if (mhz > 0.0)
+        {
+            sumMhz += mhz;
+            ++countMhz;
         }
     }
-    f.close();
+
+    // Fallback when per-core values are unavailable.
+    if (countMhz == 0)
+    {
+        QFile sf("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
+        if (sf.open(QIODevice::ReadOnly))
+        {
+            const double kHz = sf.readAll().trimmed().toDouble();
+            sf.close();
+            if (kHz > 0.0)
+            {
+                const double mhz = kHz / 1000.0;
+                if (!coreMhz.isEmpty())
+                    coreMhz[0] = mhz;
+                this->m_cpuCurrentMhz = mhz;
+                this->m_coreCurrentMhz = coreMhz;
+                return;
+            }
+        }
+        this->m_cpuCurrentMhz = 0.0;
+        this->m_coreCurrentMhz = coreMhz;
+        return;
+    }
+
+    this->m_cpuCurrentMhz = sumMhz / static_cast<double>(countMhz);
+    this->m_coreCurrentMhz = coreMhz;
 }
 
 void PerfDataProvider::readHardwareMetadata()

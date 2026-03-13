@@ -208,6 +208,17 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     p.setBrush(Qt::NoBrush);
     p.drawRect(r.adjusted(0, 0, -1, -1));
 
+    if (!this->m_overlayText.isEmpty())
+    {
+        QFont f = p.font();
+        f.setPointSizeF(qMax(7.0, f.pointSizeF() - 1.0));
+        p.setFont(f);
+        p.setPen(QColor(245, 245, 245, 220));
+        p.drawText(r.adjusted(4, 2, -4, -2),
+                   Qt::AlignLeft | Qt::AlignTop,
+                   this->m_overlayText);
+    }
+
     if (this->m_hoverLineEnabled && this->m_hoverSlot >= 0 && this->m_hoverSlot < sampleCount)
     {
         const int x = static_cast<int>(this->m_hoverSlot * stepX + 0.5);

@@ -70,6 +70,7 @@ namespace Perf
             const QString &CpuModelName() const { return this->m_cpuModelName; }
             double CpuBaseMhz()           const { return this->m_cpuBaseMhz;   }
             double CpuCurrentMhz()        const { return this->m_cpuCurrentMhz; }
+            double CoreCurrentMhz(int i)  const;
             int    CpuLogicalCount()      const { return this->m_cpuLogicalCount; }
             bool   CpuIsVirtualMachine()  const { return this->m_cpuIsVirtualMachine; }
             const QString &CpuVmVendor()  const { return this->m_cpuVmVendor; }
@@ -254,6 +255,7 @@ namespace Perf
             QString  m_cpuModelName;
             double   m_cpuBaseMhz       { 0.0 };
             double   m_cpuCurrentMhz    { 0.0 };
+            QVector<double> m_coreCurrentMhz;
             int      m_cpuLogicalCount  { 0 };
             bool     m_cpuIsVirtualMachine { false };
             QString  m_cpuVmVendor;

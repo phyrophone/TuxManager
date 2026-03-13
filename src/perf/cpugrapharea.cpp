@@ -98,11 +98,18 @@ void CpuGraphArea::UpdateData(const PerfDataProvider *provider)
         this->ensureCoreGraphs(cores);
         for (int i = 0; i < cores; ++i)
         {
-            this->m_coreGraphs.at(i)->SetHistory(provider->CoreHistory(i));
+            GraphWidget *g = this->m_coreGraphs.at(i);
+            g->SetHistory(provider->CoreHistory(i));
             if (this->m_showKernelTime)
-                this->m_coreGraphs.at(i)->SetSecondaryHistory(provider->CoreKernelHistory(i));
+                g->SetSecondaryHistory(provider->CoreKernelHistory(i));
             else
-                this->m_coreGraphs.at(i)->SetSecondaryHistory({});
+                g->SetSecondaryHistory({});
+
+            const double coreMhz = provider->CoreCurrentMhz(i);
+            if (coreMhz > 0.0)
+                g->SetOverlayText(tr("%1 GHz").arg(coreMhz / 1000.0, 0, 'f', 2));
+            else
+                g->SetOverlayText(QString());
         }
     }
 }
@@ -160,4 +167,3 @@ void CpuGraphArea::ensureCoreGraphs(int count)
     // Notify the layout system that the container's size hint has changed
     this->m_perCoreContainer->updateGeometry();
 }
-
