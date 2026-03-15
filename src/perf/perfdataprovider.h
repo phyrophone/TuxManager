@@ -306,11 +306,17 @@ namespace Perf
             bool                m_hasNvml { false };
             void               *m_nvmlLibHandle { nullptr };
 
+            /// Sample /proc/stat aggregate + per-core jiffies and append utilization histories.
             bool sampleCpu();
+            /// Sample /proc/meminfo (+ /proc/vmstat for swap activity) and append memory/swap histories.
             bool sampleMemory();
+            /// Sample /proc/diskstats and compute per-device active time % and read/write throughput.
             bool sampleDisks();
+            /// Sample /proc/net/dev counters and compute per-interface RX/TX throughput histories.
             bool sampleNetworks();
+            /// Sample GPU backends (NVML when available) and update utilization/memory/engine histories.
             bool sampleGpus();
+            /// Count processes/threads via /proc walk for CPU detail statistics.
             void sampleProcessStats();
             void readCpuMetadata();
             void readCurrentFreq();
