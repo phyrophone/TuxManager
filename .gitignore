@@ -34,13 +34,22 @@ src/tux-manager
 # Debian packaging build artifacts
 debian/.debhelper/
 debian/build/
+debian/tmp/
 debian/debhelper-build-stamp
 debian/files
 debian/*.substvars
 debian/tux-manager/
+debian/tux-manager-dbgsym/
+debian/*.debhelper.log
+debian/*.build
+debian/*.buildinfo
+debian/*.changes
 
 # Packaging outputs
 packaging/output/
+packaging/output/*.deb
+packaging/output/*.rpm
+packaging/output/*.buildinfo
 
 # Compiled Python files (tooling)
 __pycache__/

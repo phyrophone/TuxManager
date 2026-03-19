@@ -36,8 +36,9 @@ GraphWidget::GraphWidget(QWidget *parent) : QWidget(parent)
 
 void GraphWidget::SetHistory(const QVector<double> &data, double maxVal)
 {
-    if (data != this->m_data)
-        ++this->m_historyTick;
+    // Advance grid phase on every sample tick, even if values are unchanged.
+    // This keeps the time axis moving continuously (task-manager behavior).
+    ++this->m_historyTick;
     this->m_data   = data;
     this->m_maxVal = (maxVal > 0.0) ? maxVal : 100.0;
     this->update();
