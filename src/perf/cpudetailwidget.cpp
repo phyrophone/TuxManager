@@ -91,6 +91,11 @@ void CpuDetailWidget::onUpdated()
     if (curMhz > 0.0)
         this->ui->statSpeedValue->setText(
                 tr("%1 GHz").arg(curMhz / 1000.0, 0, 'f', 2));
+    else
+        this->ui->statSpeedValue->setText(tr("—"));
+
+    const int cpuTempC = this->m_provider->CpuTemperatureC();
+    this->ui->statTempValue->setText(cpuTempC >= 0 ? tr("%1 C").arg(cpuTempC) : tr("—"));
 
     this->ui->statProcessesValue->setText(QString::number(this->m_provider->ProcessCount()));
     this->ui->statThreadsValue->setText(QString::number(this->m_provider->ThreadCount()));
@@ -184,4 +189,3 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
 
     menu.exec(globalPos);
 }
-

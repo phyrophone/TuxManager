@@ -74,6 +74,7 @@ namespace Perf
             int    CpuLogicalCount()      const { return this->m_cpuLogicalCount; }
             bool   CpuIsVirtualMachine()  const { return this->m_cpuIsVirtualMachine; }
             const QString &CpuVmVendor()  const { return this->m_cpuVmVendor; }
+            int    CpuTemperatureC()      const { return this->m_cpuTemperatureC; }
 
             // ── Process / thread counts (updated every sample) ────────────────────
             int ProcessCount() const { return this->m_processCount; }
@@ -141,6 +142,7 @@ namespace Perf
             QString GpuDriverVersion(int i) const;
             QString GpuBackendName(int i) const;
             double GpuUtilPercent(int i) const;
+            int GpuTemperatureC(int i) const;
             qint64 GpuMemUsedMiB(int i) const;
             qint64 GpuMemTotalMiB(int i) const;
             const QVector<double> &GpuUtilHistory(int i) const;
@@ -204,6 +206,7 @@ namespace Perf
                 QString         driverVersion;
                 QString         backend;
                 double          utilPct { 0.0 };
+                int             temperatureC { -1 };
                 qint64          memUsedMiB { 0 };
                 qint64          memTotalMiB { 0 };
                 double          copyTxBps { 0.0 };
@@ -259,6 +262,8 @@ namespace Perf
             int      m_cpuLogicalCount  { 0 };
             bool     m_cpuIsVirtualMachine { false };
             QString  m_cpuVmVendor;
+            int      m_cpuTemperatureC { -1 };
+            QString  m_cpuTempInputPath;
 
             // Process/thread counts
             int      m_processCount { 0 };
@@ -321,6 +326,8 @@ namespace Perf
             void readCpuMetadata();
             void readCurrentFreq();
             void readHardwareMetadata();
+            void detectCpuTemperatureSensor();
+            void sampleCpuTemperature();
             void refreshDisks(const QSet<QString> &measurableDevices);
             void detectGpuBackends();
             bool sampleNvml();

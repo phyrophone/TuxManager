@@ -53,6 +53,7 @@ namespace Perf
             QLabel *m_titleLabel { nullptr };
             QLabel *m_modelLabel { nullptr };
             QLabel *m_utilValueLabel { nullptr };
+            QLabel *m_tempValueLabel { nullptr };
             QLabel *m_gpuMemValueLabel { nullptr };
             QLabel *m_dedicatedMemValueLabel { nullptr };
             QLabel *m_sharedMemValueLabel { nullptr };

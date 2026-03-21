@@ -70,6 +70,7 @@ using FnNvmlDeviceGetMemoryInfo = NvmlReturn (*)(NvmlDevice, NvmlMemory *);
 using FnNvmlDeviceGetEncoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned int *, unsigned int *);
 using FnNvmlDeviceGetDecoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned int *, unsigned int *);
 using FnNvmlDeviceGetPcieThroughput = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
+using FnNvmlDeviceGetTemperature = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
 
 FnNvmlInitV2 pNvmlInitV2 = nullptr;
 FnNvmlShutdown pNvmlShutdown = nullptr;
@@ -83,6 +84,18 @@ FnNvmlDeviceGetMemoryInfo pNvmlDeviceGetMemoryInfo = nullptr;
 FnNvmlDeviceGetEncoderUtilization pNvmlDeviceGetEncoderUtilization = nullptr;
 FnNvmlDeviceGetDecoderUtilization pNvmlDeviceGetDecoderUtilization = nullptr;
 FnNvmlDeviceGetPcieThroughput pNvmlDeviceGetPcieThroughput = nullptr;
+FnNvmlDeviceGetTemperature pNvmlDeviceGetTemperature = nullptr;
+
+bool textContainsAnyToken(const QString &text, const QStringList &tokens)
+{
+    const QString lower = text.toLower();
+    for (const QString &t : tokens)
+    {
+        if (lower.contains(t))
+            return true;
+    }
+    return false;
+}
 }
 
 // ── Construction ──────────────────────────────────────────────────────────────
@@ -93,11 +106,13 @@ PerfDataProvider::PerfDataProvider(QObject *parent) : QObject(parent), m_timer(n
 
     this->readCpuMetadata();
     this->readHardwareMetadata();
+    this->detectCpuTemperatureSensor();
     this->detectGpuBackends();
 
     // Prime baselines — first real sample will have valid deltas.
     if (this->m_cpuSamplingEnabled)
         this->sampleCpu();
+    this->sampleCpuTemperature();
     if (this->m_memorySamplingEnabled)
         this->sampleMemory();
     if (this->m_diskSamplingEnabled)
@@ -134,6 +149,7 @@ void PerfDataProvider::SetActive(bool active)
         // Refresh once immediately when entering Performance tab.
         if (this->m_cpuSamplingEnabled)
             this->sampleCpu();
+        this->sampleCpuTemperature();
         if (this->m_memorySamplingEnabled)
             this->sampleMemory();
         if (this->m_diskSamplingEnabled)
@@ -381,6 +397,13 @@ double PerfDataProvider::GpuUtilPercent(int i) const
     return this->m_gpus.at(i).utilPct;
 }
 
+int PerfDataProvider::GpuTemperatureC(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return -1;
+    return this->m_gpus.at(i).temperatureC;
+}
+
 qint64 PerfDataProvider::GpuMemUsedMiB(int i) const
 {
     if (i < 0 || i >= this->m_gpus.size())
@@ -474,6 +497,7 @@ void PerfDataProvider::onTimer()
 
     if (this->m_cpuSamplingEnabled)
         this->sampleCpu();
+    this->sampleCpuTemperature();
     if (this->m_memorySamplingEnabled)
         this->sampleMemory();
     if (this->m_diskSamplingEnabled)
@@ -1252,6 +1276,8 @@ void PerfDataProvider::detectGpuBackends()
                 ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetDecoderUtilization"));
     pNvmlDeviceGetPcieThroughput = reinterpret_cast<FnNvmlDeviceGetPcieThroughput>(
                 ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
+    pNvmlDeviceGetTemperature = reinterpret_cast<FnNvmlDeviceGetTemperature>(
+                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetTemperature"));
 
     if (!pNvmlInitV2 || !pNvmlShutdown || !pNvmlDeviceGetCountV2
         || !pNvmlDeviceGetHandleByIndexV2 || !pNvmlDeviceGetName
@@ -1306,6 +1332,7 @@ void PerfDataProvider::unloadGpuBackends()
     pNvmlDeviceGetEncoderUtilization = nullptr;
     pNvmlDeviceGetDecoderUtilization = nullptr;
     pNvmlDeviceGetPcieThroughput = nullptr;
+    pNvmlDeviceGetTemperature = nullptr;
 
     if (this->m_nvmlLibHandle)
     {
@@ -1340,6 +1367,7 @@ bool PerfDataProvider::sampleNvml()
     {
         static constexpr unsigned int kNvmlPcieTxBytes = 0;
         static constexpr unsigned int kNvmlPcieRxBytes = 1;
+        static constexpr unsigned int kNvmlTemperatureGpu = 0;
 
         NvmlDevice dev = nullptr;
         if (pNvmlDeviceGetHandleByIndexV2(i, &dev) != NVML_SUCCESS || !dev)
@@ -1365,6 +1393,9 @@ bool PerfDataProvider::sampleNvml()
                            && (pNvmlDeviceGetPcieThroughput(dev, kNvmlPcieTxBytes, &txKBps) == NVML_SUCCESS);
         const bool hasRx = pNvmlDeviceGetPcieThroughput
                            && (pNvmlDeviceGetPcieThroughput(dev, kNvmlPcieRxBytes, &rxKBps) == NVML_SUCCESS);
+        unsigned int tempC = 0;
+        const bool hasTemp = pNvmlDeviceGetTemperature
+                             && (pNvmlDeviceGetTemperature(dev, kNvmlTemperatureGpu, &tempC) == NVML_SUCCESS);
 
         GpuSample g = oldById.value(id);
         g.id = id;
@@ -1372,6 +1403,7 @@ bool PerfDataProvider::sampleNvml()
         g.driverVersion = driverVersion;
         g.backend = "NVML";
         g.utilPct = hasUtil ? qBound(0.0, static_cast<double>(util.gpu), 100.0) : 0.0;
+        g.temperatureC = hasTemp ? static_cast<int>(tempC) : -1;
         g.memUsedMiB = hasMem ? static_cast<qint64>(mem.used / (1024ULL * 1024ULL)) : 0;
         g.memTotalMiB = hasMem ? static_cast<qint64>(mem.total / (1024ULL * 1024ULL)) : 0;
         g.copyTxBps = hasTx ? static_cast<double>(txKBps) * 1024.0 : 0.0;
@@ -1668,6 +1700,90 @@ void PerfDataProvider::readHardwareMetadata()
     this->m_memDimmSlotsTotal = slotsTotal;
     this->m_memDimmSlotsUsed  = slotsUsed;
     this->m_memSpeedMtps      = speedMtps;
+}
+
+void PerfDataProvider::detectCpuTemperatureSensor()
+{
+    this->m_cpuTempInputPath.clear();
+    this->m_cpuTemperatureC = -1;
+
+    const QDir hwmonRoot("/sys/class/hwmon");
+    const QStringList hwmons = hwmonRoot.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    struct Candidate
+    {
+        int score { -1 };
+        QString inputPath;
+    };
+    Candidate best;
+
+    static const QStringList kPreferredChipNames
+    {
+        "coretemp", "k10temp", "zenpower", "cpu", "soc_thermal", "x86_pkg_temp"
+    };
+    static const QStringList kPreferredTempLabels
+    {
+        "package", "tdie", "tctl", "cpu", "core"
+    };
+
+    for (const QString &hwmon : hwmons)
+    {
+        const QString basePath = QString("/sys/class/hwmon/%1").arg(hwmon);
+        const QString chipName = readSysTextFile(basePath + "/name");
+        const bool chipLooksCpu = textContainsAnyToken(chipName, kPreferredChipNames);
+
+        QDir dir(basePath);
+        const QStringList tempInputs = dir.entryList(QStringList() << "temp*_input", QDir::Files, QDir::Name);
+        for (const QString &input : tempInputs)
+        {
+            const QString idx = input.mid(4, input.size() - 10); // temp + N + _input
+            const QString label = readSysTextFile(basePath + "/temp" + idx + "_label");
+            bool ok = false;
+            const int milliC = readSysTextFile(basePath + "/" + input).toInt(&ok);
+            if (!ok || milliC <= 0)
+                continue;
+
+            int score = 0;
+            if (chipLooksCpu)
+                score += 20;
+            if (textContainsAnyToken(label, kPreferredTempLabels))
+                score += 10;
+            if (label.toLower().contains("package") || label.toLower().contains("tdie"))
+                score += 10;
+
+            // Keep plausible CPU temperatures, but allow warm systems.
+            if (milliC >= 10000 && milliC <= 120000)
+                score += 1;
+
+            if (score > best.score)
+            {
+                best.score = score;
+                best.inputPath = basePath + "/" + input;
+            }
+        }
+    }
+
+    if (best.score >= 0)
+        this->m_cpuTempInputPath = best.inputPath;
+}
+
+void PerfDataProvider::sampleCpuTemperature()
+{
+    if (this->m_cpuTempInputPath.isEmpty())
+    {
+        this->m_cpuTemperatureC = -1;
+        return;
+    }
+
+    bool ok = false;
+    const int milliC = readSysTextFile(this->m_cpuTempInputPath).toInt(&ok);
+    if (!ok || milliC <= 0)
+    {
+        this->m_cpuTemperatureC = -1;
+        return;
+    }
+
+    this->m_cpuTemperatureC = milliC / 1000;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -195,7 +195,10 @@ void PerformanceWidget::onProviderUpdated()
 {
     // Update CPU side panel item
     const double cpuPct = this->m_provider->CpuPercent();
-    const QString cpuSub = QString::number(cpuPct, 'f', 0) + "%";
+    const int cpuTempC = this->m_provider->CpuTemperatureC();
+    const QString cpuSub = (cpuTempC >= 0)
+                           ? tr("%1%2 %3C").arg(QString::number(cpuPct, 'f', 0)).arg("%").arg(cpuTempC)
+                           : QString::number(cpuPct, 'f', 0) + "%";
     if (CFG->PerfShowCpu)
     {
         if (auto *item = this->m_sidePanel->GetItemAt(this->m_cpuPanelIndex))
@@ -261,7 +264,10 @@ void PerformanceWidget::onProviderUpdated()
             if (!item)
                 continue;
 
-            item->Update(tr("%1%2").arg(QString::number(this->m_provider->GpuUtilPercent(i), 'f', 0)).arg("%"), this->m_provider->GpuUtilHistory(i));
+            const QString utilText = tr("%1%2").arg(QString::number(this->m_provider->GpuUtilPercent(i), 'f', 0)).arg("%");
+            const int tempC = this->m_provider->GpuTemperatureC(i);
+            const QString sub = (tempC >= 0) ? tr("%1 %2C").arg(utilText).arg(tempC) : utilText;
+            item->Update(sub, this->m_provider->GpuUtilHistory(i));
         }
     }
 

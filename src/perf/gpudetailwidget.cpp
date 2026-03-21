@@ -187,6 +187,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     };
 
     this->m_utilValueLabel = new QLabel("0%", this);
+    this->m_tempValueLabel = new QLabel(tr("—"), this);
     this->m_gpuMemValueLabel = new QLabel("0 / 0 GB", this);
     this->m_dedicatedMemValueLabel = new QLabel("0 / 0 GB", this);
     this->m_sharedMemValueLabel = new QLabel("0 / 0 GB", this);
@@ -201,10 +202,12 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     stats->addWidget(this->m_gpuMemValueLabel, 1, 1);
     stats->addWidget(mkLabel(tr("Shared GPU memory")), 1, 2);
     stats->addWidget(this->m_sharedMemValueLabel, 1, 3);
-    stats->addWidget(mkLabel(tr("Driver version")), 2, 0);
-    stats->addWidget(this->m_driverValueLabel, 2, 1);
-    stats->addWidget(mkLabel(tr("Backend")), 2, 2);
-    stats->addWidget(this->m_backendValueLabel, 2, 3);
+    stats->addWidget(mkLabel(tr("Temperature")), 2, 0);
+    stats->addWidget(this->m_tempValueLabel, 2, 1);
+    stats->addWidget(mkLabel(tr("Driver version")), 2, 2);
+    stats->addWidget(this->m_driverValueLabel, 2, 3);
+    stats->addWidget(mkLabel(tr("Backend")), 3, 2);
+    stats->addWidget(this->m_backendValueLabel, 3, 3);
     root->addLayout(stats);
 }
 
@@ -287,6 +290,7 @@ void GpuDetailWidget::onUpdated()
     this->m_modelLabel->setText(this->m_provider->GpuName(this->m_gpuIndex));
 
     const double util = this->m_provider->GpuUtilPercent(this->m_gpuIndex);
+    const int tempC = this->m_provider->GpuTemperatureC(this->m_gpuIndex);
     const qint64 dedicatedUsedMiB = this->m_provider->GpuMemUsedMiB(this->m_gpuIndex);
     const qint64 dedicatedTotalMiB = this->m_provider->GpuMemTotalMiB(this->m_gpuIndex);
 
@@ -303,6 +307,7 @@ void GpuDetailWidget::onUpdated()
     const qint64 gpuTotalMiB = dedicatedTotalMiB + sharedTotalMiB;
 
     this->m_utilValueLabel->setText(QString::number(util, 'f', 0) + "%");
+    this->m_tempValueLabel->setText(tempC >= 0 ? tr("%1 C").arg(tempC) : tr("—"));
     this->m_gpuMemValueLabel->setText(tr("%1 / %2")
                                       .arg(formatMemMib(gpuUsedMiB))
                                       .arg(formatMemMib(gpuTotalMiB)));
