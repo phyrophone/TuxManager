@@ -40,8 +40,8 @@ class UsersWidget : public QWidget
     public:
         explicit UsersWidget(QWidget *parent = nullptr);
         ~UsersWidget();
-        void setActive(bool active);
-        bool isActive() const { return this->m_active; }
+        void SetActive(bool active);
+        bool IsActive() const { return this->m_active; }
 
     private slots:
         void onTimerTick();

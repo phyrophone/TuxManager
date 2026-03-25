@@ -41,11 +41,7 @@ class ServiceRefreshWorker : public QObject
         void fetch(quint64 token);
 
     signals:
-        void fetched(quint64 token,
-                    bool systemdAvailable,
-                    const QString &reason,
-                    const QList<OS::Service> &services,
-                    const QString &error);
+        void fetched(quint64 token, bool systemdAvailable, const QString &reason, const QList<OS::Service> &services, const QString &error);
 };
 
 class ServicesWidget : public QWidget
@@ -55,16 +51,12 @@ class ServicesWidget : public QWidget
     public:
         explicit ServicesWidget(QWidget *parent = nullptr);
         ~ServicesWidget();
-        void setActive(bool active);
-        bool isActive() const { return this->m_active; }
+        void SetActive(bool active);
+        bool IsActive() const { return this->m_active; }
 
     private slots:
         void onTimerTick();
-        void onRefreshFinished(quint64 token,
-                               bool systemdAvailable,
-                               const QString &reason,
-                               const QList<OS::Service> &services,
-                               const QString &error);
+        void onRefreshFinished(quint64 token, bool systemdAvailable, const QString &reason, const QList<OS::Service> &services, const QString &error);
 
     signals:
         void requestRefresh(quint64 token);

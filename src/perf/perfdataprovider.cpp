@@ -918,19 +918,23 @@ void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
 
     QStringList names = baseDevices.values();
     std::sort(names.begin(), names.end());
-
-    // Preserve existing histories/counters for unchanged devices.
-    QHash<QString, DiskSample> oldByName;
-    oldByName.reserve(this->m_disks.size());
-    for (const DiskSample &d : this->m_disks)
-        oldByName.insert(d.name, d);
-
-    QVector<DiskSample> rebuilt;
-    rebuilt.reserve(names.size());
-    for (const QString &name : names)
+    // Keep discovered disk objects persistent so their history vectors remain stable.
+    if (this->m_disks.isEmpty())
     {
-        DiskSample d = oldByName.value(name);
-        d.name = name;
+        this->m_disks.reserve(names.size());
+        for (const QString &name : names)
+        {
+            DiskSample d;
+            d.name = name;
+            this->m_disks.append(d);
+        }
+    }
+
+    for (DiskSample &d : this->m_disks)
+    {
+        const QString &name = d.name;
+        if (name.isEmpty())
+            continue;
 
         const QString model = readSysTextFile(QString("/sys/class/block/%1/device/model").arg(name));
         d.model = model.isEmpty() ? tr("Unknown device") : model;
@@ -948,11 +952,7 @@ void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
         d.formattedBytes = qMax<qint64>(0, formattedByBase.value(name, 0));
         d.isSystemDisk = systemByBase.value(name, false);
         d.hasPageFile = pageFileByBase.value(name, false);
-
-        rebuilt.append(d);
     }
-
-    this->m_disks = rebuilt;
 }
 
 bool PerfDataProvider::sampleDisks()
@@ -1176,27 +1176,29 @@ bool PerfDataProvider::sampleNetworks()
         ::freeifaddrs(ifaddr);
     }
 
-    QHash<QString, NetworkSample> oldByName;
-    oldByName.reserve(this->m_networks.size());
-    for (const NetworkSample &n : this->m_networks)
-        oldByName.insert(n.name, n);
-
-    QVector<NetworkSample> rebuilt;
-    rebuilt.reserve(activeNames.size());
-    for (const QString &name : activeNames)
+    // Keep discovered NIC objects persistent so graph history refs stay valid.
+    if (this->m_networks.isEmpty())
     {
-        NetworkSample n = oldByName.value(name);
-        n.name = name;
+        this->m_networks.reserve(activeNames.size());
+        for (const QString &name : activeNames)
+        {
+            NetworkSample n;
+            n.name = name;
+            this->m_networks.append(n);
+        }
+    }
 
+    for (NetworkSample &n : this->m_networks)
+    {
+        const QString &name = n.name;
+        if (name.isEmpty())
+            continue;
         const int arpType = readSysTextFile(QString("/sys/class/net/%1/type").arg(name)).toInt();
         n.type = networkTypeFromArpType(arpType);
         n.linkSpeedMbps = readLinkSpeedMbps(name);
         n.ipv4 = ifaddrByName.value(name).ipv4;
         n.ipv6 = ifaddrByName.value(name).ipv6;
-        rebuilt.append(n);
     }
-
-    this->m_networks = rebuilt;
 
     if (!this->m_netTimer.isValid())
         this->m_netTimer.start();
@@ -1355,13 +1357,10 @@ bool PerfDataProvider::sampleNvml()
         pNvmlSystemGetDriverVersion(driverVer, sizeof(driverVer));
     const QString driverVersion = QString::fromLatin1(driverVer).trimmed();
 
-    QHash<QString, GpuSample> oldById;
-    oldById.reserve(this->m_gpus.size());
-    for (const GpuSample &g : this->m_gpus)
-        oldById.insert(g.id, g);
-
-    QVector<GpuSample> rebuilt;
-    rebuilt.reserve(static_cast<int>(count));
+    const bool allowAppend = this->m_gpus.isEmpty();
+    if (allowAppend)
+        this->m_gpus.reserve(static_cast<int>(count));
+    QSet<QString> seenIds;
 
     for (unsigned int i = 0; i < count; ++i)
     {
@@ -1397,7 +1396,26 @@ bool PerfDataProvider::sampleNvml()
         const bool hasTemp = pNvmlDeviceGetTemperature
                              && (pNvmlDeviceGetTemperature(dev, kNvmlTemperatureGpu, &tempC) == NVML_SUCCESS);
 
-        GpuSample g = oldById.value(id);
+        int gpuIdx = -1;
+        for (int j = 0; j < this->m_gpus.size(); ++j)
+        {
+            if (this->m_gpus.at(j).id == id)
+            {
+                gpuIdx = j;
+                break;
+            }
+        }
+        if (gpuIdx < 0)
+        {
+            if (!allowAppend)
+                continue;
+            GpuSample gNew;
+            gNew.id = id;
+            this->m_gpus.append(gNew);
+            gpuIdx = this->m_gpus.size() - 1;
+        }
+
+        GpuSample &g = this->m_gpus[gpuIdx];
         g.id = id;
         g.name = name;
         g.driverVersion = driverVersion;
@@ -1451,10 +1469,29 @@ bool PerfDataProvider::sampleNvml()
         }
 
         g.engines = engines;
-        rebuilt.append(g);
+        seenIds.insert(id);
     }
-
-    this->m_gpus = rebuilt;
+    for (GpuSample &g : this->m_gpus)
+    {
+        if (!seenIds.contains(g.id))
+        {
+            g.utilPct = 0.0;
+            g.temperatureC = -1;
+            g.memUsedMiB = 0;
+            g.memTotalMiB = 0;
+            g.copyTxBps = 0.0;
+            g.copyRxBps = 0.0;
+            appendHistory(g.utilHistory, 0.0);
+            appendHistory(g.memUsageHistory, 0.0);
+            appendHistory(g.copyTxHistory, 0.0);
+            appendHistory(g.copyRxHistory, 0.0);
+            for (GpuEngineSample &e : g.engines)
+            {
+                e.pct = 0.0;
+                appendHistory(e.history, 0.0);
+            }
+        }
+    }
     return true;
 }
 

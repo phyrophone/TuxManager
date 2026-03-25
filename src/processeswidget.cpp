@@ -134,7 +134,7 @@ void ProcessesWidget::setupRefreshCombo()
     }
 }
 
-void ProcessesWidget::setActive(bool active)
+void ProcessesWidget::SetActive(bool active)
 {
     if (this->m_active == active)
         return;

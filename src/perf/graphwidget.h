@@ -66,11 +66,17 @@ namespace Perf
             /// Number of fixed time slots across the X axis (controls scrolling).
             void SetSampleCapacity(int samples);
 
+            //! Enable/disable the vertical guide line that follows mouse hover.
             void SetHoverLineEnabled(bool enabled) { this->m_hoverLineEnabled = enabled; update(); }
+            //! Enable/disable value tooltips shown while hovering the graph.
             void SetHoverTooltipEnabled(bool enabled) { this->m_hoverTooltipEnabled = enabled; }
+            //! Set display names used in hover tooltip for primary/secondary series.
             void SetSeriesNames(const QString &primary, const QString &secondary = QString());
+            //! Select value formatting mode for tooltip text rendering.
             void SetValueFormat(ValueFormat fmt) { this->m_valueFormat = fmt; }
+            //! Draw a fixed helper label in the graph area (for per-core frequency etc.).
             void SetOverlayText(const QString &text) { this->m_overlayText = text; update(); }
+            //! For percent histories, also show absolute value in tooltips using max*percent.
             void SetPercentTooltipAbsolute(double maxAbsoluteValue, const QString &unitLabel, int precision = 2);
 
             QSize sizeHint() const override { return QSize(200, 80); }

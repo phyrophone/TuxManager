@@ -40,8 +40,8 @@ class ProcessesWidget : public QWidget
     public:
         explicit ProcessesWidget(QWidget *parent = nullptr);
         ~ProcessesWidget();
-        void setActive(bool active);
-        bool isActive() const { return this->m_active; }
+        void SetActive(bool active);
+        bool IsActive() const { return this->m_active; }
 
     private slots:
         void onTimerTick();

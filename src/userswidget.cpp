@@ -72,7 +72,7 @@ UsersWidget::~UsersWidget()
     delete this->ui;
 }
 
-void UsersWidget::setActive(bool active)
+void UsersWidget::SetActive(bool active)
 {
     if (this->m_active == active)
         return;

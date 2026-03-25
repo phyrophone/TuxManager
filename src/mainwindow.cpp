@@ -66,8 +66,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::updateTabActivity(int index)
 {
     // Tabs: 0=Processes, 1=Performance, 2=Users, 3=Services
-    this->m_processesWidget->setActive(index == 0);
+    this->m_processesWidget->SetActive(index == 0);
     this->m_performanceWidget->SetActive(index == 1);
-    this->m_usersWidget->setActive(index == 2);
-    this->m_servicesWidget->setActive(index == 3);
+    this->m_usersWidget->SetActive(index == 2);
+    this->m_servicesWidget->SetActive(index == 3);
 }

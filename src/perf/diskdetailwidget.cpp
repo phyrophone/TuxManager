@@ -28,8 +28,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     this->ui->setupUi(this);
 
     // Active time graph
-    this->ui->activeGraphWidget->SetColor(QColor(0x66, 0xbb, 0x44),
-                                          QColor(0x33, 0x66, 0x22, 120));
+    this->ui->activeGraphWidget->SetColor(QColor(0x66, 0xbb, 0x44), QColor(0x33, 0x66, 0x22, 120));
     this->ui->activeGraphWidget->SetSampleCapacity(HISTORY_SIZE);
     this->ui->activeGraphWidget->SetGridColumns(6);
     this->ui->activeGraphWidget->SetGridRows(4);
@@ -54,15 +53,13 @@ DiskDetailWidget::~DiskDetailWidget()
 void DiskDetailWidget::SetProvider(PerfDataProvider *provider)
 {
     if (this->m_provider)
-        disconnect(this->m_provider, &PerfDataProvider::updated,
-                   this, &DiskDetailWidget::onUpdated);
+        disconnect(this->m_provider, &PerfDataProvider::updated, this, &DiskDetailWidget::onUpdated);
 
     this->m_provider = provider;
 
     if (this->m_provider)
     {
-        connect(this->m_provider, &PerfDataProvider::updated,
-                this, &DiskDetailWidget::onUpdated);
+        connect(this->m_provider, &PerfDataProvider::updated, this, &DiskDetailWidget::onUpdated);
         this->onUpdated();
     }
 }

@@ -72,14 +72,9 @@ ServicesWidget::ServicesWidget(QWidget *parent)
             this, &ServicesWidget::onTimerTick);
 
     this->m_worker->moveToThread(this->m_workerThread);
-    connect(this->m_workerThread, &QThread::finished,
-            this->m_worker, &QObject::deleteLater);
-    connect(this, &ServicesWidget::requestRefresh,
-            this->m_worker, &ServiceRefreshWorker::fetch,
-            Qt::QueuedConnection);
-    connect(this->m_worker, &ServiceRefreshWorker::fetched,
-            this, &ServicesWidget::onRefreshFinished,
-            Qt::QueuedConnection);
+    connect(this->m_workerThread, &QThread::finished, this->m_worker, &QObject::deleteLater);
+    connect(this, &ServicesWidget::requestRefresh, this->m_worker, &ServiceRefreshWorker::fetch, Qt::QueuedConnection);
+    connect(this->m_worker, &ServiceRefreshWorker::fetched, this, &ServicesWidget::onRefreshFinished, Qt::QueuedConnection);
     this->m_workerThread->start();
 }
 
@@ -91,7 +86,7 @@ ServicesWidget::~ServicesWidget()
     delete this->ui;
 }
 
-void ServicesWidget::setActive(bool active)
+void ServicesWidget::SetActive(bool active)
 {
     if (this->m_active == active)
         return;
@@ -101,8 +96,7 @@ void ServicesWidget::setActive(bool active)
     {
         this->startRefresh();
         this->m_refreshTimer->start(CFG->RefreshRateMs);
-    }
-    else
+    } else
     {
         this->m_refreshTimer->stop();
         this->m_refreshPending = false;
@@ -128,11 +122,7 @@ void ServicesWidget::startRefresh()
     emit requestRefresh(this->m_refreshToken);
 }
 
-void ServicesWidget::onRefreshFinished(quint64 token,
-                                       bool systemdAvailable,
-                                       const QString &reason,
-                                       const QList<OS::Service> &services,
-                                       const QString &error)
+void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, const QString &reason, const QList<OS::Service> &services, const QString &error)
 {
     if (token != this->m_refreshToken)
         return;
@@ -146,23 +136,19 @@ void ServicesWidget::onRefreshFinished(quint64 token,
     {
         this->ui->tableWidget->setVisible(false);
         this->ui->unavailableLabel->setVisible(true);
-        this->ui->unavailableLabel->setText(
-                    tr("systemd required (%1)").arg(reason));
+        this->ui->unavailableLabel->setText(tr("systemd required (%1)").arg(reason));
         this->ui->statusLabel->setText(tr("Services unavailable"));
-    }
-    else if (!error.isEmpty())
+    } else if (!error.isEmpty())
     {
         this->ui->tableWidget->setVisible(false);
         this->ui->unavailableLabel->setVisible(true);
-        this->ui->unavailableLabel->setText(
-                    tr("Failed to query services: %1").arg(error));
+        this->ui->unavailableLabel->setText(tr("Failed to query services: %1").arg(error));
         this->ui->statusLabel->setText(tr("Services unavailable"));
-    }
-    else
+    } else
     {
         this->ui->unavailableLabel->setVisible(false);
         this->ui->tableWidget->setVisible(true);
-        this->rebuildTable(services);
+        //this->rebuildTable(services);
         this->ui->statusLabel->setText(tr("Services: %1").arg(services.size()));
     }
 

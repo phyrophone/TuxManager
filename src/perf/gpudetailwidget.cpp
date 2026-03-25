@@ -214,8 +214,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
 void GpuDetailWidget::SetProvider(PerfDataProvider *provider)
 {
     if (this->m_provider)
-        disconnect(this->m_provider, &PerfDataProvider::updated,
-                   this, &GpuDetailWidget::onUpdated);
+        disconnect(this->m_provider, &PerfDataProvider::updated, this, &GpuDetailWidget::onUpdated);
 
     this->m_provider = provider;
 
@@ -344,15 +343,11 @@ void GpuDetailWidget::onUpdated()
     }
 
     this->m_dedicatedMemGraph->SetHistoryRef(this->m_provider->GpuMemUsageHistory(this->m_gpuIndex), 100.0);
-    this->m_dedicatedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(dedicatedTotalMiB) / 1024.0,
-                                                         tr("GB"),
-                                                         2);
+    this->m_dedicatedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(dedicatedTotalMiB) / 1024.0, tr("GB"), 2);
     this->m_dedicatedMemGraphMaxLabel->setText(formatMemMib(dedicatedTotalMiB));
 
     this->m_sharedMemGraph->SetHistoryRef(this->m_sharedMemHistory, 100.0);
-    this->m_sharedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(sharedTotalMiB) / 1024.0,
-                                                      tr("GB"),
-                                                      2);
+    this->m_sharedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(sharedTotalMiB) / 1024.0, tr("GB"), 2);
     this->m_sharedMemGraphMaxLabel->setText(formatMemMib(sharedTotalMiB));
 
     const QVector<double> &txHistory = this->m_provider->GpuCopyTxHistory(this->m_gpuIndex);
