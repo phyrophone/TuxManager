@@ -22,6 +22,7 @@
 #include "configuration.h"
 
 #include <QHeaderView>
+#include <QHash>
 #include <QMetaObject>
 #include <QTableWidgetItem>
 
@@ -62,11 +63,18 @@ ServicesWidget::ServicesWidget(QWidget *parent)
     this->ui->tableWidget->setAlternatingRowColors(true);
 
     QHeaderView *hv = this->ui->tableWidget->horizontalHeader();
-    hv->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    hv->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    hv->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    hv->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    hv->setSectionResizeMode(0, QHeaderView::Interactive);
+    hv->setSectionResizeMode(1, QHeaderView::Interactive);
+    hv->setSectionResizeMode(2, QHeaderView::Interactive);
+    hv->setSectionResizeMode(3, QHeaderView::Interactive);
     hv->setSectionResizeMode(4, QHeaderView::Stretch);
+    hv->setMinimumSectionSize(60);
+    this->ui->tableWidget->setColumnWidth(0, 260);
+    this->ui->tableWidget->setColumnWidth(1, 90);
+    this->ui->tableWidget->setColumnWidth(2, 90);
+    this->ui->tableWidget->setColumnWidth(3, 100);
+    this->ui->tableWidget->setSortingEnabled(true);
+    this->ui->tableWidget->sortByColumn(0, Qt::AscendingOrder);
 
     connect(this->m_refreshTimer, &QTimer::timeout,
             this, &ServicesWidget::onTimerTick);
@@ -148,7 +156,7 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
     {
         this->ui->unavailableLabel->setVisible(false);
         this->ui->tableWidget->setVisible(true);
-        //this->rebuildTable(services);
+        this->rebuildTable(services);
         this->ui->statusLabel->setText(tr("Services: %1").arg(services.size()));
     }
 
@@ -161,28 +169,72 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
 
 void ServicesWidget::rebuildTable(const QList<OS::Service> &services)
 {
-    this->ui->tableWidget->setSortingEnabled(false);
-    this->ui->tableWidget->clearContents();
-    this->ui->tableWidget->setRowCount(services.size());
+    auto *table = this->ui->tableWidget;
+    const bool sortingWasEnabled = table->isSortingEnabled();
+    const int sortSection = table->horizontalHeader()->sortIndicatorSection();
+    const Qt::SortOrder sortOrder = table->horizontalHeader()->sortIndicatorOrder();
 
-    for (int r = 0; r < services.size(); ++r)
+    table->setUpdatesEnabled(false);
+    table->setSortingEnabled(false);
+
+    QHash<QString, OS::Service> incomingByUnit;
+    incomingByUnit.reserve(services.size());
+    for (const OS::Service &s : services)
+        incomingByUnit.insert(s.unit, s);
+
+    for (int row = table->rowCount() - 1; row >= 0; --row)
     {
-        const OS::Service &s = services.at(r);
-
-        auto mk = [](const QString &text) -> QTableWidgetItem *
-        {
-            auto *it = new QTableWidgetItem(text);
-            it->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
-            return it;
-        };
-
-        this->ui->tableWidget->setItem(r, 0, mk(s.unit));
-        this->ui->tableWidget->setItem(r, 1, mk(s.loadState));
-        this->ui->tableWidget->setItem(r, 2, mk(s.activeState));
-        this->ui->tableWidget->setItem(r, 3, mk(s.subState));
-        this->ui->tableWidget->setItem(r, 4, mk(s.description));
+        QTableWidgetItem *unitItem = table->item(row, 0);
+        if (!unitItem || !incomingByUnit.contains(unitItem->text()))
+            table->removeRow(row);
     }
 
-    this->ui->tableWidget->setSortingEnabled(true);
-    this->ui->tableWidget->sortByColumn(0, Qt::AscendingOrder);
+    QHash<QString, int> rowByUnit;
+    rowByUnit.reserve(table->rowCount());
+    for (int row = 0; row < table->rowCount(); ++row)
+    {
+        QTableWidgetItem *unitItem = table->item(row, 0);
+        if (unitItem)
+            rowByUnit.insert(unitItem->text(), row);
+    }
+
+    auto ensureItem = [table](int row, int col) -> QTableWidgetItem *
+    {
+        QTableWidgetItem *it = table->item(row, col);
+        if (!it)
+        {
+            it = new QTableWidgetItem();
+            it->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+            table->setItem(row, col, it);
+        }
+        return it;
+    };
+    auto setTextIfChanged = [&](int row, int col, const QString &text)
+    {
+        QTableWidgetItem *it = ensureItem(row, col);
+        if (it->text() != text)
+            it->setText(text);
+    };
+
+    for (const OS::Service &s : services)
+    {
+        int row = rowByUnit.value(s.unit, -1);
+        if (row < 0)
+        {
+            row = table->rowCount();
+            table->insertRow(row);
+            rowByUnit.insert(s.unit, row);
+        }
+
+        setTextIfChanged(row, 0, s.unit);
+        setTextIfChanged(row, 1, s.loadState);
+        setTextIfChanged(row, 2, s.activeState);
+        setTextIfChanged(row, 3, s.subState);
+        setTextIfChanged(row, 4, s.description);
+    }
+
+    table->setSortingEnabled(sortingWasEnabled);
+    if (sortingWasEnabled && sortSection >= 0)
+        table->sortByColumn(sortSection, sortOrder);
+    table->setUpdatesEnabled(true);
 }
