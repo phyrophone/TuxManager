@@ -125,6 +125,33 @@ bool textContainsAnyToken(const QString &text, const QStringList &tokens)
     }
     return false;
 }
+
+QString fileNameFromSymlink(const QString &path)
+{
+    const QString target = QFileInfo(path).symLinkTarget();
+    if (target.isEmpty())
+        return {};
+    return QFileInfo(target).fileName();
+}
+
+bool shouldIgnoreDrmGpu(const QString &driverName, const QString &uevent)
+{
+    static const QStringList ignoreTokens {
+        QStringLiteral("xrdpdev"),
+        QStringLiteral("xrdp"),
+        QStringLiteral("vkms"),
+        QStringLiteral("vgem"),
+        QStringLiteral("virtio_gpu"),
+        QStringLiteral("virtio"),
+        QStringLiteral("hyperv_drm"),
+        QStringLiteral("simpledrm"),
+        QStringLiteral("bochs_drm"),
+        QStringLiteral("qxl")
+    };
+
+    return textContainsAnyToken(driverName, ignoreTokens)
+           || textContainsAnyToken(uevent, ignoreTokens);
+}
 }
 
 // ── Construction ──────────────────────────────────────────────────────────────
@@ -1640,6 +1667,7 @@ void PerfDataProvider::detectDrmCards()
 
         const QString devPath = drmDir.filePath(entry + "/device");
         const QString vendorStr = readSysTextFile(devPath + "/vendor").trimmed();
+        const QString uevent = readSysTextFile(devPath + "/uevent");
 
         // Skip NVIDIA cards already managed by NVML to avoid duplicate entries.
         if (this->m_hasNvml && vendorStr == QLatin1String("0x10de"))
@@ -1672,6 +1700,14 @@ void PerfDataProvider::detectDrmCards()
             if (QFileInfo::exists(tp))
                 card.tempPath = tp;
         }
+
+        if (card.driverName.isEmpty())
+            card.driverName = fileNameFromSymlink(devPath + "/driver/module");
+        if (card.driverName.isEmpty())
+            card.driverName = fileNameFromSymlink(devPath + "/driver");
+
+        if (shouldIgnoreDrmGpu(card.driverName, uevent))
+            continue;
 
         // Driver version: try module version first, fall back to kernel version
         // for in-tree drivers (e.g. amdgpu ships inside the kernel).
