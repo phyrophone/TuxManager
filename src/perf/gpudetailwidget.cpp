@@ -294,14 +294,17 @@ void GpuDetailWidget::onUpdated()
     const qint64 dedicatedUsedMiB = this->m_provider->GpuMemUsedMiB(this->m_gpuIndex);
     const qint64 dedicatedTotalMiB = this->m_provider->GpuMemTotalMiB(this->m_gpuIndex);
 
-    // Best-effort approximation used by task-manager-like UIs on Linux where
-    // shared GPU accounting is usually not exposed by common tooling.
-    const qint64 sharedTotalMiB = qMax<qint64>(0, this->m_provider->MemTotalKb() / 1024 / 2);
-    const qint64 sharedUsedMiB = 0;
-
-    this->m_sharedMemHistory.append(0.0);
-    while (this->m_sharedMemHistory.size() > HISTORY_SIZE)
-        this->m_sharedMemHistory.removeFirst();
+    qint64 sharedTotalMiB = this->m_provider->GpuSharedMemTotalMiB(this->m_gpuIndex);
+    qint64 sharedUsedMiB  = this->m_provider->GpuSharedMemUsedMiB(this->m_gpuIndex);
+    const bool hasSharedData = (sharedTotalMiB > 0);
+    if (!hasSharedData)
+    {
+        sharedTotalMiB = qMax<qint64>(0, this->m_provider->MemTotalKb() / 1024 / 2);
+        sharedUsedMiB  = 0;
+        this->m_sharedMemHistory.append(0.0);
+        while (this->m_sharedMemHistory.size() > HISTORY_SIZE)
+            this->m_sharedMemHistory.removeFirst();
+    }
 
     const qint64 gpuUsedMiB = dedicatedUsedMiB + sharedUsedMiB;
     const qint64 gpuTotalMiB = dedicatedTotalMiB + sharedTotalMiB;
@@ -347,7 +350,10 @@ void GpuDetailWidget::onUpdated()
     this->m_dedicatedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(dedicatedTotalMiB) / 1024.0, tr("GB"), 2);
     this->m_dedicatedMemGraphMaxLabel->setText(formatMemMib(dedicatedTotalMiB));
 
-    this->m_sharedMemGraph->SetHistoryRef(this->m_sharedMemHistory, 100.0);
+    const QVector<double> &sharedHistory = hasSharedData
+        ? this->m_provider->GpuSharedMemHistory(this->m_gpuIndex)
+        : this->m_sharedMemHistory;
+    this->m_sharedMemGraph->SetHistoryRef(sharedHistory, 100.0);
     this->m_sharedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(sharedTotalMiB) / 1024.0, tr("GB"), 2);
     this->m_sharedMemGraphMaxLabel->setText(formatMemMib(sharedTotalMiB));
 

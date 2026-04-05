@@ -149,6 +149,9 @@ namespace Perf
             const QVector<double> &GpuMemUsageHistory(int i) const;
             const QVector<double> &GpuCopyTxHistory(int i) const;
             const QVector<double> &GpuCopyRxHistory(int i) const;
+            qint64 GpuSharedMemUsedMiB(int i) const;
+            qint64 GpuSharedMemTotalMiB(int i) const;
+            const QVector<double> &GpuSharedMemHistory(int i) const;
             int GpuEngineCount(int gpuIndex) const;
             QString GpuEngineName(int gpuIndex, int engineIndex) const;
             double GpuEnginePercent(int gpuIndex, int engineIndex) const;
@@ -209,13 +212,41 @@ namespace Perf
                 int             temperatureC { -1 };
                 qint64          memUsedMiB { 0 };
                 qint64          memTotalMiB { 0 };
+                qint64          sharedMemUsedMiB { 0 };
+                qint64          sharedMemTotalMiB { 0 };
                 double          copyTxBps { 0.0 };
                 double          copyRxBps { 0.0 };
                 QVector<double> utilHistory;
                 QVector<double> memUsageHistory;
+                QVector<double> sharedMemHistory;
                 QVector<double> copyTxHistory;
                 QVector<double> copyRxHistory;
                 QVector<GpuEngineSample> engines;
+                QHash<QString, qint64> prevFdInfoEngineNs;
+            };
+
+            // Cached sysfs paths for a kernel DRM-managed GPU.
+            // Populated once at startup; used every sampling tick.
+            struct DrmCard
+            {
+                QString   id;             // PCI address, e.g. 0000:05:00.0
+                QString   vendor;         // PCI vendor, e.g. "0x1002"
+                QString   driverName;     // e.g. "amdgpu", "i915"
+                QString   driverVersion;
+                QString   busyPath;       // .../gpu_busy_percent
+                QString   vramTotalPath;  // .../mem_info_vram_total
+                QString   vramUsedPath;   // .../mem_info_vram_used
+                QString   gttTotalPath;   // .../mem_info_gtt_total  (shared / system)
+                QString   gttUsedPath;    // .../mem_info_gtt_used
+                QString   tempPath;       // hwmon temp1_input (milli-°C)
+                QString   renderNodePath; // /dev/dri/renderDN  (for fdinfo matching)
+                QString   cardNodePath;   // /dev/dri/cardN
+
+                // All *_busy_percent engine files (excluding gpu_busy_percent).
+                QVector<QPair<QString, QString>>  engineBusyPaths; // (key, sysfs path)
+
+                // Cached fdinfo paths from the last full /proc scan.
+                QStringList     cachedFdInfoPaths;
             };
 
             struct NetworkSample
@@ -310,6 +341,10 @@ namespace Perf
             QVector<GpuSample>  m_gpus;
             bool                m_hasNvml { false };
             void               *m_nvmlLibHandle { nullptr };
+            QVector<DrmCard>    m_drmCards;
+            QElapsedTimer       m_gpuFdInfoTimer;
+            bool                m_gpuFdInfoTimerStarted { false };
+            int                 m_gpuFdInfoRescanCounter { 0 };
 
             /// Sample /proc/stat aggregate + per-core jiffies and append utilization histories.
             bool sampleCpu();
@@ -330,7 +365,10 @@ namespace Perf
             void sampleCpuTemperature();
             void refreshDisks(const QSet<QString> &measurableDevices);
             void detectGpuBackends();
+            void detectDrmCards();
             bool sampleNvml();
+            bool sampleDrm();
+            QHash<QString, qint64> scanDrmFdInfoEngines(DrmCard &card);
             void unloadGpuBackends();
             static double parsePercentField(const QString &field);
             static qint64 parseMiBField(const QString &field);

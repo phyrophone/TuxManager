@@ -27,7 +27,10 @@
 #include <QHash>
 #include <QRegularExpression>
 #include <QStringList>
+#include <QSysInfo>
 #include <dlfcn.h>
+#include <linux/limits.h>
+#include <unistd.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -71,6 +74,32 @@ using FnNvmlDeviceGetEncoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned in
 using FnNvmlDeviceGetDecoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned int *, unsigned int *);
 using FnNvmlDeviceGetPcieThroughput = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
 using FnNvmlDeviceGetTemperature = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
+
+struct NvmlProcessInfo_v2
+{
+    unsigned int pid;
+    uint64_t     usedGpuMemory;
+    unsigned int gpuInstanceId;
+    unsigned int computeInstanceId;
+};
+
+struct NvmlProcessUtilizationSample
+{
+    unsigned int pid;
+    uint64_t     timeStamp;
+    unsigned int smUtil;
+    unsigned int memUtil;
+    unsigned int encUtil;
+    unsigned int decUtil;
+};
+
+using FnNvmlDeviceGetGraphicsRunningProcesses = NvmlReturn (*)(NvmlDevice, unsigned int *, NvmlProcessInfo_v2 *);
+using FnNvmlDeviceGetComputeRunningProcesses = NvmlReturn (*)(NvmlDevice, unsigned int *, NvmlProcessInfo_v2 *);
+using FnNvmlDeviceGetProcessUtilization = NvmlReturn (*)(NvmlDevice, NvmlProcessUtilizationSample *, unsigned int *, uint64_t);
+
+FnNvmlDeviceGetGraphicsRunningProcesses pNvmlDeviceGetGraphicsRunningProcesses = nullptr;
+FnNvmlDeviceGetComputeRunningProcesses pNvmlDeviceGetComputeRunningProcesses = nullptr;
+FnNvmlDeviceGetProcessUtilization pNvmlDeviceGetProcessUtilization = nullptr;
 
 FnNvmlInitV2 pNvmlInitV2 = nullptr;
 FnNvmlShutdown pNvmlShutdown = nullptr;
@@ -448,6 +477,28 @@ const QVector<double> &PerfDataProvider::GpuCopyRxHistory(int i) const
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).copyRxHistory;
+}
+
+qint64 PerfDataProvider::GpuSharedMemUsedMiB(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return 0;
+    return this->m_gpus.at(i).sharedMemUsedMiB;
+}
+
+qint64 PerfDataProvider::GpuSharedMemTotalMiB(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return 0;
+    return this->m_gpus.at(i).sharedMemTotalMiB;
+}
+
+const QVector<double> &PerfDataProvider::GpuSharedMemHistory(int i) const
+{
+    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_gpus.size())
+        return empty;
+    return this->m_gpus.at(i).sharedMemHistory;
 }
 
 int PerfDataProvider::GpuEngineCount(int gpuIndex) const
@@ -1250,69 +1301,88 @@ void PerfDataProvider::detectGpuBackends()
     this->m_hasNvml = false;
     this->m_nvmlLibHandle = nullptr;
 
+    // Try to load NVML for NVIDIA GPUs
     this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so.1", RTLD_LAZY | RTLD_LOCAL);
     if (!this->m_nvmlLibHandle)
         this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so", RTLD_LAZY | RTLD_LOCAL);
-    if (!this->m_nvmlLibHandle)
-        return;
 
-    pNvmlInitV2 = reinterpret_cast<FnNvmlInitV2>(::dlsym(this->m_nvmlLibHandle, "nvmlInit_v2"));
-    pNvmlShutdown = reinterpret_cast<FnNvmlShutdown>(::dlsym(this->m_nvmlLibHandle, "nvmlShutdown"));
-    pNvmlSystemGetDriverVersion = reinterpret_cast<FnNvmlSystemGetDriverVersion>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlSystemGetDriverVersion"));
-    pNvmlDeviceGetCountV2 = reinterpret_cast<FnNvmlDeviceGetCountV2>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetCount_v2"));
-    pNvmlDeviceGetHandleByIndexV2 = reinterpret_cast<FnNvmlDeviceGetHandleByIndexV2>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetHandleByIndex_v2"));
-    pNvmlDeviceGetName = reinterpret_cast<FnNvmlDeviceGetName>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetName"));
-    pNvmlDeviceGetUUID = reinterpret_cast<FnNvmlDeviceGetUUID>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUUID"));
-    pNvmlDeviceGetUtilizationRates = reinterpret_cast<FnNvmlDeviceGetUtilizationRates>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUtilizationRates"));
-    pNvmlDeviceGetMemoryInfo = reinterpret_cast<FnNvmlDeviceGetMemoryInfo>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetMemoryInfo"));
-    pNvmlDeviceGetEncoderUtilization = reinterpret_cast<FnNvmlDeviceGetEncoderUtilization>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetEncoderUtilization"));
-    pNvmlDeviceGetDecoderUtilization = reinterpret_cast<FnNvmlDeviceGetDecoderUtilization>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetDecoderUtilization"));
-    pNvmlDeviceGetPcieThroughput = reinterpret_cast<FnNvmlDeviceGetPcieThroughput>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
-    pNvmlDeviceGetTemperature = reinterpret_cast<FnNvmlDeviceGetTemperature>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetTemperature"));
-
-    if (!pNvmlInitV2 || !pNvmlShutdown || !pNvmlDeviceGetCountV2
-        || !pNvmlDeviceGetHandleByIndexV2 || !pNvmlDeviceGetName
-        || !pNvmlDeviceGetUUID || !pNvmlDeviceGetUtilizationRates
-        || !pNvmlDeviceGetMemoryInfo)
+    if (this->m_nvmlLibHandle)
     {
-        this->unloadGpuBackends();
-        return;
+        pNvmlInitV2 = reinterpret_cast<FnNvmlInitV2>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlInit_v2"));
+        pNvmlShutdown = reinterpret_cast<FnNvmlShutdown>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlShutdown"));
+        pNvmlSystemGetDriverVersion = reinterpret_cast<FnNvmlSystemGetDriverVersion>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlSystemGetDriverVersion"));
+        pNvmlDeviceGetCountV2 = reinterpret_cast<FnNvmlDeviceGetCountV2>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetCount_v2"));
+        pNvmlDeviceGetHandleByIndexV2 = reinterpret_cast<FnNvmlDeviceGetHandleByIndexV2>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetHandleByIndex_v2"));
+        pNvmlDeviceGetName = reinterpret_cast<FnNvmlDeviceGetName>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetName"));
+        pNvmlDeviceGetUUID = reinterpret_cast<FnNvmlDeviceGetUUID>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUUID"));
+        pNvmlDeviceGetUtilizationRates = reinterpret_cast<FnNvmlDeviceGetUtilizationRates>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUtilizationRates"));
+        pNvmlDeviceGetMemoryInfo = reinterpret_cast<FnNvmlDeviceGetMemoryInfo>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetMemoryInfo"));
+        pNvmlDeviceGetEncoderUtilization = reinterpret_cast<FnNvmlDeviceGetEncoderUtilization>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetEncoderUtilization"));
+        pNvmlDeviceGetDecoderUtilization = reinterpret_cast<FnNvmlDeviceGetDecoderUtilization>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetDecoderUtilization"));
+        pNvmlDeviceGetPcieThroughput = reinterpret_cast<FnNvmlDeviceGetPcieThroughput>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
+        pNvmlDeviceGetTemperature = reinterpret_cast<FnNvmlDeviceGetTemperature>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetTemperature"));
+        pNvmlDeviceGetGraphicsRunningProcesses = reinterpret_cast<FnNvmlDeviceGetGraphicsRunningProcesses>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetGraphicsRunningProcesses_v3"));
+        pNvmlDeviceGetComputeRunningProcesses = reinterpret_cast<FnNvmlDeviceGetComputeRunningProcesses>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetComputeRunningProcesses_v3"));
+        pNvmlDeviceGetProcessUtilization = reinterpret_cast<FnNvmlDeviceGetProcessUtilization>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetProcessUtilization"));
+
+        const bool symbolsOk = pNvmlInitV2 && pNvmlShutdown && pNvmlDeviceGetCountV2
+                               && pNvmlDeviceGetHandleByIndexV2 && pNvmlDeviceGetName
+                               && pNvmlDeviceGetUUID && pNvmlDeviceGetUtilizationRates
+                               && pNvmlDeviceGetMemoryInfo;
+        if (!symbolsOk)
+        {
+            LOG_DEBUG("NVML: required symbols not found, unloading");
+            this->unloadGpuBackends();
+        }
+        else if (pNvmlInitV2() != NVML_SUCCESS)
+        {
+            LOG_DEBUG("NVML: nvmlInit_v2 failed, unloading");
+            this->unloadGpuBackends();
+        }
+        else
+        {
+            unsigned int count = 0;
+            if (pNvmlDeviceGetCountV2(&count) == NVML_SUCCESS && count > 0)
+            {
+                this->m_hasNvml = true;
+            }
+            else
+            {
+                LOG_DEBUG("NVML: no devices found, shutting down");
+                pNvmlShutdown();
+                this->unloadGpuBackends();
+            }
+        }
     }
 
-    if (pNvmlInitV2() != NVML_SUCCESS)
-    {
-        this->unloadGpuBackends();
-        return;
-    }
-
-    unsigned int count = 0;
-    if (pNvmlDeviceGetCountV2(&count) != NVML_SUCCESS || count == 0)
-    {
-        this->unloadGpuBackends();
-        return;
-    }
-
-    this->m_hasNvml = true;
+    // DRM sysfs fallback (amdgpu, i915, …); NVIDIA cards covered by NVML are skipped.
+    this->detectDrmCards();
 }
 
 bool PerfDataProvider::sampleGpus()
 {
+    bool ok = false;
     if (this->m_hasNvml)
-        return this->sampleNvml();
-
-    this->m_gpus.clear();
-    return true;
+        ok |= this->sampleNvml();
+    if (!this->m_drmCards.isEmpty())
+        ok |= this->sampleDrm();
+    return ok;
 }
 
 void PerfDataProvider::unloadGpuBackends()
@@ -1335,6 +1405,9 @@ void PerfDataProvider::unloadGpuBackends()
     pNvmlDeviceGetDecoderUtilization = nullptr;
     pNvmlDeviceGetPcieThroughput = nullptr;
     pNvmlDeviceGetTemperature = nullptr;
+    pNvmlDeviceGetGraphicsRunningProcesses = nullptr;
+    pNvmlDeviceGetComputeRunningProcesses = nullptr;
+    pNvmlDeviceGetProcessUtilization = nullptr;
 
     if (this->m_nvmlLibHandle)
     {
@@ -1451,8 +1524,60 @@ bool PerfDataProvider::sampleNvml()
 
         if (hasUtil)
         {
-            addEngine("3d", "3D", util.gpu);
-            addEngine("cuda", "CUDA", util.gpu);
+            double graphicsUtil = util.gpu;
+            double computeUtil = util.gpu;
+
+            if (pNvmlDeviceGetGraphicsRunningProcesses
+                && pNvmlDeviceGetComputeRunningProcesses
+                && pNvmlDeviceGetProcessUtilization)
+            {
+                auto collectPids = [&dev](auto fn) -> QSet<unsigned int>
+                {
+                    unsigned int count = 0;
+                    fn(dev, &count, nullptr);
+                    QSet<unsigned int> pids;
+                    if (count > 0)
+                    {
+                        QVector<NvmlProcessInfo_v2> procs(static_cast<int>(count));
+                        if (fn(dev, &count, procs.data()) == NVML_SUCCESS)
+                        {
+                            for (unsigned int i = 0; i < count; ++i)
+                                pids.insert(procs[static_cast<int>(i)].pid);
+                        }
+                    }
+                    return pids;
+                };
+
+                QSet<unsigned int> gfxPids  = collectPids(pNvmlDeviceGetGraphicsRunningProcesses);
+                QSet<unsigned int> compPids = collectPids(pNvmlDeviceGetComputeRunningProcesses);
+
+                unsigned int procUtilCount = 32;
+                QVector<NvmlProcessUtilizationSample> procUtil(static_cast<int>(procUtilCount));
+                NvmlReturn ret = pNvmlDeviceGetProcessUtilization(dev, procUtil.data(), &procUtilCount, 0);
+                if (ret != NVML_SUCCESS && procUtilCount > 32 && procUtilCount <= 1024)
+                {
+                    procUtil.resize(static_cast<int>(procUtilCount));
+                    ret = pNvmlDeviceGetProcessUtilization(dev, procUtil.data(), &procUtilCount, 0);
+                }
+                if (ret == NVML_SUCCESS)
+                {
+                    double sumGfx = 0.0;
+                    double sumComp = 0.0;
+                    for (unsigned int p = 0; p < procUtilCount; ++p)
+                    {
+                        const auto &s = procUtil[static_cast<int>(p)];
+                        if (compPids.contains(s.pid) && !gfxPids.contains(s.pid))
+                            sumComp += s.smUtil;
+                        else
+                            sumGfx += s.smUtil;
+                    }
+                    graphicsUtil = qBound(0.0, sumGfx, 100.0);
+                    computeUtil = qBound(0.0, sumComp, 100.0);
+                }
+            }
+
+            addEngine("3d", "3D", graphicsUtil);
+            addEngine("cuda", "CUDA", computeUtil);
             addEngine("copy", "Copy", util.memory);
         }
         if (pNvmlDeviceGetEncoderUtilization)
@@ -1471,8 +1596,12 @@ bool PerfDataProvider::sampleNvml()
         g.engines = engines;
         seenIds.insert(id);
     }
+    // Zero-out stale NVML GPUs that disappeared between ticks (e.g. hot-unplug).
+    // Only touch entries that were previously produced by NVML (backend == "nvml").
     for (GpuSample &g : this->m_gpus)
     {
+        if (g.backend != QLatin1String("NVML"))
+            continue;
         if (!seenIds.contains(g.id))
         {
             g.utilPct = 0.0;
@@ -1493,6 +1622,380 @@ bool PerfDataProvider::sampleNvml()
         }
     }
     return true;
+}
+
+// ── GPU: DRM sysfs backend (amdgpu, i915, …) ─────────────────────────────────
+
+void PerfDataProvider::detectDrmCards()
+{
+    this->m_drmCards.clear();
+
+    const QDir drmDir("/sys/class/drm");
+    const QStringList entries = drmDir.entryList({"card[0-9]*"}, QDir::Dirs);
+
+    for (const QString &entry : entries)
+    {
+        if (entry.contains('-'))   // skip card0-eDP-1, card1-HDMI-A-1, …
+            continue;
+
+        const QString devPath = drmDir.filePath(entry + "/device");
+        const QString vendorStr = readSysTextFile(devPath + "/vendor").trimmed();
+
+        // Skip NVIDIA cards already managed by NVML to avoid duplicate entries.
+        if (this->m_hasNvml && vendorStr == QLatin1String("0x10de"))
+            continue;
+
+        DrmCard card;
+        card.vendor = vendorStr;
+        card.cardNodePath = QStringLiteral("/dev/dri/") + entry;
+
+        // Stable identifier: the PCI address resolved from the sysfs symlink.
+        const QString canonical = QFileInfo(devPath).canonicalFilePath();
+        card.id = QFileInfo(canonical).fileName();
+        if (card.id.isEmpty())
+            card.id = entry;
+
+        // Detect the render node for this card (used by fdinfo engine scanner).
+        const QStringList renderNodes = QDir(devPath + "/drm")
+                                            .entryList({"renderD*"}, QDir::Dirs);
+        if (!renderNodes.isEmpty())
+            card.renderNodePath = QStringLiteral("/dev/dri/") + renderNodes.first();
+
+        // First hwmon sub-directory holds temperature and driver name.
+        const QStringList hwmons = QDir(devPath + "/hwmon")
+                                       .entryList({"hwmon[0-9]*"}, QDir::Dirs);
+        if (!hwmons.isEmpty())
+        {
+            const QString hwPath = devPath + "/hwmon/" + hwmons.first();
+            card.driverName = readSysTextFile(hwPath + "/name").trimmed();
+            const QString tp = hwPath + "/temp1_input";
+            if (QFileInfo::exists(tp))
+                card.tempPath = tp;
+        }
+
+        // Driver version: try module version first, fall back to kernel version
+        // for in-tree drivers (e.g. amdgpu ships inside the kernel).
+        if (!card.driverName.isEmpty())
+        {
+            const QString ver = readSysTextFile(
+                "/sys/module/" + card.driverName + "/version").trimmed();
+            if (!ver.isEmpty())
+                card.driverVersion = ver;
+        }
+        if (card.driverVersion.isEmpty())
+            card.driverVersion = QSysInfo::kernelVersion();
+
+        const QString busyPath = devPath + "/gpu_busy_percent";
+        if (QFileInfo::exists(busyPath))
+            card.busyPath = busyPath;
+
+        // Dynamically detect all *_busy_percent engine files.
+        const QStringList busyFiles = QDir(devPath).entryList(
+            {"*_busy_percent"}, QDir::Files);
+        for (const QString &f : busyFiles)
+        {
+            if (f == QLatin1String("gpu_busy_percent"))
+                continue;  // handled separately as overall utilisation
+
+            static const QLatin1String suffix("_busy_percent");
+            const QString key = f.chopped(suffix.size());
+            card.engineBusyPaths.append({key, devPath + "/" + f});
+        }
+
+        const QString vramT = devPath + "/mem_info_vram_total";
+        const QString vramU = devPath + "/mem_info_vram_used";
+        if (QFileInfo::exists(vramT) && QFileInfo::exists(vramU))
+        {
+            card.vramTotalPath = vramT;
+            card.vramUsedPath  = vramU;
+        }
+
+        const QString gttT = devPath + "/mem_info_gtt_total";
+        const QString gttU = devPath + "/mem_info_gtt_used";
+        if (QFileInfo::exists(gttT) && QFileInfo::exists(gttU))
+        {
+            card.gttTotalPath = gttT;
+            card.gttUsedPath  = gttU;
+        }
+
+        this->m_drmCards.append(card);
+    }
+}
+
+bool PerfDataProvider::sampleDrm()
+{
+    const qint64 fdInfoElapsedNs = this->m_gpuFdInfoTimerStarted
+                                   ? this->m_gpuFdInfoTimer.nsecsElapsed()
+                                   : 0;
+
+    ++this->m_gpuFdInfoRescanCounter;
+
+    for (DrmCard &card : this->m_drmCards)
+    {
+        int gpuIdx = -1;
+        for (int j = 0; j < this->m_gpus.size(); ++j)
+        {
+            if (this->m_gpus.at(j).id == card.id)
+            {
+                gpuIdx = j;
+                break;
+            }
+        }
+
+        if (gpuIdx < 0)
+        {
+            GpuSample g;
+            g.id            = card.id;
+            g.driverVersion = card.driverVersion;
+            g.backend       = card.driverName.isEmpty()
+                              ? QStringLiteral("drm") : card.driverName;
+
+            if (card.vendor == QLatin1String("0x1002"))
+                g.name = QStringLiteral("AMD Radeon");
+            else if (card.vendor == QLatin1String("0x8086"))
+                g.name = QStringLiteral("Intel Graphics");
+            else
+                g.name = QStringLiteral("GPU");
+
+            this->m_gpus.append(g);
+            gpuIdx = this->m_gpus.size() - 1;
+        }
+
+        GpuSample &g = this->m_gpus[gpuIdx];
+        g.temperatureC = -1;
+
+        if (!card.busyPath.isEmpty())
+        {
+            bool ok = false;
+            const int pct = readSysTextFile(card.busyPath).trimmed().toInt(&ok);
+            g.utilPct = ok ? qBound(0.0, static_cast<double>(pct), 100.0) : 0.0;
+        }
+        else
+        {
+            g.utilPct = 0.0;
+        }
+        appendHistory(g.utilHistory, g.utilPct);
+
+        if (!card.tempPath.isEmpty())
+        {
+            bool ok = false;
+            const int milliC = readSysTextFile(card.tempPath).trimmed().toInt(&ok);
+            g.temperatureC = ok ? milliC / 1000 : -1;
+        }
+
+        if (!card.vramTotalPath.isEmpty())
+        {
+            bool okT = false, okU = false;
+            const qint64 total = readSysTextFile(card.vramTotalPath).trimmed().toLongLong(&okT);
+            const qint64 used  = readSysTextFile(card.vramUsedPath).trimmed().toLongLong(&okU);
+            g.memTotalMiB = okT ? total / (1024LL * 1024LL) : 0;
+            g.memUsedMiB  = okU ? used  / (1024LL * 1024LL) : 0;
+        }
+
+        if (!card.gttTotalPath.isEmpty())
+        {
+            bool okT = false, okU = false;
+            const qint64 total = readSysTextFile(card.gttTotalPath).trimmed().toLongLong(&okT);
+            const qint64 used  = readSysTextFile(card.gttUsedPath).trimmed().toLongLong(&okU);
+            g.sharedMemTotalMiB = okT ? total / (1024LL * 1024LL) : 0;
+            g.sharedMemUsedMiB  = okU ? used  / (1024LL * 1024LL) : 0;
+        }
+
+        const double memPct = (g.memTotalMiB > 0)
+                              ? static_cast<double>(g.memUsedMiB)
+                                / static_cast<double>(g.memTotalMiB) * 100.0
+                              : 0.0;
+        appendHistory(g.memUsageHistory, memPct);
+
+        const double sharedPct = (g.sharedMemTotalMiB > 0)
+                                 ? static_cast<double>(g.sharedMemUsedMiB)
+                                   / static_cast<double>(g.sharedMemTotalMiB) * 100.0
+                                 : 0.0;
+        appendHistory(g.sharedMemHistory, sharedPct);
+
+        appendHistory(g.copyTxHistory,   0.0);
+        appendHistory(g.copyRxHistory,   0.0);
+
+        // ── Engine data ──────────────────────────────────────────────────────
+        QHash<QString, GpuEngineSample> oldEngines;
+        for (const GpuEngineSample &e : g.engines)
+            oldEngines.insert(e.key, e);
+
+        QVector<GpuEngineSample> engines;
+        auto addEngine = [&](const QString &key, const QString &label, double pct)
+        {
+            GpuEngineSample eng = oldEngines.value(key);
+            eng.key   = key;
+            eng.label = label;
+            eng.pct   = qBound(0.0, pct, 100.0);
+            appendHistory(eng.history, eng.pct);
+            engines.append(eng);
+        };
+
+        if (!card.busyPath.isEmpty())
+            addEngine("gfx", "GFX", g.utilPct);
+
+        // Dynamic sysfs engines (vcn_busy_percent, jpeg_busy_percent, …).
+        for (const auto &ep : card.engineBusyPaths)
+        {
+            bool ok = false;
+            const int pct = readSysTextFile(ep.second).trimmed().toInt(&ok);
+            addEngine(ep.first, ep.first.toUpper(), ok ? static_cast<double>(pct) : 0.0);
+        }
+
+        // fdinfo-based engines (Compute, etc.) — cumulative ns, need delta.
+        if (!card.renderNodePath.isEmpty())
+        {
+            const QHash<QString, qint64> curNs = this->scanDrmFdInfoEngines(card);
+            QSet<QString> sysFsKeys;
+            sysFsKeys.insert(QStringLiteral("gfx"));
+            for (const auto &ep : card.engineBusyPaths)
+                sysFsKeys.insert(ep.first);
+
+            for (auto it = curNs.cbegin(); it != curNs.cend(); ++it)
+            {
+                if (sysFsKeys.contains(it.key()))
+                    continue;                       // already covered by sysfs
+                double pct = 0.0;
+                if (fdInfoElapsedNs > 0 && g.prevFdInfoEngineNs.contains(it.key()))
+                {
+                    const qint64 delta = it.value() - g.prevFdInfoEngineNs.value(it.key());
+                    pct = static_cast<double>(delta) / static_cast<double>(fdInfoElapsedNs) * 100.0;
+                }
+                QString label = it.key();
+                for (int ci = 0; ci < label.size(); ++ci)
+                {
+                    if (ci == 0 || (ci > 0 && label[ci - 1] == QChar('-')))
+                        label[ci] = label[ci].toUpper();
+                }
+                addEngine(it.key(), label, pct);
+            }
+            g.prevFdInfoEngineNs = curNs;
+        }
+
+        g.engines = engines;
+    }
+
+    // Restart the fdinfo timer after all DRM cards are sampled.
+    this->m_gpuFdInfoTimer.start();
+    this->m_gpuFdInfoTimerStarted = true;
+
+    return !this->m_drmCards.isEmpty();
+}
+
+// ── GPU: fdinfo engine scanner ────────────────────────────────────────────────
+// Reads drm-engine-* nanosecond values from /proc fdinfo files.
+// Caches discovered fdinfo paths and only does a full /proc rescan every few ticks.
+// De-duplicates by drm-client-id.
+
+QHash<QString, qint64> PerfDataProvider::scanDrmFdInfoEngines(DrmCard &card)
+{
+    QHash<QString, qint64> totals;
+    QSet<int> seenClients;
+
+    // Helper: parse a single fdinfo file and accumulate engine nanosecond values.
+    auto parseFdInfo = [&](const QString &infoPath) -> bool
+    {
+        const QString content = readSysTextFile(infoPath);
+        if (content.isEmpty())
+            return false;
+
+        if (!content.contains(QLatin1String("drm-pdev:\t") + card.id)
+            && !content.contains(QLatin1String("drm-pdev: ") + card.id))
+            return false;
+
+        int clientId = -1;
+        for (const auto &line : QStringView(content).split('\n'))
+        {
+            if (line.startsWith(QLatin1String("drm-client-id:")))
+            {
+                clientId = line.mid(line.indexOf(':') + 1).trimmed().toInt();
+                break;
+            }
+        }
+        if (clientId >= 0 && seenClients.contains(clientId))
+            return false;
+        if (clientId >= 0)
+            seenClients.insert(clientId);
+
+        bool found = false;
+        for (const auto &line : QStringView(content).split('\n'))
+        {
+            if (!line.startsWith(QLatin1String("drm-engine-")))
+                continue;
+            const int colonPos = line.indexOf(':');
+            if (colonPos < 0)
+                continue;
+            const QString key = line.mid(11, colonPos - 11).toString();
+            const QStringView valStr = line.mid(colonPos + 1).trimmed();
+            const int spacePos = valStr.indexOf(' ');
+            const qint64 ns = (spacePos > 0 ? valStr.left(spacePos) : valStr)
+                                  .toLongLong();
+            totals[key] += ns;
+            found = true;
+        }
+        return found;
+    };
+
+    const bool fullRescan = (this->m_gpuFdInfoRescanCounter % 5 == 1)
+                            || card.cachedFdInfoPaths.isEmpty();
+
+    if (!fullRescan)
+    {
+        // Fast path: only re-read previously discovered fdinfo paths.
+        QStringList stillValid;
+        for (const QString &path : std::as_const(card.cachedFdInfoPaths))
+        {
+            if (parseFdInfo(path))
+                stillValid.append(path);
+        }
+        card.cachedFdInfoPaths = stillValid;
+        return totals;
+    }
+
+    // Full rescan: walk /proc/*/fd to discover new fdinfo paths.
+    QStringList newCache;
+
+    const QDir procDir(QStringLiteral("/proc"));
+    const QStringList pids = procDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    for (const QString &pidEntry : pids)
+    {
+        bool ok = false;
+        pidEntry.toInt(&ok);
+        if (!ok)
+            continue;
+
+        const QString fdDirPath = QStringLiteral("/proc/") + pidEntry + QStringLiteral("/fd");
+        const QDir fdDir(fdDirPath);
+        if (!fdDir.exists())
+            continue;
+
+        const QStringList fdEntries = fdDir.entryList(QDir::NoDotAndDotDot);
+        for (const QString &fdNum : fdEntries)
+        {
+            const QString linkPath = fdDirPath + QChar('/') + fdNum;
+            char buf[PATH_MAX];
+            const ssize_t len = ::readlink(linkPath.toLocal8Bit().constData(),
+                                           buf, sizeof(buf) - 1);
+            if (len <= 0)
+                continue;
+            buf[len] = '\0';
+            const QByteArray target(buf, static_cast<int>(len));
+
+            if (target != card.renderNodePath.toLatin1()
+                && target != card.cardNodePath.toLatin1())
+                continue;
+
+            const QString infoPath = QStringLiteral("/proc/") + pidEntry
+                                     + QStringLiteral("/fdinfo/") + fdNum;
+            if (parseFdInfo(infoPath))
+                newCache.append(infoPath);
+        }
+    }
+
+    card.cachedFdInfoPaths = newCache;
+    return totals;
 }
 
 double PerfDataProvider::parsePercentField(const QString &field)
