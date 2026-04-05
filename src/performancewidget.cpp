@@ -19,15 +19,18 @@
 #include "performancewidget.h"
 #include "ui_performancewidget.h"
 
+#include "colorschemedialog.h"
 #include "configuration.h"
 #include "colorscheme.h"
 #include "logger.h"
 #include "perf/graphwidget.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
+#include <QPalette>
 #include <QRegularExpression>
 
 // ── Construction ──────────────────────────────────────────────────────────────
@@ -353,6 +356,9 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
     gpu->setChecked(CFG->PerfShowGpu);
 
     menu.addSeparator();
+    QAction *customizeColors = menu.addAction(tr("Customize colors..."));
+
+    menu.addSeparator();
     QMenu *timeMenu = menu.addMenu(tr("Graph time"));
     struct TimeChoice
     {
@@ -384,6 +390,28 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
         this->applyGraphWindowSeconds();
         if (this->m_active)
             this->onProviderUpdated();
+        return;
+    }
+
+    if (picked == customizeColors)
+    {
+        ColorSchemeDialog dialog(this);
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+
+        CFG->UseCustomColorScheme = dialog.UseCustomScheme();
+        const ColorScheme scheme = dialog.BuildScheme();
+        CFG->CustomColorScheme = scheme.ToVariantMap();
+
+        if (CFG->UseCustomColorScheme)
+            ColorScheme::Install(new ColorScheme(scheme));
+        else
+            ColorScheme::Install(new ColorScheme(ColorScheme::DetectDarkMode()
+                                                 ? ColorScheme::DefaultDark()
+                                                 : ColorScheme::DefaultLight()));
+
+        this->ApplyColorScheme();
+        CFG->Save();
         return;
     }
 
@@ -421,6 +449,47 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
     this->updateSamplingPolicy();
     if (this->m_active)
         this->onProviderUpdated();
+}
+
+void PerformanceWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    this->m_sidePanel->ApplyColorScheme();
+
+    auto applySidePanelItem = [](Perf::SidePanelItem *item, const QColor &line, const QColor &fill)
+    {
+        if (!item)
+            return;
+        item->SetGraphColor(line, fill);
+        item->update();
+    };
+
+    applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_cpuPanelIndex), scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
+    applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex), scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
+    applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_swapPanelIndex), scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
+
+    for (Perf::SidePanelItem *item : this->m_diskItems)
+        applySidePanelItem(item, scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
+    for (Perf::SidePanelItem *item : this->m_networkItems)
+        applySidePanelItem(item, scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor);
+    for (Perf::SidePanelItem *item : this->m_gpuItems)
+        applySidePanelItem(item, scheme->GpuGraphLineColor, scheme->GpuGraphFillColor);
+
+    this->m_cpuDetail->ApplyColorScheme();
+    this->m_memDetail->ApplyColorScheme();
+    this->m_swapDetail->ApplyColorScheme();
+    for (Perf::DiskDetailWidget *detail : this->m_diskDetails)
+        if (detail)
+            detail->ApplyColorScheme();
+    for (Perf::NetworkDetailWidget *detail : this->m_networkDetails)
+        if (detail)
+            detail->ApplyColorScheme();
+    for (Perf::GpuDetailWidget *detail : this->m_gpuDetails)
+        if (detail)
+            detail->ApplyColorScheme();
+
+    this->m_sidePanel->update();
+    this->update();
 }
 
 void PerformanceWidget::applyPanelVisibility()

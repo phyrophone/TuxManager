@@ -40,6 +40,7 @@ namespace Perf
             ~CpuDetailWidget();
 
             void SetProvider(PerfDataProvider *provider);
+            void ApplyColorScheme();
 
         private slots:
             void onUpdated();
@@ -53,4 +54,3 @@ namespace Perf
 } // namespace Perf
 
 #endif // PERF_CPUDETAILWIDGET_H
-

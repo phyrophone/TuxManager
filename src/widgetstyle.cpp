@@ -16,39 +16,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PERF_MEMORYDETAILWIDGET_H
-#define PERF_MEMORYDETAILWIDGET_H
-
-#include "perfdataprovider.h"
+#include "widgetstyle.h"
 
 #include <QWidget>
 
-QT_BEGIN_NAMESPACE
-namespace Ui { class MemoryDetailWidget; }
-QT_END_NAMESPACE
-
-namespace Perf
+namespace WidgetStyle
 {
-    class MemoryDetailWidget : public QWidget
+    QString TextStyle(const QColor &color, int fontSizePt, bool bold)
     {
-        Q_OBJECT
+        QString style = QString("color: %1;").arg(color.name(QColor::HexArgb));
+        if (fontSizePt > 0)
+            style += QString(" font-size: %1pt;").arg(fontSizePt);
+        if (bold)
+            style += " font-weight: bold;";
+        return style;
+    }
 
-        public:
-            explicit MemoryDetailWidget(QWidget *parent = nullptr);
-            ~MemoryDetailWidget();
-
-            void setProvider(PerfDataProvider *provider);
-            void ApplyColorScheme();
-
-        private slots:
-            void onUpdated();
-
-        private:
-            Ui::MemoryDetailWidget *ui;
-            PerfDataProvider       *m_provider { nullptr };
-
-            static QString fmtGb(qint64 kb);
-    };
-} // namespace Perf
-
-#endif // PERF_MEMORYDETAILWIDGET_H
+    void ApplyTextStyle(QWidget *widget, const QColor &color, int fontSizePt, bool bold)
+    {
+        if (!widget)
+            return;
+        widget->setStyleSheet(TextStyle(color, fontSizePt, bold));
+    }
+}

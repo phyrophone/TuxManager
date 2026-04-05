@@ -18,6 +18,7 @@
 
 #include "cpugrapharea.h"
 
+#include "../colorscheme.h"
 #include "configuration.h"
 #include "graphwidget.h"
 #include "perfdataprovider.h"
@@ -112,6 +113,21 @@ void CpuGraphArea::UpdateData(const PerfDataProvider *provider)
             else
                 g->SetOverlayText(QString());
         }
+    }
+}
+
+void CpuGraphArea::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    this->m_overallGraph->SetColor(scheme->CpuGraphLineColor,
+                                   scheme->CpuGraphFillColor,
+                                   scheme->CpuGraphSecondaryFillColor);
+    for (GraphWidget *g : this->m_coreGraphs)
+    {
+        if (g)
+            g->SetColor(scheme->CpuGraphLineColor,
+                        scheme->CpuGraphFillColor,
+                        scheme->CpuGraphSecondaryFillColor);
     }
 }
 

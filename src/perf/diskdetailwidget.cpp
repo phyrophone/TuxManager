@@ -19,6 +19,7 @@
 #include "diskdetailwidget.h"
 #include "ui_diskdetailwidget.h"
 #include "../colorscheme.h"
+#include "../widgetstyle.h"
 
 #include <algorithm>
 #include <QGridLayout>
@@ -26,33 +27,21 @@
 
 using namespace Perf;
 
-namespace
-{
-void appendColorStyle(QWidget *widget, const QColor &color)
-{
-    QString style = widget->styleSheet();
-    if (!style.isEmpty() && !style.trimmed().endsWith(';'))
-        style += ';';
-    style += QString(" color: %1;").arg(color.name(QColor::HexArgb));
-    widget->setStyleSheet(style);
-}
-}
-
 DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::DiskDetailWidget)
 {
     this->ui->setupUi(this);
     const ColorScheme *scheme = ColorScheme::GetCurrent();
 
-    appendColorStyle(this->ui->titleLabel, scheme->DiskTitleColor);
-    appendColorStyle(this->ui->modelLabel, scheme->DiskHeaderValueColor);
-    appendColorStyle(this->ui->activeGraphLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->activeGraphMaxLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->transferGraphLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->transferGraphMaxLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->activeTimeLeftLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->activeTimeRightLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->transferTimeLeftLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->transferTimeRightLabel, scheme->AxisLabelColor);
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->DiskTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->modelLabel, scheme->DiskHeaderValueColor, 12);
+    WidgetStyle::ApplyTextStyle(this->ui->activeGraphLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->activeGraphMaxLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferGraphLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferGraphMaxLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->activeTimeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->activeTimeRightLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferTimeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferTimeRightLabel, scheme->AxisLabelColor, 8);
 
     if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
     {
@@ -63,7 +52,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
                 if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
                 {
                     if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
-                        appendColorStyle(label, scheme->StatLabelColor);
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
                 }
             }
         }
@@ -92,6 +81,42 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
 DiskDetailWidget::~DiskDetailWidget()
 {
     delete this->ui;
+}
+
+void DiskDetailWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->DiskTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->modelLabel, scheme->DiskHeaderValueColor, 12);
+    WidgetStyle::ApplyTextStyle(this->ui->activeGraphLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->activeGraphMaxLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferGraphLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferGraphMaxLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->activeTimeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->activeTimeRightLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferTimeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->transferTimeRightLabel, scheme->AxisLabelColor, 8);
+
+    if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
+    {
+        for (int row = 0; row < statsGrid->rowCount(); ++row)
+        {
+            for (int column = 0; column < statsGrid->columnCount(); column += 2)
+            {
+                if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
+                {
+                    if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
+                }
+            }
+        }
+    }
+
+    this->ui->activeGraphWidget->SetColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
+    this->ui->transferGraphWidget->SetColor(scheme->DiskTransferGraphLineColor,
+                                            scheme->DiskTransferGraphFillColor,
+                                            scheme->DiskTransferGraphSecondaryFillColor);
+    this->update();
 }
 
 void DiskDetailWidget::SetProvider(PerfDataProvider *provider)

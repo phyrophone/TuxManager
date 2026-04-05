@@ -18,6 +18,7 @@
 
 #include "swapdetailwidget.h"
 #include "../colorscheme.h"
+#include "../widgetstyle.h"
 
 #include <algorithm>
 #include <QGridLayout>
@@ -25,18 +26,6 @@
 #include <QVBoxLayout>
 
 using namespace Perf;
-
-namespace
-{
-void appendColorStyle(QWidget *widget, const QColor &color)
-{
-    QString style = widget->styleSheet();
-    if (!style.isEmpty() && !style.trimmed().endsWith(';'))
-        style += ';';
-    style += QString(" color: %1;").arg(color.name(QColor::HexArgb));
-    widget->setStyleSheet(style);
-}
-}
 
 SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
 {
@@ -46,26 +35,28 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->setSpacing(6);
 
     auto *header = new QHBoxLayout();
-    auto *title = new QLabel(tr("Swap"), this);
-    QFont titleFont = title->font();
+    this->m_titleLabel = new QLabel(tr("Swap"), this);
+    QFont titleFont = this->m_titleLabel->font();
     titleFont.setPointSize(18);
     titleFont.setBold(true);
-    title->setFont(titleFont);
-    appendColorStyle(title, scheme->SwapUsageGraphLineColor);
+    this->m_titleLabel->setFont(titleFont);
+    WidgetStyle::ApplyTextStyle(this->m_titleLabel, scheme->SwapUsageGraphLineColor, 18, true);
 
     this->m_totalLabel = new QLabel(tr("0 GB"), this);
     this->m_totalLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     QFont totalFont = this->m_totalLabel->font();
     totalFont.setPointSize(11);
     this->m_totalLabel->setFont(totalFont);
-    appendColorStyle(this->m_totalLabel, scheme->MutedTextColor);
+    WidgetStyle::ApplyTextStyle(this->m_totalLabel, scheme->MutedTextColor, 11);
 
-    header->addWidget(title, 1);
+    header->addWidget(this->m_titleLabel, 1);
     header->addWidget(this->m_totalLabel, 1);
     root->addLayout(header);
 
     auto *usageHeader = new QHBoxLayout();
-    usageHeader->addWidget(new QLabel(tr("Swap usage"), this), 1);
+    QLabel *usageLabel = new QLabel(tr("Swap usage"), this);
+    this->m_statLabels.append(usageLabel);
+    usageHeader->addWidget(usageLabel, 1);
     this->m_usageValueLabel = new QLabel(tr("0%"), this);
     this->m_usageValueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     usageHeader->addWidget(this->m_usageValueLabel);
@@ -83,13 +74,19 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->addWidget(this->m_usageGraph, 1);
 
     auto *usageTimeAxis = new QHBoxLayout();
-    usageTimeAxis->addWidget(new QLabel(tr("60 seconds"), this));
+    QLabel *usageTimeLeft = new QLabel(tr("60 seconds"), this);
+    this->m_axisLabels.append(usageTimeLeft);
+    usageTimeAxis->addWidget(usageTimeLeft);
     usageTimeAxis->addStretch(1);
-    usageTimeAxis->addWidget(new QLabel(tr("0"), this));
+    QLabel *usageTimeRight = new QLabel(tr("0"), this);
+    this->m_axisLabels.append(usageTimeRight);
+    usageTimeAxis->addWidget(usageTimeRight);
     root->addLayout(usageTimeAxis);
 
     auto *activityHeader = new QHBoxLayout();
-    activityHeader->addWidget(new QLabel(tr("Swap activity"), this), 1);
+    QLabel *activityLabel = new QLabel(tr("Swap activity"), this);
+    this->m_statLabels.append(activityLabel);
+    activityHeader->addWidget(activityLabel, 1);
     this->m_activityMaxLabel = new QLabel(tr("0 KB/s"), this);
     this->m_activityMaxLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     activityHeader->addWidget(this->m_activityMaxLabel);
@@ -111,9 +108,13 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->addWidget(this->m_activityGraph);
 
     auto *activityTimeAxis = new QHBoxLayout();
-    activityTimeAxis->addWidget(new QLabel(tr("60 seconds"), this));
+    QLabel *activityTimeLeft = new QLabel(tr("60 seconds"), this);
+    this->m_axisLabels.append(activityTimeLeft);
+    activityTimeAxis->addWidget(activityTimeLeft);
     activityTimeAxis->addStretch(1);
-    activityTimeAxis->addWidget(new QLabel(tr("0"), this));
+    QLabel *activityTimeRight = new QLabel(tr("0"), this);
+    this->m_axisLabels.append(activityTimeRight);
+    activityTimeAxis->addWidget(activityTimeRight);
     root->addLayout(activityTimeAxis);
 
     auto *stats = new QGridLayout();
@@ -123,7 +124,8 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     auto mk = [this](const QString &txt)
     {
         auto *l = new QLabel(txt, this);
-        appendColorStyle(l, ColorScheme::GetCurrent()->StatLabelColor);
+        WidgetStyle::ApplyTextStyle(l, ColorScheme::GetCurrent()->StatLabelColor);
+        this->m_statLabels.append(l);
         return l;
     };
 
@@ -164,6 +166,23 @@ void SwapDetailWidget::SetProvider(PerfDataProvider *provider)
                 this, &SwapDetailWidget::onUpdated);
         this->onUpdated();
     }
+}
+
+void SwapDetailWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->m_titleLabel, scheme->SwapUsageGraphLineColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->m_totalLabel, scheme->MutedTextColor, 11);
+    for (QLabel *label : this->m_statLabels)
+        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
+    for (QLabel *label : this->m_axisLabels)
+        WidgetStyle::ApplyTextStyle(label, scheme->AxisLabelColor);
+    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor,
+                                 scheme->SwapUsageGraphFillColor);
+    this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor,
+                                    scheme->SwapActivityGraphFillColor,
+                                    scheme->SwapActivityGraphSecondaryFillColor);
+    this->update();
 }
 
 void SwapDetailWidget::onUpdated()

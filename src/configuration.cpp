@@ -93,9 +93,9 @@ void Configuration::Load()
     }
 
     // Color scheme
-    const bool darkMode = QApplication::palette().color(QPalette::Window).lightness() <= 127;
-    ColorScheme *scheme = darkMode ? ColorScheme::DefaultDark()
-                                   : ColorScheme::DefaultLight();
+    ColorScheme *scheme = new ColorScheme(ColorScheme::DetectDarkMode()
+                                          ? ColorScheme::DefaultDark()
+                                          : ColorScheme::DefaultLight());
     if (this->UseCustomColorScheme)
         scheme->ApplyVariantMap(this->CustomColorScheme);
     ColorScheme::Install(scheme);

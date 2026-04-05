@@ -51,6 +51,7 @@ namespace Perf
 
             void SetShowKernelTime(bool show);
             bool showKernelTime() const { return this->m_showKernelTime; }
+            void ApplyColorScheme();
 
             /// Call after every PerfDataProvider::updated() signal.
             void UpdateData(const PerfDataProvider *provider);

@@ -39,6 +39,7 @@ namespace Perf
 
             void SetProvider(PerfDataProvider *provider);
             void SetDiskIndex(int index);
+            void ApplyColorScheme();
 
         private slots:
             void onUpdated();

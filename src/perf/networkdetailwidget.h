@@ -39,6 +39,7 @@ namespace Perf
 
             void SetProvider(PerfDataProvider *provider);
             void SetNetworkIndex(int index);
+            void ApplyColorScheme();
 
         private slots:
             void onUpdated();

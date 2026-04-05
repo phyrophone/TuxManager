@@ -38,6 +38,7 @@ namespace Perf
 
             void SetProvider(PerfDataProvider *provider);
             void SetGpuIndex(int index);
+            void ApplyColorScheme();
 
         private slots:
             void onUpdated();

@@ -20,6 +20,7 @@
 #include "ui_cpudetailwidget.h"
 #include "configuration.h"
 #include "../colorscheme.h"
+#include "../widgetstyle.h"
 
 #include <QAction>
 #include <QApplication>
@@ -32,28 +33,16 @@
 
 using namespace Perf;
 
-namespace
-{
-void appendColorStyle(QWidget *widget, const QColor &color)
-{
-    QString style = widget->styleSheet();
-    if (!style.isEmpty() && !style.trimmed().endsWith(';'))
-        style += ';';
-    style += QString(" color: %1;").arg(color.name(QColor::HexArgb));
-    widget->setStyleSheet(style);
-}
-}
-
 CpuDetailWidget::CpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::CpuDetailWidget)
 {
     this->ui->setupUi(this);
     const ColorScheme *scheme = ColorScheme::GetCurrent();
 
-    appendColorStyle(this->ui->titleLabel, scheme->CpuTitleColor);
-    appendColorStyle(this->ui->modelNameLabel, scheme->MutedTextColor);
-    appendColorStyle(this->ui->utilizationLabel, scheme->CpuHeaderValueColor);
-    appendColorStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->timeRightLabel, scheme->AxisLabelColor);
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->CpuTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->modelNameLabel, scheme->MutedTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->utilizationLabel, scheme->CpuHeaderValueColor, 18);
+    WidgetStyle::ApplyTextStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeRightLabel, scheme->AxisLabelColor, 8);
 
     if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
     {
@@ -64,7 +53,7 @@ CpuDetailWidget::CpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
                 if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
                 {
                     if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
-                        appendColorStyle(label, scheme->StatLabelColor);
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
                 }
             }
         }
@@ -107,6 +96,34 @@ void CpuDetailWidget::SetProvider(PerfDataProvider *provider)
         connect(this->m_provider, &PerfDataProvider::updated, this, &CpuDetailWidget::onUpdated);
         this->onUpdated();
     }
+}
+
+void CpuDetailWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->CpuTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->modelNameLabel, scheme->MutedTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->utilizationLabel, scheme->CpuHeaderValueColor, 18);
+    WidgetStyle::ApplyTextStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeRightLabel, scheme->AxisLabelColor, 8);
+
+    if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
+    {
+        for (int row = 0; row < statsGrid->rowCount(); ++row)
+        {
+            for (int column = 0; column < statsGrid->columnCount(); column += 2)
+            {
+                if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
+                {
+                    if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
+                }
+            }
+        }
+    }
+
+    this->m_graphArea->ApplyColorScheme();
+    this->update();
 }
 
 // ── Private slots ─────────────────────────────────────────────────────────────

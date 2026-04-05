@@ -52,6 +52,15 @@ SidePanel::SidePanel(QWidget *parent)
     this->setMaximumWidth(200);
 }
 
+void SidePanel::ApplyColorScheme()
+{
+    QPalette pal = this->m_container->palette();
+    pal.setColor(QPalette::Window, ColorScheme::GetCurrent()->SidePanelBackgroundColor);
+    this->m_container->setPalette(pal);
+    this->m_container->update();
+    this->update();
+}
+
 int SidePanel::AddItem(SidePanelItem *item)
 {
     const int index = this->m_items.size();

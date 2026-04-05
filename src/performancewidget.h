@@ -46,6 +46,7 @@ class PerformanceWidget : public QWidget
         ~PerformanceWidget();
         void SetActive(bool active);
         bool IsActive() const { return this->m_active; }
+        void ApplyColorScheme();
 
     private slots:
         void onProviderUpdated();

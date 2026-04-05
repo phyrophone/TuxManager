@@ -23,6 +23,7 @@
 #include "graphwidget.h"
 
 #include <QLabel>
+#include <QVector>
 #include <QWidget>
 
 namespace Perf
@@ -35,6 +36,7 @@ namespace Perf
             explicit SwapDetailWidget(QWidget *parent = nullptr);
 
             void SetProvider(PerfDataProvider *provider);
+            void ApplyColorScheme();
 
         private slots:
             void onUpdated();
@@ -45,6 +47,7 @@ namespace Perf
 
             PerfDataProvider *m_provider { nullptr };
 
+            QLabel *m_titleLabel { nullptr };
             QLabel *m_totalLabel { nullptr };
             GraphWidget *m_usageGraph { nullptr };
             QLabel *m_usageValueLabel { nullptr };
@@ -56,6 +59,8 @@ namespace Perf
             QLabel *m_freeValueLabel { nullptr };
             QLabel *m_inRateValueLabel { nullptr };
             QLabel *m_outRateValueLabel { nullptr };
+            QVector<QLabel *> m_statLabels;
+            QVector<QLabel *> m_axisLabels;
     };
 } // namespace Perf
 

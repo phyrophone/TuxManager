@@ -19,6 +19,7 @@
 #include "gpudetailwidget.h"
 #include "configuration.h"
 #include "../colorscheme.h"
+#include "../widgetstyle.h"
 
 #include <algorithm>
 #include <QGridLayout>
@@ -155,8 +156,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     auto *copyHeader = new QHBoxLayout();
     copyHeader->addWidget(new QLabel(tr("Copy bandwidth"), this));
     this->m_copyBwLegendLabel = new QLabel(tr("Light: TX  Dark: RX"), this);
-    this->m_copyBwLegendLabel->setStyleSheet(
-                QString("color:%1;").arg(scheme->StatLabelColor.name(QColor::HexArgb)));
+    WidgetStyle::ApplyTextStyle(this->m_copyBwLegendLabel, scheme->StatLabelColor);
     this->m_copyBwLegendLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     copyHeader->addWidget(this->m_copyBwLegendLabel, 1);
     this->m_copyBwGraphMaxLabel = new QLabel(tr("0 KB/s"), this);
@@ -231,6 +231,27 @@ void GpuDetailWidget::SetGpuIndex(int index)
     this->m_gpuIndex = index;
     this->rebuildEngineSelectors();
     this->onUpdated();
+}
+
+void GpuDetailWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->m_copyBwLegendLabel, scheme->StatLabelColor);
+
+    auto applyGraph = [scheme](GraphWidget *graph)
+    {
+        if (graph)
+            graph->SetColor(scheme->GpuGraphLineColor,
+                            scheme->GpuGraphFillColor,
+                            scheme->GpuGraphSecondaryFillColor);
+    };
+
+    for (GraphWidget *graph : this->m_engineGraphs)
+        applyGraph(graph);
+    applyGraph(this->m_dedicatedMemGraph);
+    applyGraph(this->m_sharedMemGraph);
+    applyGraph(this->m_copyBwGraph);
+    this->update();
 }
 
 void GpuDetailWidget::onEngineSelectionChanged(int slot, int comboIndex)

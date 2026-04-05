@@ -19,24 +19,13 @@
 #include "networkdetailwidget.h"
 #include "ui_networkdetailwidget.h"
 #include "../colorscheme.h"
+#include "../widgetstyle.h"
 
 #include <algorithm>
 #include <QGridLayout>
 #include <QLabel>
 
 using namespace Perf;
-
-namespace
-{
-void appendColorStyle(QWidget *widget, const QColor &color)
-{
-    QString style = widget->styleSheet();
-    if (!style.isEmpty() && !style.trimmed().endsWith(';'))
-        style += ';';
-    style += QString(" color: %1;").arg(color.name(QColor::HexArgb));
-    widget->setStyleSheet(style);
-}
-}
 
 NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
     : QWidget(parent)
@@ -45,11 +34,11 @@ NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
     this->ui->setupUi(this);
     const ColorScheme *scheme = ColorScheme::GetCurrent();
 
-    appendColorStyle(this->ui->titleLabel, scheme->NetworkTitleColor);
-    appendColorStyle(this->ui->throughputGraphMaxLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->throughputLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->timeRightLabel, scheme->AxisLabelColor);
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->NetworkTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->throughputGraphMaxLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->throughputLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeRightLabel, scheme->AxisLabelColor, 8);
 
     if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
     {
@@ -60,7 +49,7 @@ NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
                 if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
                 {
                     if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
-                        appendColorStyle(label, scheme->StatLabelColor);
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
                 }
             }
         }
@@ -79,6 +68,36 @@ NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
 NetworkDetailWidget::~NetworkDetailWidget()
 {
     delete this->ui;
+}
+
+void NetworkDetailWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->NetworkTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->throughputGraphMaxLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->throughputLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeRightLabel, scheme->AxisLabelColor, 8);
+
+    if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
+    {
+        for (int row = 0; row < statsGrid->rowCount(); ++row)
+        {
+            for (int column = 0; column < statsGrid->columnCount(); column += 2)
+            {
+                if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
+                {
+                    if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
+                }
+            }
+        }
+    }
+
+    this->ui->throughputGraphWidget->SetColor(scheme->NetworkGraphLineColor,
+                                              scheme->NetworkGraphFillColor,
+                                              scheme->NetworkGraphSecondaryFillColor);
+    this->update();
 }
 
 void NetworkDetailWidget::SetProvider(PerfDataProvider *provider)

@@ -19,42 +19,31 @@
 #include "memorydetailwidget.h"
 #include "ui_memorydetailwidget.h"
 #include "../colorscheme.h"
+#include "../widgetstyle.h"
 
 #include <QGridLayout>
 #include <QLabel>
 
 using namespace Perf;
 
-namespace
-{
-void appendColorStyle(QWidget *widget, const QColor &color)
-{
-    QString style = widget->styleSheet();
-    if (!style.isEmpty() && !style.trimmed().endsWith(';'))
-        style += ';';
-    style += QString(" color: %1;").arg(color.name(QColor::HexArgb));
-    widget->setStyleSheet(style);
-}
-}
-
 MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::MemoryDetailWidget)
 {
     this->ui->setupUi(this);
     const ColorScheme *scheme = ColorScheme::GetCurrent();
 
-    appendColorStyle(this->ui->titleLabel, scheme->MemoryTitleColor);
-    appendColorStyle(this->ui->totalLabel, scheme->MemoryHeaderValueColor);
-    appendColorStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->timeRightLabel, scheme->AxisLabelColor);
-    appendColorStyle(this->ui->compositionLabel, scheme->StatLabelColor);
-    appendColorStyle(this->ui->legendUsedDot, scheme->MemoryLegendUsedColor);
-    appendColorStyle(this->ui->legendUsedLabel, scheme->MemoryLegendTextColor);
-    appendColorStyle(this->ui->legendDirtyDot, scheme->MemoryLegendDirtyColor);
-    appendColorStyle(this->ui->legendDirtyLabel, scheme->MemoryLegendTextColor);
-    appendColorStyle(this->ui->legendCachedDot, scheme->MemoryLegendCachedColor);
-    appendColorStyle(this->ui->legendCachedLabel, scheme->MemoryLegendTextColor);
-    appendColorStyle(this->ui->legendFreeDot, scheme->MemoryLegendFreeColor);
-    appendColorStyle(this->ui->legendFreeLabel, scheme->MemoryLegendTextColor);
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->MemoryTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->totalLabel, scheme->MemoryHeaderValueColor, 18);
+    WidgetStyle::ApplyTextStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeRightLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->compositionLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendUsedDot, scheme->MemoryLegendUsedColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendUsedLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendDirtyDot, scheme->MemoryLegendDirtyColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendDirtyLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCachedDot, scheme->MemoryLegendCachedColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCachedLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendFreeDot, scheme->MemoryLegendFreeColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendFreeLabel, scheme->MemoryLegendTextColor, 8);
 
     if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
     {
@@ -65,7 +54,7 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
                 if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
                 {
                     if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
-                        appendColorStyle(label, scheme->StatLabelColor);
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
                 }
             }
         }
@@ -84,6 +73,44 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
 MemoryDetailWidget::~MemoryDetailWidget()
 {
     delete this->ui;
+}
+
+void MemoryDetailWidget::ApplyColorScheme()
+{
+    const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->MemoryTitleColor, 18, true);
+    WidgetStyle::ApplyTextStyle(this->ui->totalLabel, scheme->MemoryHeaderValueColor, 18);
+    WidgetStyle::ApplyTextStyle(this->ui->timeLeftLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->timeRightLabel, scheme->AxisLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->compositionLabel, scheme->StatLabelColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendUsedDot, scheme->MemoryLegendUsedColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendUsedLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendDirtyDot, scheme->MemoryLegendDirtyColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendDirtyLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCachedDot, scheme->MemoryLegendCachedColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCachedLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendFreeDot, scheme->MemoryLegendFreeColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendFreeLabel, scheme->MemoryLegendTextColor, 8);
+
+    if (QGridLayout *statsGrid = this->findChild<QGridLayout *>("statsGrid"))
+    {
+        for (int row = 0; row < statsGrid->rowCount(); ++row)
+        {
+            for (int column = 0; column < statsGrid->columnCount(); column += 2)
+            {
+                if (QLayoutItem *item = statsGrid->itemAtPosition(row, column))
+                {
+                    if (QLabel *label = qobject_cast<QLabel *>(item->widget()))
+                        WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
+                }
+            }
+        }
+    }
+
+    this->ui->graphWidget->SetColor(scheme->MemoryGraphLineColor,
+                                    scheme->MemoryGraphFillColor);
+    this->ui->compositionBar->update();
+    this->update();
 }
 
 void MemoryDetailWidget::setProvider(PerfDataProvider *provider)

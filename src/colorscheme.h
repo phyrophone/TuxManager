@@ -20,15 +20,24 @@
 #define COLORSCHEME_H
 
 #include <QColor>
+#include <QVector>
 #include <QVariantMap>
 
 class ColorScheme
 {
     public:
+        struct ColorField
+        {
+            const char *Name;
+            QColor ColorScheme::*Member;
+        };
+
         static ColorScheme *GetCurrent();
-        static ColorScheme *DefaultLight();
-        static ColorScheme *DefaultDark();
+        static ColorScheme DefaultLight();
+        static ColorScheme DefaultDark();
+        static bool DetectDarkMode();
         static void Install(ColorScheme *scheme);
+        static const QVector<ColorField> &Fields();
 
         ColorScheme();
         QVariantMap ToVariantMap() const;

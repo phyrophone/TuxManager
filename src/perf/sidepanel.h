@@ -41,6 +41,7 @@ namespace Perf
 
             /// Add a new item to the panel; returns the assigned index (0-based).
             int AddItem(SidePanelItem *item);
+            void ApplyColorScheme();
 
             void SetCurrentIndex(int index);
             int  GetCurrentIndex() const { return this->m_currentIndex; }
