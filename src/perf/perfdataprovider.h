@@ -218,6 +218,20 @@ namespace Perf
                 QVector<GpuEngineSample> engines;
             };
 
+            // Cached sysfs paths for a kernel DRM-managed GPU.
+            // Populated once at startup; used every sampling tick.
+            struct DrmCard
+            {
+                QString   id;             // PCI address, e.g. 0000:05:00.0
+                QString   vendor;         // PCI vendor, e.g. "0x1002"
+                QString   driverName;     // e.g. "amdgpu", "i915"
+                QString   driverVersion;
+                QString   busyPath;       // .../gpu_busy_percent
+                QString   vramTotalPath;  // .../mem_info_vram_total
+                QString   vramUsedPath;   // .../mem_info_vram_used
+                QString   tempPath;       // hwmon temp1_input (milli-°C)
+            };
+
             struct NetworkSample
             {
                 QString         name;      ///< Interface name, e.g. enp5s0
@@ -310,6 +324,7 @@ namespace Perf
             QVector<GpuSample>  m_gpus;
             bool                m_hasNvml { false };
             void               *m_nvmlLibHandle { nullptr };
+            QVector<DrmCard>    m_drmCards;
 
             /// Sample /proc/stat aggregate + per-core jiffies and append utilization histories.
             bool sampleCpu();
@@ -330,7 +345,9 @@ namespace Perf
             void sampleCpuTemperature();
             void refreshDisks(const QSet<QString> &measurableDevices);
             void detectGpuBackends();
+            void detectDrmCards();
             bool sampleNvml();
+            bool sampleDrm();
             void unloadGpuBackends();
             static double parsePercentField(const QString &field);
             static qint64 parseMiBField(const QString &field);

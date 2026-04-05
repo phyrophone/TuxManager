@@ -72,6 +72,32 @@ using FnNvmlDeviceGetDecoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned in
 using FnNvmlDeviceGetPcieThroughput = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
 using FnNvmlDeviceGetTemperature = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
 
+struct NvmlProcessInfo_v2
+{
+    unsigned int pid;
+    uint64_t     usedGpuMemory;
+    unsigned int gpuInstanceId;
+    unsigned int computeInstanceId;
+};
+
+struct NvmlProcessUtilizationSample
+{
+    unsigned int pid;
+    uint64_t     timeStamp;
+    unsigned int smUtil;
+    unsigned int memUtil;
+    unsigned int encUtil;
+    unsigned int decUtil;
+};
+
+using FnNvmlDeviceGetGraphicsRunningProcesses = NvmlReturn (*)(NvmlDevice, unsigned int *, NvmlProcessInfo_v2 *);
+using FnNvmlDeviceGetComputeRunningProcesses = NvmlReturn (*)(NvmlDevice, unsigned int *, NvmlProcessInfo_v2 *);
+using FnNvmlDeviceGetProcessUtilization = NvmlReturn (*)(NvmlDevice, NvmlProcessUtilizationSample *, unsigned int *, uint64_t);
+
+FnNvmlDeviceGetGraphicsRunningProcesses pNvmlDeviceGetGraphicsRunningProcesses = nullptr;
+FnNvmlDeviceGetComputeRunningProcesses pNvmlDeviceGetComputeRunningProcesses = nullptr;
+FnNvmlDeviceGetProcessUtilization pNvmlDeviceGetProcessUtilization = nullptr;
+
 FnNvmlInitV2 pNvmlInitV2 = nullptr;
 FnNvmlShutdown pNvmlShutdown = nullptr;
 FnNvmlSystemGetDriverVersion pNvmlSystemGetDriverVersion = nullptr;
@@ -1250,69 +1276,88 @@ void PerfDataProvider::detectGpuBackends()
     this->m_hasNvml = false;
     this->m_nvmlLibHandle = nullptr;
 
+    // Try to load NVML for NVIDIA GPUs
     this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so.1", RTLD_LAZY | RTLD_LOCAL);
     if (!this->m_nvmlLibHandle)
         this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so", RTLD_LAZY | RTLD_LOCAL);
-    if (!this->m_nvmlLibHandle)
-        return;
 
-    pNvmlInitV2 = reinterpret_cast<FnNvmlInitV2>(::dlsym(this->m_nvmlLibHandle, "nvmlInit_v2"));
-    pNvmlShutdown = reinterpret_cast<FnNvmlShutdown>(::dlsym(this->m_nvmlLibHandle, "nvmlShutdown"));
-    pNvmlSystemGetDriverVersion = reinterpret_cast<FnNvmlSystemGetDriverVersion>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlSystemGetDriverVersion"));
-    pNvmlDeviceGetCountV2 = reinterpret_cast<FnNvmlDeviceGetCountV2>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetCount_v2"));
-    pNvmlDeviceGetHandleByIndexV2 = reinterpret_cast<FnNvmlDeviceGetHandleByIndexV2>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetHandleByIndex_v2"));
-    pNvmlDeviceGetName = reinterpret_cast<FnNvmlDeviceGetName>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetName"));
-    pNvmlDeviceGetUUID = reinterpret_cast<FnNvmlDeviceGetUUID>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUUID"));
-    pNvmlDeviceGetUtilizationRates = reinterpret_cast<FnNvmlDeviceGetUtilizationRates>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUtilizationRates"));
-    pNvmlDeviceGetMemoryInfo = reinterpret_cast<FnNvmlDeviceGetMemoryInfo>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetMemoryInfo"));
-    pNvmlDeviceGetEncoderUtilization = reinterpret_cast<FnNvmlDeviceGetEncoderUtilization>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetEncoderUtilization"));
-    pNvmlDeviceGetDecoderUtilization = reinterpret_cast<FnNvmlDeviceGetDecoderUtilization>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetDecoderUtilization"));
-    pNvmlDeviceGetPcieThroughput = reinterpret_cast<FnNvmlDeviceGetPcieThroughput>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
-    pNvmlDeviceGetTemperature = reinterpret_cast<FnNvmlDeviceGetTemperature>(
-                ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetTemperature"));
-
-    if (!pNvmlInitV2 || !pNvmlShutdown || !pNvmlDeviceGetCountV2
-        || !pNvmlDeviceGetHandleByIndexV2 || !pNvmlDeviceGetName
-        || !pNvmlDeviceGetUUID || !pNvmlDeviceGetUtilizationRates
-        || !pNvmlDeviceGetMemoryInfo)
+    if (this->m_nvmlLibHandle)
     {
-        this->unloadGpuBackends();
-        return;
+        pNvmlInitV2 = reinterpret_cast<FnNvmlInitV2>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlInit_v2"));
+        pNvmlShutdown = reinterpret_cast<FnNvmlShutdown>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlShutdown"));
+        pNvmlSystemGetDriverVersion = reinterpret_cast<FnNvmlSystemGetDriverVersion>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlSystemGetDriverVersion"));
+        pNvmlDeviceGetCountV2 = reinterpret_cast<FnNvmlDeviceGetCountV2>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetCount_v2"));
+        pNvmlDeviceGetHandleByIndexV2 = reinterpret_cast<FnNvmlDeviceGetHandleByIndexV2>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetHandleByIndex_v2"));
+        pNvmlDeviceGetName = reinterpret_cast<FnNvmlDeviceGetName>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetName"));
+        pNvmlDeviceGetUUID = reinterpret_cast<FnNvmlDeviceGetUUID>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUUID"));
+        pNvmlDeviceGetUtilizationRates = reinterpret_cast<FnNvmlDeviceGetUtilizationRates>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetUtilizationRates"));
+        pNvmlDeviceGetMemoryInfo = reinterpret_cast<FnNvmlDeviceGetMemoryInfo>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetMemoryInfo"));
+        pNvmlDeviceGetEncoderUtilization = reinterpret_cast<FnNvmlDeviceGetEncoderUtilization>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetEncoderUtilization"));
+        pNvmlDeviceGetDecoderUtilization = reinterpret_cast<FnNvmlDeviceGetDecoderUtilization>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetDecoderUtilization"));
+        pNvmlDeviceGetPcieThroughput = reinterpret_cast<FnNvmlDeviceGetPcieThroughput>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
+        pNvmlDeviceGetTemperature = reinterpret_cast<FnNvmlDeviceGetTemperature>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetTemperature"));
+        pNvmlDeviceGetGraphicsRunningProcesses = reinterpret_cast<FnNvmlDeviceGetGraphicsRunningProcesses>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetGraphicsRunningProcesses_v3"));
+        pNvmlDeviceGetComputeRunningProcesses = reinterpret_cast<FnNvmlDeviceGetComputeRunningProcesses>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetComputeRunningProcesses_v3"));
+        pNvmlDeviceGetProcessUtilization = reinterpret_cast<FnNvmlDeviceGetProcessUtilization>(
+                    ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetProcessUtilization"));
+
+        const bool symbolsOk = pNvmlInitV2 && pNvmlShutdown && pNvmlDeviceGetCountV2
+                               && pNvmlDeviceGetHandleByIndexV2 && pNvmlDeviceGetName
+                               && pNvmlDeviceGetUUID && pNvmlDeviceGetUtilizationRates
+                               && pNvmlDeviceGetMemoryInfo;
+        if (!symbolsOk)
+        {
+            LOG_DEBUG("NVML: required symbols not found, unloading");
+            this->unloadGpuBackends();
+        }
+        else if (pNvmlInitV2() != NVML_SUCCESS)
+        {
+            LOG_DEBUG("NVML: nvmlInit_v2 failed, unloading");
+            this->unloadGpuBackends();
+        }
+        else
+        {
+            unsigned int count = 0;
+            if (pNvmlDeviceGetCountV2(&count) == NVML_SUCCESS && count > 0)
+            {
+                this->m_hasNvml = true;
+            }
+            else
+            {
+                LOG_DEBUG("NVML: no devices found, shutting down");
+                pNvmlShutdown();
+                this->unloadGpuBackends();
+            }
+        }
     }
 
-    if (pNvmlInitV2() != NVML_SUCCESS)
-    {
-        this->unloadGpuBackends();
-        return;
-    }
-
-    unsigned int count = 0;
-    if (pNvmlDeviceGetCountV2(&count) != NVML_SUCCESS || count == 0)
-    {
-        this->unloadGpuBackends();
-        return;
-    }
-
-    this->m_hasNvml = true;
+    // DRM sysfs fallback (amdgpu, i915, …); NVIDIA cards covered by NVML are skipped.
+    this->detectDrmCards();
 }
 
 bool PerfDataProvider::sampleGpus()
 {
+    bool ok = false;
     if (this->m_hasNvml)
-        return this->sampleNvml();
-
-    this->m_gpus.clear();
-    return true;
+        ok |= this->sampleNvml();
+    if (!this->m_drmCards.isEmpty())
+        ok |= this->sampleDrm();
+    return ok;
 }
 
 void PerfDataProvider::unloadGpuBackends()
@@ -1335,6 +1380,9 @@ void PerfDataProvider::unloadGpuBackends()
     pNvmlDeviceGetDecoderUtilization = nullptr;
     pNvmlDeviceGetPcieThroughput = nullptr;
     pNvmlDeviceGetTemperature = nullptr;
+    pNvmlDeviceGetGraphicsRunningProcesses = nullptr;
+    pNvmlDeviceGetComputeRunningProcesses = nullptr;
+    pNvmlDeviceGetProcessUtilization = nullptr;
 
     if (this->m_nvmlLibHandle)
     {
@@ -1451,8 +1499,60 @@ bool PerfDataProvider::sampleNvml()
 
         if (hasUtil)
         {
-            addEngine("3d", "3D", util.gpu);
-            addEngine("cuda", "CUDA", util.gpu);
+            double graphicsUtil = util.gpu;
+            double computeUtil = util.gpu;
+
+            if (pNvmlDeviceGetGraphicsRunningProcesses
+                && pNvmlDeviceGetComputeRunningProcesses
+                && pNvmlDeviceGetProcessUtilization)
+            {
+                auto collectPids = [&dev](auto fn) -> QSet<unsigned int>
+                {
+                    unsigned int count = 0;
+                    fn(dev, &count, nullptr);
+                    QSet<unsigned int> pids;
+                    if (count > 0)
+                    {
+                        QVector<NvmlProcessInfo_v2> procs(static_cast<int>(count));
+                        if (fn(dev, &count, procs.data()) == NVML_SUCCESS)
+                        {
+                            for (unsigned int i = 0; i < count; ++i)
+                                pids.insert(procs[static_cast<int>(i)].pid);
+                        }
+                    }
+                    return pids;
+                };
+
+                QSet<unsigned int> gfxPids  = collectPids(pNvmlDeviceGetGraphicsRunningProcesses);
+                QSet<unsigned int> compPids = collectPids(pNvmlDeviceGetComputeRunningProcesses);
+
+                unsigned int procUtilCount = 32;
+                QVector<NvmlProcessUtilizationSample> procUtil(static_cast<int>(procUtilCount));
+                NvmlReturn ret = pNvmlDeviceGetProcessUtilization(dev, procUtil.data(), &procUtilCount, 0);
+                if (ret != NVML_SUCCESS && procUtilCount > 32 && procUtilCount <= 1024)
+                {
+                    procUtil.resize(static_cast<int>(procUtilCount));
+                    ret = pNvmlDeviceGetProcessUtilization(dev, procUtil.data(), &procUtilCount, 0);
+                }
+                if (ret == NVML_SUCCESS)
+                {
+                    double sumGfx = 0.0;
+                    double sumComp = 0.0;
+                    for (unsigned int p = 0; p < procUtilCount; ++p)
+                    {
+                        const auto &s = procUtil[static_cast<int>(p)];
+                        if (compPids.contains(s.pid) && !gfxPids.contains(s.pid))
+                            sumComp += s.smUtil;
+                        else
+                            sumGfx += s.smUtil;
+                    }
+                    graphicsUtil = qBound(0.0, sumGfx, 100.0);
+                    computeUtil = qBound(0.0, sumComp, 100.0);
+                }
+            }
+
+            addEngine("3d", "3D", graphicsUtil);
+            addEngine("cuda", "CUDA", computeUtil);
             addEngine("copy", "Copy", util.memory);
         }
         if (pNvmlDeviceGetEncoderUtilization)
@@ -1493,6 +1593,148 @@ bool PerfDataProvider::sampleNvml()
         }
     }
     return true;
+}
+
+// ── GPU: DRM sysfs backend (amdgpu, i915, …) ─────────────────────────────────
+
+void PerfDataProvider::detectDrmCards()
+{
+    this->m_drmCards.clear();
+
+    const QDir drmDir("/sys/class/drm");
+    const QStringList entries = drmDir.entryList({"card[0-9]*"}, QDir::Dirs);
+
+    for (const QString &entry : entries)
+    {
+        if (entry.contains('-'))   // skip card0-eDP-1, card1-HDMI-A-1, …
+            continue;
+
+        const QString devPath = drmDir.filePath(entry + "/device");
+        const QString vendorStr = readSysTextFile(devPath + "/vendor").trimmed();
+
+        // Skip NVIDIA cards already managed by NVML to avoid duplicate entries.
+        if (this->m_hasNvml && vendorStr == QLatin1String("0x10de"))
+            continue;
+
+        DrmCard card;
+        card.vendor = vendorStr;
+
+        // Stable identifier: the PCI address resolved from the sysfs symlink.
+        const QString canonical = QFileInfo(devPath).canonicalFilePath();
+        card.id = QFileInfo(canonical).fileName();
+        if (card.id.isEmpty())
+            card.id = entry;
+
+        // First hwmon sub-directory holds temperature and driver name.
+        const QStringList hwmons = QDir(devPath + "/hwmon")
+                                       .entryList({"hwmon[0-9]*"}, QDir::Dirs);
+        if (!hwmons.isEmpty())
+        {
+            const QString hwPath = devPath + "/hwmon/" + hwmons.first();
+            card.driverName = readSysTextFile(hwPath + "/name").trimmed();
+            const QString tp = hwPath + "/temp1_input";
+            if (QFileInfo::exists(tp))
+                card.tempPath = tp;
+        }
+
+        if (!card.driverName.isEmpty())
+        {
+            const QString ver = readSysTextFile(
+                "/sys/module/" + card.driverName + "/version").trimmed();
+            if (!ver.isEmpty())
+                card.driverVersion = ver;
+        }
+
+        const QString busyPath = devPath + "/gpu_busy_percent";
+        if (QFileInfo::exists(busyPath))
+            card.busyPath = busyPath;
+
+        const QString vramT = devPath + "/mem_info_vram_total";
+        const QString vramU = devPath + "/mem_info_vram_used";
+        if (QFileInfo::exists(vramT) && QFileInfo::exists(vramU))
+        {
+            card.vramTotalPath = vramT;
+            card.vramUsedPath  = vramU;
+        }
+
+        this->m_drmCards.append(card);
+    }
+}
+
+bool PerfDataProvider::sampleDrm()
+{
+    for (const DrmCard &card : std::as_const(this->m_drmCards))
+    {
+        int gpuIdx = -1;
+        for (int j = 0; j < this->m_gpus.size(); ++j)
+        {
+            if (this->m_gpus.at(j).id == card.id)
+            {
+                gpuIdx = j;
+                break;
+            }
+        }
+
+        if (gpuIdx < 0)
+        {
+            GpuSample g;
+            g.id            = card.id;
+            g.driverVersion = card.driverVersion;
+            g.backend       = card.driverName.isEmpty()
+                              ? QStringLiteral("drm") : card.driverName;
+
+            if (card.vendor == QLatin1String("0x1002"))
+                g.name = QStringLiteral("AMD Radeon");
+            else if (card.vendor == QLatin1String("0x8086"))
+                g.name = QStringLiteral("Intel Graphics");
+            else
+                g.name = QStringLiteral("GPU");
+
+            this->m_gpus.append(g);
+            gpuIdx = this->m_gpus.size() - 1;
+        }
+
+        GpuSample &g = this->m_gpus[gpuIdx];
+        g.temperatureC = -1;
+
+        if (!card.busyPath.isEmpty())
+        {
+            bool ok = false;
+            const int pct = readSysTextFile(card.busyPath).trimmed().toInt(&ok);
+            g.utilPct = ok ? qBound(0.0, static_cast<double>(pct), 100.0) : 0.0;
+        }
+        else
+        {
+            g.utilPct = 0.0;
+        }
+        appendHistory(g.utilHistory, g.utilPct);
+
+        if (!card.tempPath.isEmpty())
+        {
+            bool ok = false;
+            const int milliC = readSysTextFile(card.tempPath).trimmed().toInt(&ok);
+            g.temperatureC = ok ? milliC / 1000 : -1;
+        }
+
+        if (!card.vramTotalPath.isEmpty())
+        {
+            bool okT = false, okU = false;
+            const qint64 total = readSysTextFile(card.vramTotalPath).trimmed().toLongLong(&okT);
+            const qint64 used  = readSysTextFile(card.vramUsedPath).trimmed().toLongLong(&okU);
+            g.memTotalMiB = okT ? total / (1024LL * 1024LL) : 0;
+            g.memUsedMiB  = okU ? used  / (1024LL * 1024LL) : 0;
+        }
+
+        const double memPct = (g.memTotalMiB > 0)
+                              ? static_cast<double>(g.memUsedMiB)
+                                / static_cast<double>(g.memTotalMiB) * 100.0
+                              : 0.0;
+        appendHistory(g.memUsageHistory, memPct);
+        appendHistory(g.copyTxHistory,   0.0);
+        appendHistory(g.copyRxHistory,   0.0);
+    }
+
+    return !this->m_drmCards.isEmpty();
 }
 
 double PerfDataProvider::parsePercentField(const QString &field)
