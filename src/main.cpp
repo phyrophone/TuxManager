@@ -27,7 +27,7 @@
 #include <cstdio>
 #include <cstring>
 
-static constexpr char kVersion[] = "1.0.0";
+static constexpr char kVersion[] = "1.0.1";
 static constexpr char kAppName[] = "Tux Manager";
 
 // Pre-screen --help / --version before QApplication so they work without a display.

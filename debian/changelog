@@ -1,3 +1,12 @@
+tux-manager (1.0.1) unstable; urgency=medium
+
+  * New color scheme dialog allowing users to override colors
+  * Improved support for light theme
+  * Improved services tab (faster refresh and search)
+  * Support for DRM GPUs
+
+ -- Petr Bena <petr@bena.rocks>  Tue, 03 Mar 2026 23:35:00 +0100
+
 tux-manager (1.0.0) unstable; urgency=medium
 
   * Rename project and package to Tux Manager.
