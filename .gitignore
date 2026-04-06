@@ -50,6 +50,9 @@ packaging/output/
 packaging/output/*.deb
 packaging/output/*.rpm
 packaging/output/*.buildinfo
+packaging/output/*.flatpak
+packaging/.flatpak-build/
+packaging/.flatpak-repo/
 
 # Compiled Python files (tooling)
 __pycache__/

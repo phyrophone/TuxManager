@@ -6,6 +6,7 @@ This directory contains Linux packaging scripts for Tux Manager.
 
 - Debian/Ubuntu (`.deb`) via `package-deb.sh`
 - Fedora/RHEL/Alma/Rocky (`.rpm` + `.src.rpm`) via `package-rpm.sh`
+- Flatpak (`.flatpak`) via `package-flatpak.sh`
 
 ## Dependencies
 
@@ -32,6 +33,20 @@ sudo dnf install rpm-build rsync git pkgconf-pkg-config qt6-qtbase-devel
 Notes:
 - The script can also build with Qt5 if only that is available (`qt5-qtbase-devel`).
 - The script uses `rpmbuild` and creates both binary RPM and source RPM.
+
+### Flatpak
+
+Required tools/runtime:
+
+```bash
+sudo apt-get install flatpak flatpak-builder
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install flathub org.kde.Platform//6.7 org.kde.Sdk//6.7
+```
+
+Notes:
+- The script validates that `flatpak`, `flatpak-builder`, `flathub`, and required runtime/sdk refs are present before building.
+- The resulting bundle is written to `packaging/output/`.
 
 ## Usage
 
@@ -73,6 +88,23 @@ Output (in `packaging/output/`):
 - `tux-manager-<version>-1.*.rpm`
 - `tux-manager-<version>-1.*.src.rpm`
 
+### Build Flatpak
+
+```bash
+cd packaging
+./package-flatpak.sh
+```
+
+Optional:
+
+```bash
+./package-flatpak.sh --version 1.2.3
+./package-flatpak.sh --branch beta
+```
+
+Output (in `packaging/output/`):
+- `tux-manager-<version>-<arch>.flatpak`
+
 ## Install
 
 ### Debian/Ubuntu
@@ -86,4 +118,11 @@ sudo apt-get install -f
 
 ```bash
 sudo dnf install packaging/output/tux-manager-*.rpm
+```
+
+### Flatpak
+
+```bash
+flatpak install --user packaging/output/tux-manager-*.flatpak
+flatpak run io.github.benapetr.TuxManager
 ```

@@ -22,7 +22,7 @@
 
         packages.default = pkgs.stdenv.mkDerivation {
             pname = "tux-manager";
-            version = "0.0.1";
+            version = "1.0.0";
             src = ./.;
             nativeBuildInputs = with pkgs.kdePackages; [ qmake wrapQtAppsHook ];
             buildInputs = with pkgs.kdePackages; [ qtbase ] ;

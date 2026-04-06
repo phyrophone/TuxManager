@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Tux Manager
+Comment=Linux system monitor inspired by Windows Task Manager
+Exec=tux-manager
+Icon=io.github.benapetr.TuxManager
+Categories=System;Monitor;
+Terminal=false
