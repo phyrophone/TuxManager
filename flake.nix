@@ -28,7 +28,7 @@
             buildInputs = with pkgs.kdePackages; [ qtbase ] ;
             configurePhase = "qmake6 $src/src";
             buildPhase = "make -j$NIX_BUILD_CORES";
-            installPhase = "mkdir -p $out && cp tux-manager $out/tux-manager";
+            installPhase = "mkdir -p $out/bin && cp tux-manager $out/bin/tux-manager";
 
         };
       }

@@ -63,3 +63,6 @@ Thumbs.db
 *~
 .idea/
 .vscode/
+
+# Nix
+result
