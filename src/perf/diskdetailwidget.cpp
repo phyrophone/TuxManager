@@ -19,6 +19,7 @@
 #include "diskdetailwidget.h"
 #include "ui_diskdetailwidget.h"
 #include "../colorscheme.h"
+#include "../misc.h"
 #include "../widgetstyle.h"
 
 #include <algorithm>
@@ -59,8 +60,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     }
 
     // Active time graph
-    this->ui->activeGraphWidget->SetColor(scheme->DiskGraphLineColor,
-                                          scheme->DiskGraphFillColor);
+    this->ui->activeGraphWidget->SetColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
     this->ui->activeGraphWidget->SetSampleCapacity(HISTORY_SIZE);
     this->ui->activeGraphWidget->SetGridColumns(6);
     this->ui->activeGraphWidget->SetGridRows(4);
@@ -68,9 +68,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     this->ui->activeGraphWidget->SetValueFormat(GraphWidget::ValueFormat::Percent);
 
     // Transfer graph (read + write overlay)
-    this->ui->transferGraphWidget->SetColor(scheme->DiskTransferGraphLineColor,
-                                            scheme->DiskTransferGraphFillColor,
-                                            scheme->DiskTransferGraphSecondaryFillColor);
+    this->ui->transferGraphWidget->SetColor(scheme->DiskTransferGraphLineColor, scheme->DiskTransferGraphFillColor, scheme->DiskTransferGraphSecondaryFillColor);
     this->ui->transferGraphWidget->SetSampleCapacity(HISTORY_SIZE);
     this->ui->transferGraphWidget->SetGridColumns(6);
     this->ui->transferGraphWidget->SetGridRows(4);
@@ -113,9 +111,7 @@ void DiskDetailWidget::ApplyColorScheme()
     }
 
     this->ui->activeGraphWidget->SetColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
-    this->ui->transferGraphWidget->SetColor(scheme->DiskTransferGraphLineColor,
-                                            scheme->DiskTransferGraphFillColor,
-                                            scheme->DiskTransferGraphSecondaryFillColor);
+    this->ui->transferGraphWidget->SetColor(scheme->DiskTransferGraphLineColor, scheme->DiskTransferGraphFillColor, scheme->DiskTransferGraphSecondaryFillColor);
     this->update();
 }
 
@@ -162,12 +158,14 @@ void DiskDetailWidget::onUpdated()
     this->ui->modelLabel->setText(model);
 
     this->ui->activeValueLabel->setText(QString::number(active, 'f', 0) + "%");
-    this->ui->readValueLabel->setText(formatRate(readBps));
-    this->ui->writeValueLabel->setText(formatRate(writeBps));
+    this->ui->readValueLabel->setText(Misc::FormatBytesPerSecond(readBps));
+    this->ui->writeValueLabel->setText(Misc::FormatBytesPerSecond(writeBps));
     this->ui->typeValueLabel->setText(type);
     this->ui->deviceValueLabel->setText("/dev/" + name);
-    this->ui->capacityValueLabel->setText(formatSize(capacityBytes));
-    this->ui->formattedValueLabel->setText(formattedBytes > 0 ? formatSize(formattedBytes) : tr("—"));
+    this->ui->capacityValueLabel->setText(Misc::FormatBytes(static_cast<quint64>(qMax<qint64>(0, capacityBytes)), 1));
+    this->ui->formattedValueLabel->setText(formattedBytes > 0
+                                           ? Misc::FormatBytes(static_cast<quint64>(qMax<qint64>(0, formattedBytes)), 1)
+                                           : tr("—"));
     this->ui->systemDiskValueLabel->setText(isSystemDisk ? tr("Yes") : tr("No"));
     this->ui->pageFileValueLabel->setText(hasPageFile ? tr("Yes") : tr("No"));
 
@@ -181,24 +179,5 @@ void DiskDetailWidget::onUpdated()
         maxRate = std::max(maxRate, v);
     this->ui->transferGraphWidget->SetHistoryRef(readHistory, maxRate);
     this->ui->transferGraphWidget->SetSecondaryHistoryRef(writeHistory);
-    this->ui->transferGraphMaxLabel->setText(formatRate(maxRate));
-}
-
-QString DiskDetailWidget::formatRate(double bytesPerSec)
-{
-    if (bytesPerSec >= 1024.0 * 1024.0)
-        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + tr(" MB/s");
-    return QString::number(bytesPerSec / 1024.0, 'f', 0) + tr(" KB/s");
-}
-
-QString DiskDetailWidget::formatSize(qint64 bytes)
-{
-    if (bytes <= 0)
-        return tr("0 GB");
-    const double gb = static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0);
-    if (gb >= 100.0)
-        return QString::number(gb, 'f', 0) + tr(" GB");
-    if (gb >= 10.0)
-        return QString::number(gb, 'f', 1) + tr(" GB");
-    return QString::number(gb, 'f', 2) + tr(" GB");
+    this->ui->transferGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
 }

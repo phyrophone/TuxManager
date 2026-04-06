@@ -19,6 +19,7 @@
 #include "networkdetailwidget.h"
 #include "ui_networkdetailwidget.h"
 #include "../colorscheme.h"
+#include "../misc.h"
 #include "../widgetstyle.h"
 
 #include <algorithm>
@@ -27,9 +28,7 @@
 
 using namespace Perf;
 
-NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::NetworkDetailWidget)
+NetworkDetailWidget::NetworkDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::NetworkDetailWidget)
 {
     this->ui->setupUi(this);
     const ColorScheme *scheme = ColorScheme::GetCurrent();
@@ -55,9 +54,7 @@ NetworkDetailWidget::NetworkDetailWidget(QWidget *parent)
         }
     }
 
-    this->ui->throughputGraphWidget->SetColor(scheme->NetworkGraphLineColor,
-                                              scheme->NetworkGraphFillColor,
-                                              scheme->NetworkGraphSecondaryFillColor);
+    this->ui->throughputGraphWidget->SetColor(scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor, scheme->NetworkGraphSecondaryFillColor);
     this->ui->throughputGraphWidget->SetSampleCapacity(HISTORY_SIZE);
     this->ui->throughputGraphWidget->SetGridColumns(6);
     this->ui->throughputGraphWidget->SetGridRows(4);
@@ -94,9 +91,7 @@ void NetworkDetailWidget::ApplyColorScheme()
         }
     }
 
-    this->ui->throughputGraphWidget->SetColor(scheme->NetworkGraphLineColor,
-                                              scheme->NetworkGraphFillColor,
-                                              scheme->NetworkGraphSecondaryFillColor);
+    this->ui->throughputGraphWidget->SetColor(scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor, scheme->NetworkGraphSecondaryFillColor);
     this->update();
 }
 
@@ -146,8 +141,8 @@ void NetworkDetailWidget::onUpdated()
     this->ui->ipv4ValueLabel->setText(ipv4.isEmpty() ? tr("—") : ipv4);
     this->ui->ipv6ValueLabel->setText(ipv6.isEmpty() ? tr("—") : ipv6);
 
-    this->ui->sendValueLabel->setText(formatRate(txBps));
-    this->ui->receiveValueLabel->setText(formatRate(rxBps));
+    this->ui->sendValueLabel->setText(Misc::FormatBytesPerSecond(txBps));
+    this->ui->receiveValueLabel->setText(Misc::FormatBytesPerSecond(rxBps));
 
     double maxRate = 1024.0; // at least 1KB/s scale
     for (double v : rxHistory)
@@ -157,14 +152,5 @@ void NetworkDetailWidget::onUpdated()
 
     this->ui->throughputGraphWidget->SetHistoryRef(rxHistory, maxRate);
     this->ui->throughputGraphWidget->SetSecondaryHistoryRef(txHistory);
-    this->ui->throughputGraphMaxLabel->setText(formatRate(maxRate));
-}
-
-QString NetworkDetailWidget::formatRate(double bytesPerSec)
-{
-    if (bytesPerSec >= 1024.0 * 1024.0)
-        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + tr(" MB/s");
-    if (bytesPerSec >= 1024.0)
-        return QString::number(bytesPerSec / 1024.0, 'f', 0) + tr(" KB/s");
-    return QString::number(bytesPerSec, 'f', 0) + tr(" B/s");
+    this->ui->throughputGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
 }

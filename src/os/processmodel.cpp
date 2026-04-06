@@ -17,6 +17,7 @@
  */
 
 #include "processmodel.h"
+#include "../misc.h"
 #include <QFile>
 #include <unistd.h>
 
@@ -68,8 +69,8 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
             case ColUser:     return proc.user;
             case ColState:    return Process::stateString(proc.state);
             case ColCpu:      return QString::number(proc.cpuPercent, 'f', 1) + " %";
-            case ColMemRss:   return formatMemory(proc.vmRssKb);
-            case ColMemVirt:  return formatMemory(proc.vmSizeKb);
+            case ColMemRss:   return Misc::FormatKiB(proc.vmRssKb, 0);
+            case ColMemVirt:  return Misc::FormatKiB(proc.vmSizeKb, 0);
             case ColThreads:  return proc.threads;
             case ColPriority: return proc.priority;
             case ColNice:     return proc.nice;
@@ -205,15 +206,6 @@ quint64 ProcessModel::readTotalCpuJiffies()
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-QString ProcessModel::formatMemory(quint64 kb)
-{
-    if (kb >= 1024ULL * 1024ULL)
-        return QString::number(kb / (1024ULL * 1024ULL)) + " GB";
-    if (kb >= 1024ULL)
-        return QString::number(kb / 1024ULL) + " MB";
-    return QString::number(kb) + " KB";
-}
-
 QString ProcessModel::columnHeader(Column col)
 {
     switch (col)
@@ -232,4 +224,3 @@ QString ProcessModel::columnHeader(Column col)
         default:          return {};
     }
 }
-

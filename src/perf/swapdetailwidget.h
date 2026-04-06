@@ -42,9 +42,6 @@ namespace Perf
             void onUpdated();
 
         private:
-            static QString formatRate(double bytesPerSec);
-            static QString formatSizeKb(qint64 kb);
-
             PerfDataProvider *m_provider { nullptr };
 
             QLabel *m_titleLabel { nullptr };

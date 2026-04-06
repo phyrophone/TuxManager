@@ -20,6 +20,7 @@
 #include "ui_userswidget.h"
 
 #include "configuration.h"
+#include "misc.h"
 
 #include <QFile>
 #include <QHeaderView>
@@ -30,19 +31,16 @@
 
 namespace
 {
-struct UserAgg
-{
-    QString name;
-    QList<OS::Process> procs;
-    double cpuPct { 0.0 };
-    quint64 memKb { 0 };
-};
+    struct UserAgg
+    {
+        QString name;
+        QList<OS::Process> procs;
+        double cpuPct { 0.0 };
+        quint64 memKb { 0 };
+    };
 } // namespace
 
-UsersWidget::UsersWidget(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::UsersWidget)
-    , m_refreshTimer(new QTimer(this))
+UsersWidget::UsersWidget(QWidget *parent) : QWidget(parent), ui(new Ui::UsersWidget), m_refreshTimer(new QTimer(this))
 {
     this->ui->setupUi(this);
 
@@ -61,10 +59,8 @@ UsersWidget::UsersWidget(QWidget *parent)
     hv->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     hv->setSectionResizeMode(2, QHeaderView::ResizeToContents);
 
-    connect(this->m_refreshTimer, &QTimer::timeout,
-            this, &UsersWidget::onTimerTick);
-    connect(this->ui->treeWidget, &QTreeWidget::customContextMenuRequested,
-            this, &UsersWidget::onContextMenu);
+    connect(this->m_refreshTimer, &QTimer::timeout, this, &UsersWidget::onTimerTick);
+    connect(this->ui->treeWidget, &QTreeWidget::customContextMenuRequested, this, &UsersWidget::onContextMenu);
 }
 
 UsersWidget::~UsersWidget()
@@ -82,8 +78,7 @@ void UsersWidget::SetActive(bool active)
     {
         this->onTimerTick();
         this->m_refreshTimer->start(CFG->RefreshRateMs);
-    }
-    else
+    } else
     {
         this->m_refreshTimer->stop();
     }
@@ -206,7 +201,7 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
         userItem->setText(0, tr("%1 (%2)").arg(a.name).arg(a.procs.size()));
         userItem->setData(0, Qt::UserRole, static_cast<uint>(uid));
         userItem->setText(1, QString::number(a.cpuPct, 'f', 1) + "%");
-        userItem->setText(2, formatMemory(a.memKb));
+        userItem->setText(2, Misc::FormatKiB(a.memKb, 1));
         userItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
         userItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
 
@@ -221,7 +216,7 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
             auto *procItem = new QTreeWidgetItem(userItem);
             procItem->setText(0, tr("%1 (pid %2)").arg(p.name).arg(p.pid));
             procItem->setText(1, QString::number(p.cpuPercent, 'f', 1) + "%");
-            procItem->setText(2, formatMemory(p.vmRssKb));
+            procItem->setText(2, Misc::FormatKiB(p.vmRssKb, 1));
             procItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
             procItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         }
@@ -248,13 +243,4 @@ quint64 UsersWidget::readTotalCpuJiffies()
     for (int i = 1; i <= last; ++i)
         total += parts.at(i).toULongLong();
     return total;
-}
-
-QString UsersWidget::formatMemory(quint64 kb)
-{
-    if (kb >= 1024ULL * 1024ULL)
-        return QString::number(static_cast<double>(kb) / (1024.0 * 1024.0), 'f', 1) + " GB";
-    if (kb >= 1024ULL)
-        return QString::number(static_cast<double>(kb) / 1024.0, 'f', 1) + " MB";
-    return QString::number(kb) + " KB";
 }

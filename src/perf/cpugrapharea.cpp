@@ -119,15 +119,11 @@ void CpuGraphArea::UpdateData(const PerfDataProvider *provider)
 void CpuGraphArea::ApplyColorScheme()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
-    this->m_overallGraph->SetColor(scheme->CpuGraphLineColor,
-                                   scheme->CpuGraphFillColor,
-                                   scheme->CpuGraphSecondaryFillColor);
+    this->m_overallGraph->SetColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor, scheme->CpuGraphSecondaryFillColor);
     for (GraphWidget *g : this->m_coreGraphs)
     {
         if (g)
-            g->SetColor(scheme->CpuGraphLineColor,
-                        scheme->CpuGraphFillColor,
-                        scheme->CpuGraphSecondaryFillColor);
+            g->SetColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor, scheme->CpuGraphSecondaryFillColor);
     }
 }
 

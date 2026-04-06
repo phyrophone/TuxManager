@@ -21,8 +21,7 @@
 
 using namespace Perf;
 
-SidePanel::SidePanel(QWidget *parent)
-    : QWidget(parent)
+SidePanel::SidePanel(QWidget *parent) : QWidget(parent)
     , m_scrollArea(new QScrollArea(this))
     , m_container(new QWidget)
     , m_containerLayout(new QVBoxLayout(this->m_container))

@@ -26,7 +26,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 
-ColorSchemeDialog::ColorSchemeDialog(QWidget *parent) : QDialog(parent), ui(new Ui::ColorSchemeDialog), m_defaultScheme(), m_scheme()
+ColorSchemeDialog::ColorSchemeDialog(QWidget *parent) : QDialog(parent), ui(new Ui::ColorSchemeDialog)
 {
     this->ui->setupUi(this);
 

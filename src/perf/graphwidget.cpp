@@ -293,8 +293,7 @@ void GraphWidget::mouseMoveEvent(QMouseEvent *event)
 #else
             QToolTip::showText(event->globalPos(), tip, this);
 #endif
-        }
-        else
+        } else
         {
             QToolTip::hideText();
         }

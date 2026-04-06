@@ -212,11 +212,13 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
     actOverall->setChecked( isOverall);
     actPerCore->setChecked(!isOverall);
 
-    connect(actOverall, &QAction::triggered, this, [this]() {
+    connect(actOverall, &QAction::triggered, this, [this]()
+    {
         this->m_graphArea->setMode(CpuGraphArea::GraphMode::Overall);
         CFG->CpuGraphMode = 0;
     });
-    connect(actPerCore, &QAction::triggered, this, [this]() {
+    connect(actPerCore, &QAction::triggered, this, [this]()
+    {
         this->m_graphArea->setMode(CpuGraphArea::GraphMode::PerCore);
         CFG->CpuGraphMode = 1;
     });
@@ -227,7 +229,8 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
     QAction *actKernel = menu.addAction(tr("Show kernel times"));
     actKernel->setCheckable(true);
     actKernel->setChecked(this->m_graphArea->showKernelTime());
-    connect(actKernel, &QAction::triggered, this, [this](bool checked) {
+    connect(actKernel, &QAction::triggered, this, [this](bool checked)
+    {
         this->m_graphArea->SetShowKernelTime(checked);
         CFG->CpuShowKernelTimes = checked;
     });
@@ -236,9 +239,9 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
 
     // ── Copy ─────────────────────────────────────────────────────────────────
     QAction *actCopy = menu.addAction(tr("Copy\tCtrl+C"));
-    connect(actCopy, &QAction::triggered, this, [this]() {
-        QApplication::clipboard()->setPixmap(
-                this->m_graphArea->grab());
+    connect(actCopy, &QAction::triggered, this, [this]()
+    {
+        QApplication::clipboard()->setPixmap(this->m_graphArea->grab());
     });
 
     menu.exec(globalPos);

@@ -18,6 +18,7 @@
 
 #include "swapdetailwidget.h"
 #include "../colorscheme.h"
+#include "../misc.h"
 #include "../widgetstyle.h"
 
 #include <algorithm>
@@ -63,8 +64,7 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->addLayout(usageHeader);
 
     this->m_usageGraph = new GraphWidget(this);
-    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor,
-                                 scheme->SwapUsageGraphFillColor);
+    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
     this->m_usageGraph->SetSampleCapacity(HISTORY_SIZE);
     this->m_usageGraph->SetGridColumns(6);
     this->m_usageGraph->SetGridRows(4);
@@ -93,9 +93,7 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->addLayout(activityHeader);
 
     this->m_activityGraph = new GraphWidget(this);
-    this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor,
-                                    scheme->SwapActivityGraphFillColor,
-                                    scheme->SwapActivityGraphSecondaryFillColor);
+    this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor, scheme->SwapActivityGraphFillColor, scheme->SwapActivityGraphSecondaryFillColor);
     this->m_activityGraph->SetSampleCapacity(HISTORY_SIZE);
     this->m_activityGraph->SetGridColumns(6);
     this->m_activityGraph->SetGridRows(4);
@@ -177,11 +175,8 @@ void SwapDetailWidget::ApplyColorScheme()
         WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
     for (QLabel *label : this->m_axisLabels)
         WidgetStyle::ApplyTextStyle(label, scheme->AxisLabelColor);
-    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor,
-                                 scheme->SwapUsageGraphFillColor);
-    this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor,
-                                    scheme->SwapActivityGraphFillColor,
-                                    scheme->SwapActivityGraphSecondaryFillColor);
+    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
+    this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor, scheme->SwapActivityGraphFillColor, scheme->SwapActivityGraphSecondaryFillColor);
     this->update();
 }
 
@@ -203,17 +198,15 @@ void SwapDetailWidget::onUpdated()
                            ? static_cast<double>(usedKb) * 100.0 / static_cast<double>(totalKb)
                            : 0.0;
 
-    this->m_totalLabel->setText(formatSizeKb(totalKb));
+    this->m_totalLabel->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, totalKb)), 1));
     this->m_usageValueLabel->setText(QString::number(usedPct, 'f', 0) + "%");
 
-    this->m_inUseValueLabel->setText(formatSizeKb(usedKb));
-    this->m_freeValueLabel->setText(formatSizeKb(freeKb));
-    this->m_inRateValueLabel->setText(formatRate(inBps));
-    this->m_outRateValueLabel->setText(formatRate(outBps));
+    this->m_inUseValueLabel->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, usedKb)), 1));
+    this->m_freeValueLabel->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, freeKb)), 1));
+    this->m_inRateValueLabel->setText(Misc::FormatBytesPerSecond(inBps));
+    this->m_outRateValueLabel->setText(Misc::FormatBytesPerSecond(outBps));
 
-    this->m_usageGraph->SetPercentTooltipAbsolute(static_cast<double>(totalKb) / (1024.0 * 1024.0),
-                                                  tr("GB"),
-                                                  2);
+    this->m_usageGraph->SetPercentTooltipAbsolute(static_cast<double>(totalKb) / (1024.0 * 1024.0), tr("GB"), 2);
     this->m_usageGraph->SetHistoryRef(usageHistory, 100.0);
 
     double maxRate = 1024.0;
@@ -224,22 +217,5 @@ void SwapDetailWidget::onUpdated()
 
     this->m_activityGraph->SetHistoryRef(inHistory, maxRate);
     this->m_activityGraph->SetSecondaryHistoryRef(outHistory);
-    this->m_activityMaxLabel->setText(formatRate(maxRate));
-}
-
-QString SwapDetailWidget::formatRate(double bytesPerSec)
-{
-    if (bytesPerSec >= 1024.0 * 1024.0)
-        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + QObject::tr(" MB/s");
-    if (bytesPerSec >= 1024.0)
-        return QString::number(bytesPerSec / 1024.0, 'f', 0) + QObject::tr(" KB/s");
-    return QString::number(bytesPerSec, 'f', 0) + QObject::tr(" B/s");
-}
-
-QString SwapDetailWidget::formatSizeKb(qint64 kb)
-{
-    const double gb = static_cast<double>(kb) / (1024.0 * 1024.0);
-    if (gb >= 10.0)
-        return QString::number(gb, 'f', 1) + QObject::tr(" GB");
-    return QString::number(gb, 'f', 2) + QObject::tr(" GB");
+    this->m_activityMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
 }

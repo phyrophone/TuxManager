@@ -46,8 +46,6 @@ namespace Perf
         private:
             Ui::MemoryDetailWidget *ui;
             PerfDataProvider       *m_provider { nullptr };
-
-            static QString fmtGb(qint64 kb);
     };
 } // namespace Perf
 

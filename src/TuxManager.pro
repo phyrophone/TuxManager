@@ -14,6 +14,7 @@ SOURCES += \
     colorscheme.cpp \
     main.cpp \
     mainwindow.cpp \
+    misc.cpp \
     widgetstyle.cpp \
     configuration.cpp \
     logger.cpp \
@@ -46,6 +47,7 @@ HEADERS += \
     colorschemedialog.h \
     colorscheme.h \
     mainwindow.h \
+    misc.h \
     widgetstyle.h \
     configuration.h \
     logger.h \

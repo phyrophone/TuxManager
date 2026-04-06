@@ -45,9 +45,6 @@ namespace Perf
             void onEngineSelectionChanged(int slot, int comboIndex);
 
         private:
-            static QString formatMemMib(qint64 mib);
-            static QString formatRate(double bytesPerSec);
-
             PerfDataProvider *m_provider { nullptr };
             int               m_gpuIndex { -1 };
 

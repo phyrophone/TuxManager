@@ -87,7 +87,6 @@ class PerformanceWidget : public QWidget
         void applyGraphWindowSeconds();
         void applyPanelVisibility();
         void updateSamplingPolicy();
-        static QString formatNetRate(double bytesPerSec);
 };
 
 #endif // PERFORMANCEWIDGET_H

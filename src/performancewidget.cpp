@@ -23,6 +23,7 @@
 #include "configuration.h"
 #include "colorscheme.h"
 #include "logger.h"
+#include "misc.h"
 #include "perf/graphwidget.h"
 
 #include <QAction>
@@ -217,12 +218,13 @@ void PerformanceWidget::onProviderUpdated()
     // Update Memory side panel item
     const qint64 used  = this->m_provider->MemUsedKb();
     const qint64 total = this->m_provider->MemTotalKb();
-    const double usedGb  = static_cast<double>(used)  / (1024.0 * 1024.0);
-    const double totalGb = static_cast<double>(total) / (1024.0 * 1024.0);
     const int    pct     = total > 0
                            ? static_cast<int>(static_cast<double>(used) / total * 100.0)
                            : 0;
-    const QString memSub = QString("%1/%2 GB (%3%)").arg(usedGb,  0, 'f', 1).arg(totalGb, 0, 'f', 1).arg(pct);
+    const QString memSub = QString("%1/%2 (%3%)")
+                           .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, used)), 1))
+                           .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, total)), 1))
+                           .arg(pct);
     if (CFG->PerfShowMemory)
     {
         if (auto *item = this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex))
@@ -232,14 +234,15 @@ void PerformanceWidget::onProviderUpdated()
     // Update Swap side panel item
     const qint64 swapUsed = this->m_provider->SwapUsedKb();
     const qint64 swapTotal = this->m_provider->SwapTotalKb();
-    const double swapUsedGb = static_cast<double>(swapUsed) / (1024.0 * 1024.0);
-    const double swapTotalGb = static_cast<double>(swapTotal) / (1024.0 * 1024.0);
     const int swapPct = (swapTotal > 0)
                         ? static_cast<int>(static_cast<double>(swapUsed) / static_cast<double>(swapTotal) * 100.0)
                         : 0;
     QString swapSub;
     if (swapTotal > 0)
-        swapSub = QString("%1/%2 GB (%3%)").arg(swapUsedGb, 0, 'f', 1).arg(swapTotalGb, 0, 'f', 1).arg(swapPct);
+        swapSub = QString("%1/%2 (%3%)")
+                  .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapUsed)), 1))
+                  .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapTotal)), 1))
+                  .arg(swapPct);
     else
         swapSub = tr("Off");
     if (CFG->PerfShowSwap)
@@ -295,8 +298,8 @@ void PerformanceWidget::onProviderUpdated()
             const QVector<double> &rxHistory = this->m_provider->NetworkRxHistory(i);
             const QVector<double> &txHistory = this->m_provider->NetworkTxHistory(i);
             const QString netSub = tr("U:%1 D:%2")
-                                   .arg(formatNetRate(tx))
-                                   .arg(formatNetRate(rx));
+                                   .arg(Misc::FormatBytesPerSecond(tx))
+                                   .arg(Misc::FormatBytesPerSecond(rx));
             double maxRate = 1024.0; // keep at least 1KB/s visual range
             for (double v : rxHistory)
                 maxRate = qMax(maxRate, v);
@@ -316,15 +319,6 @@ void PerformanceWidget::SetActive(bool active)
     this->m_provider->SetActive(active);
     if (active)
         this->onProviderUpdated();
-}
-
-QString PerformanceWidget::formatNetRate(double bytesPerSec)
-{
-    if (bytesPerSec >= 1024.0 * 1024.0)
-        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + tr("M/s");
-    if (bytesPerSec >= 1024.0)
-        return QString::number(bytesPerSec / 1024.0, 'f', 0) + tr("K/s");
-    return QString::number(bytesPerSec, 'f', 0) + tr("B/s");
 }
 
 void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &globalPos)
@@ -360,23 +354,16 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
 
     menu.addSeparator();
     QMenu *timeMenu = menu.addMenu(tr("Graph time"));
-    struct TimeChoice
+    QVector<int> intervals = CFG->RefreshRateAvailableIntervals;
+    if (intervals.isEmpty())
+        intervals.append(CFG->PerfGraphWindowSec);
+
+    for (int sec : intervals)
     {
-        int sec;
-        const char *label;
-    };
-    const TimeChoice choices[] = {
-        { 60,  "1 minute" },
-        { 120, "2 minutes" },
-        { 300, "5 minutes" },
-        { 900, "15 minutes" }
-    };
-    for (const TimeChoice &c : choices)
-    {
-        QAction *a = timeMenu->addAction(tr(c.label));
+        QAction *a = timeMenu->addAction(Misc::SimplifyTime(sec));
         a->setCheckable(true);
-        a->setChecked(CFG->PerfGraphWindowSec == c.sec);
-        a->setData(c.sec);
+        a->setChecked(CFG->PerfGraphWindowSec == sec);
+        a->setData(sec);
     }
 
     QAction *picked = menu.exec(globalPos);
@@ -384,7 +371,7 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
         return;
 
     const int requestedWindow = picked->data().toInt();
-    if (requestedWindow == 60 || requestedWindow == 120 || requestedWindow == 300 || requestedWindow == 900)
+    if (CFG->RefreshRateAvailableIntervals.contains(requestedWindow))
     {
         CFG->PerfGraphWindowSec = requestedWindow;
         this->applyGraphWindowSeconds();
@@ -545,15 +532,7 @@ void PerformanceWidget::applyGraphWindowSeconds()
             g->SetSampleCapacity(sec);
     }
 
-    QString labelText;
-    if (sec % 60 == 0)
-    {
-        const int minutes = sec / 60;
-        labelText = (minutes == 1) ? tr("1 minute") : tr("%1 minutes").arg(minutes);
-    } else
-    {
-        labelText = tr("%1 seconds").arg(sec);
-    }
+    const QString labelText = Misc::SimplifyTime(sec);
 
     for (QLabel *label : this->findChildren<QLabel *>())
     {

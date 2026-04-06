@@ -19,6 +19,7 @@
 #include "gpudetailwidget.h"
 #include "configuration.h"
 #include "../colorscheme.h"
+#include "../misc.h"
 #include "../widgetstyle.h"
 
 #include <algorithm>
@@ -31,7 +32,7 @@ using namespace Perf;
 
 namespace
 {
-const QVector<double> kEmptyHistory;
+    const QVector<double> kEmptyHistory;
 }
 
 GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
@@ -45,9 +46,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
 
     auto configureGraph = [&](GraphWidget *graph)
     {
-        graph->SetColor(scheme->GpuGraphLineColor,
-                        scheme->GpuGraphFillColor,
-                        scheme->GpuGraphSecondaryFillColor);
+        graph->SetColor(scheme->GpuGraphLineColor, scheme->GpuGraphFillColor, scheme->GpuGraphSecondaryFillColor);
         graph->SetSampleCapacity(HISTORY_SIZE);
         graph->SetGridColumns(6);
         graph->SetGridRows(4);
@@ -241,9 +240,7 @@ void GpuDetailWidget::ApplyColorScheme()
     auto applyGraph = [scheme](GraphWidget *graph)
     {
         if (graph)
-            graph->SetColor(scheme->GpuGraphLineColor,
-                            scheme->GpuGraphFillColor,
-                            scheme->GpuGraphSecondaryFillColor);
+            graph->SetColor(scheme->GpuGraphLineColor, scheme->GpuGraphFillColor, scheme->GpuGraphSecondaryFillColor);
     };
 
     for (GraphWidget *graph : this->m_engineGraphs)
@@ -333,14 +330,14 @@ void GpuDetailWidget::onUpdated()
     this->m_utilValueLabel->setText(QString::number(util, 'f', 0) + "%");
     this->m_tempValueLabel->setText(tempC >= 0 ? tr("%1 C").arg(tempC) : tr("—"));
     this->m_gpuMemValueLabel->setText(tr("%1 / %2")
-                                      .arg(formatMemMib(gpuUsedMiB))
-                                      .arg(formatMemMib(gpuTotalMiB)));
+                                      .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, gpuUsedMiB)), 1))
+                                      .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, gpuTotalMiB)), 1)));
     this->m_dedicatedMemValueLabel->setText(tr("%1 / %2")
-                                            .arg(formatMemMib(dedicatedUsedMiB))
-                                            .arg(formatMemMib(dedicatedTotalMiB)));
+                                            .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, dedicatedUsedMiB)), 1))
+                                            .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, dedicatedTotalMiB)), 1)));
     this->m_sharedMemValueLabel->setText(tr("%1 / %2")
-                                         .arg(formatMemMib(sharedUsedMiB))
-                                         .arg(formatMemMib(sharedTotalMiB)));
+                                         .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedUsedMiB)), 1))
+                                         .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedTotalMiB)), 1)));
     this->m_driverValueLabel->setText(this->m_provider->GpuDriverVersion(this->m_gpuIndex));
     this->m_backendValueLabel->setText(this->m_provider->GpuBackendName(this->m_gpuIndex));
 
@@ -369,14 +366,14 @@ void GpuDetailWidget::onUpdated()
 
     this->m_dedicatedMemGraph->SetHistoryRef(this->m_provider->GpuMemUsageHistory(this->m_gpuIndex), 100.0);
     this->m_dedicatedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(dedicatedTotalMiB) / 1024.0, tr("GB"), 2);
-    this->m_dedicatedMemGraphMaxLabel->setText(formatMemMib(dedicatedTotalMiB));
+    this->m_dedicatedMemGraphMaxLabel->setText(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, dedicatedTotalMiB)), 1));
 
     const QVector<double> &sharedHistory = hasSharedData
         ? this->m_provider->GpuSharedMemHistory(this->m_gpuIndex)
         : this->m_sharedMemHistory;
     this->m_sharedMemGraph->SetHistoryRef(sharedHistory, 100.0);
     this->m_sharedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(sharedTotalMiB) / 1024.0, tr("GB"), 2);
-    this->m_sharedMemGraphMaxLabel->setText(formatMemMib(sharedTotalMiB));
+    this->m_sharedMemGraphMaxLabel->setText(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedTotalMiB)), 1));
 
     const QVector<double> &txHistory = this->m_provider->GpuCopyTxHistory(this->m_gpuIndex);
     const QVector<double> &rxHistory = this->m_provider->GpuCopyRxHistory(this->m_gpuIndex);
@@ -387,23 +384,6 @@ void GpuDetailWidget::onUpdated()
         maxCopyRate = std::max(maxCopyRate, v);
     this->m_copyBwGraph->SetHistoryRef(txHistory, maxCopyRate);
     this->m_copyBwGraph->SetSecondaryHistoryRef(rxHistory);
-    this->m_copyBwGraphMaxLabel->setText(formatRate(maxCopyRate));
+    this->m_copyBwGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxCopyRate));
     this->m_copyBwGraph->setToolTip(tr("Copy bandwidth: light trace = TX, dark trace = RX"));
-}
-
-QString GpuDetailWidget::formatMemMib(qint64 mib)
-{
-    const double gb = static_cast<double>(mib) / 1024.0;
-    if (gb >= 100.0)
-        return QString::number(gb, 'f', 0) + QObject::tr(" GB");
-    if (gb >= 10.0)
-        return QString::number(gb, 'f', 1) + QObject::tr(" GB");
-    return QString::number(gb, 'f', 2) + QObject::tr(" GB");
-}
-
-QString GpuDetailWidget::formatRate(double bytesPerSec)
-{
-    if (bytesPerSec >= 1024.0 * 1024.0)
-        return QString::number(bytesPerSec / (1024.0 * 1024.0), 'f', 1) + QObject::tr(" MB/s");
-    return QString::number(bytesPerSec / 1024.0, 'f', 0) + QObject::tr(" KB/s");
 }

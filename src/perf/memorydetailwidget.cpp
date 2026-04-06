@@ -19,6 +19,7 @@
 #include "memorydetailwidget.h"
 #include "ui_memorydetailwidget.h"
 #include "../colorscheme.h"
+#include "../misc.h"
 #include "../widgetstyle.h"
 
 #include <QGridLayout>
@@ -61,8 +62,7 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
     }
 
     // Memory graph: purple / magenta
-    this->ui->graphWidget->SetColor(scheme->MemoryGraphLineColor,
-                                    scheme->MemoryGraphFillColor);
+    this->ui->graphWidget->SetColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
     this->ui->graphWidget->SetSampleCapacity(HISTORY_SIZE);
     this->ui->graphWidget->SetGridColumns(6);
     this->ui->graphWidget->SetGridRows(4);
@@ -107,8 +107,7 @@ void MemoryDetailWidget::ApplyColorScheme()
         }
     }
 
-    this->ui->graphWidget->SetColor(scheme->MemoryGraphLineColor,
-                                    scheme->MemoryGraphFillColor);
+    this->ui->graphWidget->SetColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
     this->ui->compositionBar->update();
     this->update();
 }
@@ -140,12 +139,12 @@ void MemoryDetailWidget::onUpdated()
     const qint64 buffers = this->m_provider->MemBuffersKb();
     const qint64 dirty   = this->m_provider->MemDirtyKb();
 
-    this->ui->totalLabel->setText(fmtGb(total) + " GB");
-    this->ui->statInUseValue->setText(fmtGb(used)    + " GB");
-    this->ui->statAvailValue->setText(fmtGb(avail)   + " GB");
-    this->ui->statCachedValue->setText(fmtGb(cached) + " GB");
-    this->ui->statBuffersValue->setText(fmtGb(buffers) + " GB");
-    this->ui->statFreeValue->setText(fmtGb(free)     + " GB");
+    this->ui->totalLabel->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, total)), 1));
+    this->ui->statInUseValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, used)), 1));
+    this->ui->statAvailValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, avail)), 1));
+    this->ui->statCachedValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, cached)), 1));
+    this->ui->statBuffersValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, buffers)), 1));
+    this->ui->statFreeValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, free)), 1));
     const int dimmUsed = this->m_provider->MemDimmSlotsUsed();
     const int dimmTotal = this->m_provider->MemDimmSlotsTotal();
     if (dimmTotal > 0)
@@ -159,11 +158,7 @@ void MemoryDetailWidget::onUpdated()
     else
         this->ui->statMemSpeedValue->setText(tr("—"));
 
-    // Dirty shown in MB when small, GB when large
-    if (dirty < 1024LL * 1024LL)
-        this->ui->statDirtyValue->setText(QString::number(dirty / 1024.0, 'f', 1) + " MB");
-    else
-        this->ui->statDirtyValue->setText(fmtGb(dirty) + " GB");
+    this->ui->statDirtyValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, dirty)), 1));
 
     // Composition bar — 4 segments must sum to total
     // free   = MemFree
@@ -174,13 +169,4 @@ void MemoryDetailWidget::onUpdated()
 
     this->ui->graphWidget->SetPercentTooltipAbsolute(static_cast<double>(total) / (1024.0 * 1024.0), tr("GB"), 2);
     this->ui->graphWidget->SetHistoryRef(this->m_provider->MemHistory());
-}
-
-// static
-QString MemoryDetailWidget::fmtGb(qint64 kb)
-{
-    const double gb = static_cast<double>(kb) / (1024.0 * 1024.0);
-    if (gb >= 10.0)
-        return QString::number(gb, 'f', 1);
-    return QString::number(gb, 'f', 2);
 }

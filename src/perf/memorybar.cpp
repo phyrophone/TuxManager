@@ -18,6 +18,7 @@
 
 #include "memorybar.h"
 #include "../colorscheme.h"
+#include "../misc.h"
 
 #include <QEvent>
 #include <QHelpEvent>
@@ -130,16 +131,6 @@ MemoryBar::Segment MemoryBar::segmentAtPos(const QPoint &pos) const
     return Segment::None;
 }
 
-QString MemoryBar::formatKb(qint64 kb) const
-{
-    const double gb = static_cast<double>(kb) / (1024.0 * 1024.0);
-    if (gb >= 10.0)
-        return QString::number(gb, 'f', 1) + tr(" GB");
-    if (gb >= 1.0)
-        return QString::number(gb, 'f', 2) + tr(" GB");
-    return QString::number(static_cast<double>(kb) / 1024.0, 'f', 1) + tr(" MB");
-}
-
 QString MemoryBar::segmentTooltip(Segment seg) const
 {
     qint64 value = 0;
@@ -168,6 +159,6 @@ QString MemoryBar::segmentTooltip(Segment seg) const
                        : 0.0;
     return tr("%1: %2 (%3%)")
             .arg(label)
-            .arg(this->formatKb(value))
+            .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, value)), 1))
             .arg(QString::number(pct, 'f', 1));
 }

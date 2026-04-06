@@ -118,9 +118,7 @@ void SidePanelItem::paintEvent(QPaintEvent *event)
     p.setFont(titleFont);
     p.setPen(this->m_selected ? scheme->SidePanelItemSelectedTextColor
                               : scheme->SidePanelItemTextColor);
-    p.drawText(QRect(left, top, titleMaxW, textH),
-               Qt::AlignLeft | Qt::AlignVCenter,
-               titleText);
+    p.drawText(QRect(left, top, titleMaxW, textH), Qt::AlignLeft | Qt::AlignVCenter, titleText);
 
     if (!subText.isEmpty())
     {

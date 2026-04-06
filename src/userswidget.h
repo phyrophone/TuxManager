@@ -58,7 +58,6 @@ class UsersWidget : public QWidget
         bool             m_hasExpansionSnapshot { false };
 
         static quint64 readTotalCpuJiffies();
-        static QString formatMemory(quint64 kb);
         void rebuildTree(const QList<OS::Process> &allProcs);
 };
 

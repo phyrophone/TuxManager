@@ -80,7 +80,6 @@ namespace OS
             /// Returns 0 on error.
             static quint64 readTotalCpuJiffies();
 
-            static QString formatMemory(quint64 kb);
             static QString columnHeader(Column col);
     };
 } // namespace Os

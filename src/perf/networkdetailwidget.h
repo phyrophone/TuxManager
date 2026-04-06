@@ -45,8 +45,6 @@ namespace Perf
             void onUpdated();
 
         private:
-            static QString formatRate(double bytesPerSec);
-
             Ui::NetworkDetailWidget *ui;
             PerfDataProvider        *m_provider { nullptr };
             int                      m_networkIndex { -1 };

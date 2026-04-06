@@ -46,17 +46,15 @@ void Configuration::Load()
     this->ActiveTab      = s.value("Window/ActiveTab", this->ActiveTab).toInt();
 
     // General
-    this->RefreshRateMs  = s.value("General/RefreshRateMs", this->RefreshRateMs).toInt();
-    this->UseCustomColorScheme = s.value("General/UseCustomColorScheme",
-                                         this->UseCustomColorScheme).toBool();
-    this->CustomColorScheme = s.value("General/CustomColorScheme",
-                                      this->CustomColorScheme).toMap();
+    this->RefreshRateMs  =       s.value("General/RefreshRateMs",        this->RefreshRateMs).toInt();
+    this->UseCustomColorScheme = s.value("General/UseCustomColorScheme", this->UseCustomColorScheme).toBool();
+    this->CustomColorScheme =    s.value("General/CustomColorScheme",    this->CustomColorScheme).toMap();
 
     // Processes
-    this->ShowKernelTasks        = s.value("Processes/ShowKernelTasks",        this->ShowKernelTasks).toBool();
-    this->ShowOtherUsersProcs    = s.value("Processes/ShowOtherUsersProcs",    this->ShowOtherUsersProcs).toBool();
-    this->ProcessListSortColumn  = s.value("Processes/SortColumn",             this->ProcessListSortColumn).toInt();
-    this->ProcessListSortOrder   = s.value("Processes/SortOrder",              this->ProcessListSortOrder).toInt();
+    this->ShowKernelTasks        = s.value("Processes/ShowKernelTasks",     this->ShowKernelTasks).toBool();
+    this->ShowOtherUsersProcs    = s.value("Processes/ShowOtherUsersProcs", this->ShowOtherUsersProcs).toBool();
+    this->ProcessListSortColumn  = s.value("Processes/SortColumn",          this->ProcessListSortColumn).toInt();
+    this->ProcessListSortOrder   = s.value("Processes/SortOrder",           this->ProcessListSortOrder).toInt();
 
     // Performance / GPU selectors
     const QVariantList gpuSel = s.value("Performance/GpuEngineSelectorIndices").toList();
@@ -75,24 +73,25 @@ void Configuration::Load()
     this->CpuGraphMode = s.value("Performance/CpuGraphMode", this->CpuGraphMode).toInt();
     if (this->CpuGraphMode != 0 && this->CpuGraphMode != 1)
         this->CpuGraphMode = 0;
-    this->CpuShowKernelTimes = s.value("Performance/CpuShowKernelTimes",
-                                       this->CpuShowKernelTimes).toBool();
-    this->PerfShowCpu = s.value("Performance/ShowCpu", this->PerfShowCpu).toBool();
-    this->PerfShowMemory = s.value("Performance/ShowMemory", this->PerfShowMemory).toBool();
-    this->PerfShowSwap = s.value("Performance/ShowSwap", this->PerfShowSwap).toBool();
-    this->PerfShowDisks = s.value("Performance/ShowDisks", this->PerfShowDisks).toBool();
-    this->PerfShowNetwork = s.value("Performance/ShowNetwork", this->PerfShowNetwork).toBool();
-    this->PerfShowGpu = s.value("Performance/ShowGpu", this->PerfShowGpu).toBool();
-    this->PerfGraphWindowSec = s.value("Performance/GraphWindowSec", this->PerfGraphWindowSec).toInt();
-    if (this->PerfGraphWindowSec != 60
-        && this->PerfGraphWindowSec != 120
-        && this->PerfGraphWindowSec != 300
-        && this->PerfGraphWindowSec != 900)
-    {
-        this->PerfGraphWindowSec = 60;
-    }
+    this->CpuShowKernelTimes = s.value("Performance/CpuShowKernelTimes", this->CpuShowKernelTimes).toBool();
+    this->PerfShowCpu =         s.value("Performance/ShowCpu",           this->PerfShowCpu).toBool();
+    this->PerfShowMemory =      s.value("Performance/ShowMemory",        this->PerfShowMemory).toBool();
+    this->PerfShowSwap =        s.value("Performance/ShowSwap",          this->PerfShowSwap).toBool();
+    this->PerfShowDisks =       s.value("Performance/ShowDisks",         this->PerfShowDisks).toBool();
+    this->PerfShowNetwork =     s.value("Performance/ShowNetwork",       this->PerfShowNetwork).toBool();
+    this->PerfShowGpu =         s.value("Performance/ShowGpu",           this->PerfShowGpu).toBool();
+    this->PerfGraphWindowSec =  s.value("Performance/GraphWindowSec",    this->PerfGraphWindowSec).toInt();
+
+    // For now this is hardcoded, we may want to make it customizable later
+    this->RefreshRateAvailableIntervals.append(QList<int> { 60, 120, 300, 900 });
+
+    if (!this->RefreshRateAvailableIntervals.contains(this->PerfGraphWindowSec))
+        this->PerfGraphWindowSec = this->RefreshRateAvailableIntervals[0];
 
     // Color scheme
+    // we always start with either dark or light default even if there is customization layered over it,
+    // this is for future version compatibility, so that if any color is added, we always load default
+    // first and then we overwrite it with customizations (missing custom color won't break stuff)
     ColorScheme *scheme = new ColorScheme(ColorScheme::DetectDarkMode()
                                           ? ColorScheme::DefaultDark()
                                           : ColorScheme::DefaultLight());
@@ -106,17 +105,14 @@ void Configuration::Save()
     QSettings s;
 
     // Window
-    s.setValue("Window/Geometry",  this->WindowGeometry);
-    s.setValue("Window/State",     this->WindowState);
-    s.setValue("Window/ActiveTab", this->ActiveTab);
+    s.setValue("Window/Geometry",               this->WindowGeometry);
+    s.setValue("Window/State",                  this->WindowState);
+    s.setValue("Window/ActiveTab",              this->ActiveTab);
 
     // General
-    s.setValue("General/RefreshRateMs", this->RefreshRateMs);
-    s.setValue("General/UseCustomColorScheme", this->UseCustomColorScheme);
-    s.setValue("General/CustomColorScheme",
-               this->UseCustomColorScheme
-               ? ColorScheme::GetCurrent()->ToVariantMap()
-               : this->CustomColorScheme);
+    s.setValue("General/RefreshRateMs",         this->RefreshRateMs);
+    s.setValue("General/UseCustomColorScheme",  this->UseCustomColorScheme);
+    s.setValue("General/CustomColorScheme",     this->CustomColorScheme);
 
     // Processes
     s.setValue("Processes/ShowKernelTasks",     this->ShowKernelTasks);
@@ -128,16 +124,17 @@ void Configuration::Save()
     gpuSel.reserve(this->GpuEngineSelectorIndices.size());
     for (int v : this->GpuEngineSelectorIndices)
         gpuSel.append(v);
-    s.setValue("Performance/GpuEngineSelectorIndices", gpuSel);
-    s.setValue("Performance/CpuGraphMode", this->CpuGraphMode);
-    s.setValue("Performance/CpuShowKernelTimes", this->CpuShowKernelTimes);
-    s.setValue("Performance/ShowCpu", this->PerfShowCpu);
-    s.setValue("Performance/ShowMemory", this->PerfShowMemory);
-    s.setValue("Performance/ShowSwap", this->PerfShowSwap);
-    s.setValue("Performance/ShowDisks", this->PerfShowDisks);
-    s.setValue("Performance/ShowNetwork", this->PerfShowNetwork);
-    s.setValue("Performance/ShowGpu", this->PerfShowGpu);
-    s.setValue("Performance/GraphWindowSec", this->PerfGraphWindowSec);
+
+    s.setValue("Performance/GpuEngineSelectorIndices",  gpuSel);
+    s.setValue("Performance/CpuGraphMode",              this->CpuGraphMode);
+    s.setValue("Performance/CpuShowKernelTimes",        this->CpuShowKernelTimes);
+    s.setValue("Performance/ShowCpu",                   this->PerfShowCpu);
+    s.setValue("Performance/ShowMemory",                this->PerfShowMemory);
+    s.setValue("Performance/ShowSwap",                  this->PerfShowSwap);
+    s.setValue("Performance/ShowDisks",                 this->PerfShowDisks);
+    s.setValue("Performance/ShowNetwork",               this->PerfShowNetwork);
+    s.setValue("Performance/ShowGpu",                   this->PerfShowGpu);
+    s.setValue("Performance/GraphWindowSec",            this->PerfGraphWindowSec);
 
     s.sync();
 }

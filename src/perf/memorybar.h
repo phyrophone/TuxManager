@@ -57,7 +57,6 @@ namespace Perf
 
             void    segmentWidths(int &wUsed, int &wDirty, int &wCached, int &wFree) const;
             Segment segmentAtPos(const QPoint &pos) const;
-            QString formatKb(qint64 kb) const;
             QString segmentTooltip(Segment seg) const;
 
             qint64 m_used   { 0 };
