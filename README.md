@@ -21,6 +21,16 @@ make -j$(nproc)
 ./tux-manager
 ```
 
+## Core philosophy and goals of this project
+
+* KISS - keep it simple stupid
+* Lean and clean codebase, minimal system footprint (low RAM and CPU usage)
+* Stability and reliability, easy debugging
+* No overengineered or unnecessary extra features
+* Simple packaging flow - for each packaging tool, there should be a script or 1 line command
+* Minimal dependencies on 3rd party libs besides Qt so that building anywhere should be trivial
+* Keep everything well documented
+
 ## License
 
 GPL-3.0-or-later
