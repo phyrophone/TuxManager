@@ -125,22 +125,14 @@ void UsersWidget::onContextMenu(const QPoint &pos)
     QMenu menu(this);
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
 
-    const struct { int ms; const char *label; } choices[] = {
-        { 250,  "250 ms" },
-        { 500,  "500 ms" },
-        { 1000, "1 second" },
-        { 2000, "2 seconds" },
-        { 5000, "5 seconds" }
-    };
-
-    for (const auto &c : choices)
+    for (int ms : CFG->RefreshRateAvailableIntervals)
     {
-        QAction *a = refreshMenu->addAction(tr(c.label));
+        QAction *a = refreshMenu->addAction(Misc::SimplifyTimeMS(ms));
         a->setCheckable(true);
-        a->setChecked(CFG->RefreshRateMs == c.ms);
-        connect(a, &QAction::triggered, this, [this, c]()
+        a->setChecked(CFG->RefreshRateMs == ms);
+        connect(a, &QAction::triggered, this, [this, ms]()
         {
-            CFG->RefreshRateMs = c.ms;
+            CFG->RefreshRateMs = ms;
             if (this->m_active)
                 this->m_refreshTimer->start(CFG->RefreshRateMs);
         });
@@ -221,8 +213,7 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
             procItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         }
 
-        userItem->setExpanded(this->m_hasExpansionSnapshot
-                              && this->m_expandedUsers.contains(uid));
+        userItem->setExpanded(this->m_hasExpansionSnapshot && this->m_expandedUsers.contains(uid));
     }
 
     this->ui->statusLabel->setText(tr("Logged in users: %1").arg(agg.size()));

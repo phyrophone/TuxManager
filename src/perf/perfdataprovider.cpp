@@ -29,7 +29,6 @@
 #include <QStringList>
 #include <QSysInfo>
 #include <dlfcn.h>
-#include <linux/limits.h>
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <netdb.h>
@@ -204,22 +203,7 @@ void PerfDataProvider::SetActive(bool active)
     if (active)
     {
         // Refresh once immediately when entering Performance tab.
-        if (this->m_cpuSamplingEnabled)
-            this->sampleCpu();
-        this->sampleCpuTemperature();
-        if (this->m_memorySamplingEnabled)
-            this->sampleMemory();
-        if (this->m_diskSamplingEnabled)
-            this->sampleDisks();
-        if (this->m_networkSamplingEnabled)
-            this->sampleNetworks();
-        if (this->m_gpuSamplingEnabled)
-            this->sampleGpus();
-        if (this->m_processStatsEnabled)
-            this->sampleProcessStats();
-        if (this->m_cpuSamplingEnabled)
-            this->readCurrentFreq();
-        emit this->updated();
+        this->sample();
         this->m_timer->start(this->m_intervalMs);
     } else
     {
@@ -231,8 +215,7 @@ double PerfDataProvider::MemFraction() const
 {
     if (this->m_memTotalKb <= 0)
         return 0.0;
-    return static_cast<double>(this->m_memUsedKb)
-           / static_cast<double>(this->m_memTotalKb);
+    return static_cast<double>(this->m_memUsedKb) / static_cast<double>(this->m_memTotalKb);
 }
 
 double PerfDataProvider::CorePercent(int i) const
@@ -573,22 +556,7 @@ void PerfDataProvider::onTimer()
     if (!this->m_active)
         return;
 
-    if (this->m_cpuSamplingEnabled)
-        this->sampleCpu();
-    this->sampleCpuTemperature();
-    if (this->m_memorySamplingEnabled)
-        this->sampleMemory();
-    if (this->m_diskSamplingEnabled)
-        this->sampleDisks();
-    if (this->m_networkSamplingEnabled)
-        this->sampleNetworks();
-    if (this->m_gpuSamplingEnabled)
-        this->sampleGpus();
-    if (this->m_processStatsEnabled)
-        this->sampleProcessStats();
-    if (this->m_cpuSamplingEnabled)
-        this->readCurrentFreq();
-    emit this->updated();
+    this->sample();
 }
 
 // ── CPU sampling ──────────────────────────────────────────────────────────────
@@ -864,7 +832,7 @@ QSet<QString> PerfDataProvider::resolveBaseBlockDevices(const QString &devName)
 
     // Partitions expose /sys/class/block/<name>/partition.
     // Walk to parent block device (e.g. sda1 -> sda, nvme0n1p2 -> nvme0n1).
-    if (QFileInfo(sysPath + "/partition").exists())
+    if (QFileInfo::exists(sysPath + "/partition"))
     {
         QString parentName;
         const QString canonical = QFileInfo(sysPath).canonicalFilePath();
@@ -1373,20 +1341,17 @@ void PerfDataProvider::detectGpuBackends()
         {
             LOG_DEBUG("NVML: required symbols not found, unloading");
             this->unloadGpuBackends();
-        }
-        else if (pNvmlInitV2() != NVML_SUCCESS)
+        } else if (pNvmlInitV2() != NVML_SUCCESS)
         {
             LOG_DEBUG("NVML: nvmlInit_v2 failed, unloading");
             this->unloadGpuBackends();
-        }
-        else
+        } else
         {
             unsigned int count = 0;
             if (pNvmlDeviceGetCountV2(&count) == NVML_SUCCESS && count > 0)
             {
                 this->m_hasNvml = true;
-            }
-            else
+            } else
             {
                 LOG_DEBUG("NVML: no devices found, shutting down");
                 pNvmlShutdown();
@@ -1798,8 +1763,7 @@ bool PerfDataProvider::sampleDrm()
             bool ok = false;
             const int pct = readSysTextFile(card.busyPath).trimmed().toInt(&ok);
             g.utilPct = ok ? qBound(0.0, static_cast<double>(pct), 100.0) : 0.0;
-        }
-        else
+        } else
         {
             g.utilPct = 0.0;
         }
@@ -1912,6 +1876,29 @@ bool PerfDataProvider::sampleDrm()
     return !this->m_drmCards.isEmpty();
 }
 
+void PerfDataProvider::sample()
+{
+    if (this->m_cpuSamplingEnabled)
+    {
+        this->sampleCpu();
+        this->sampleCpuTemperature();
+    }
+
+    if (this->m_memorySamplingEnabled)
+        this->sampleMemory();
+    if (this->m_diskSamplingEnabled)
+        this->sampleDisks();
+    if (this->m_networkSamplingEnabled)
+        this->sampleNetworks();
+    if (this->m_gpuSamplingEnabled)
+        this->sampleGpus();
+    if (this->m_processStatsEnabled)
+        this->sampleProcessStats();
+    if (this->m_cpuSamplingEnabled)
+        this->readCurrentFreq();
+    emit this->updated();
+}
+
 // ── GPU: fdinfo engine scanner ────────────────────────────────────────────────
 // Reads drm-engine-* nanosecond values from /proc fdinfo files.
 // Caches discovered fdinfo paths and only does a full /proc rescan every few ticks.
@@ -1958,16 +1945,14 @@ QHash<QString, qint64> PerfDataProvider::scanDrmFdInfoEngines(DrmCard &card)
             const QString key = line.mid(11, colonPos - 11).toString();
             const QStringView valStr = line.mid(colonPos + 1).trimmed();
             const int spacePos = valStr.indexOf(' ');
-            const qint64 ns = (spacePos > 0 ? valStr.left(spacePos) : valStr)
-                                  .toLongLong();
+            const qint64 ns = (spacePos > 0 ? valStr.left(spacePos) : valStr).toLongLong();
             totals[key] += ns;
             found = true;
         }
         return found;
     };
 
-    const bool fullRescan = (this->m_gpuFdInfoRescanCounter % 5 == 1)
-                            || card.cachedFdInfoPaths.isEmpty();
+    const bool fullRescan = (this->m_gpuFdInfoRescanCounter % 5 == 1) || card.cachedFdInfoPaths.isEmpty();
 
     if (!fullRescan)
     {
@@ -2016,8 +2001,7 @@ QHash<QString, qint64> PerfDataProvider::scanDrmFdInfoEngines(DrmCard &card)
                 && target != card.cardNodePath.toLatin1())
                 continue;
 
-            const QString infoPath = QStringLiteral("/proc/") + pidEntry
-                                     + QStringLiteral("/fdinfo/") + fdNum;
+            const QString infoPath = QStringLiteral("/proc/") + pidEntry + QStringLiteral("/fdinfo/") + fdNum;
             if (parseFdInfo(infoPath))
                 newCache.append(infoPath);
         }

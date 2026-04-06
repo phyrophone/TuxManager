@@ -17,9 +17,11 @@
  */
 
 #include "processeswidget.h"
+#include "os/processhelper.h"
 #include "ui_processeswidget.h"
 #include "configuration.h"
 #include "logger.h"
+#include "misc.h"
 
 #include <QHeaderView>
 #include <QInputDialog>
@@ -70,8 +72,8 @@ void ProcessesWidget::setupTable()
     // Load persisted view toggles
     this->m_proxy->ShowKernelTasks     = CFG->ShowKernelTasks;
     this->m_proxy->ShowOtherUsersProcs = CFG->ShowOtherUsersProcs;
-    this->m_model->setShowKernelTasks(CFG->ShowKernelTasks);
-    this->m_model->setShowOtherUsersProcs(CFG->ShowOtherUsersProcs);
+    this->m_model->SetShowKernelTasks(CFG->ShowKernelTasks);
+    this->m_model->SetShowOtherUsersProcs(CFG->ShowOtherUsersProcs);
 
     QTableView *tv = this->ui->tableView;
     tv->setModel(this->m_proxy);
@@ -117,11 +119,9 @@ void ProcessesWidget::setupTable()
 void ProcessesWidget::setupRefreshCombo()
 {
     QComboBox *cb = this->ui->refreshCombo;
-    cb->addItem(tr("250 ms"),    250);
-    cb->addItem(tr("500 ms"),    500);
-    cb->addItem(tr("1 second"),  1000);
-    cb->addItem(tr("2 seconds"), 2000);
-    cb->addItem(tr("5 seconds"), 5000);
+    cb->clear();
+    for (int ms : CFG->RefreshRateAvailableIntervals)
+        cb->addItem(Misc::SimplifyTimeMS(ms), ms);
 
     // Pre-select the value stored in config
     for (int i = 0; i < cb->count(); ++i)
@@ -165,8 +165,7 @@ void ProcessesWidget::onTimerTick()
     QVariant selectedPid;
     if (proxyIdx.isValid())
     {
-        const QModelIndex srcIdx =
-            this->m_proxy->mapToSource(proxyIdx.sibling(proxyIdx.row(), OS::ProcessModel::ColPid));
+        const QModelIndex srcIdx = this->m_proxy->mapToSource(proxyIdx.sibling(proxyIdx.row(), OS::ProcessModel::ColPid));
         selectedPid = this->m_model->data(srcIdx, Qt::UserRole);
     }
 
@@ -180,8 +179,7 @@ void ProcessesWidget::onTimerTick()
             const QModelIndex idx = this->m_model->index(row, OS::ProcessModel::ColPid);
             if (this->m_model->data(idx, Qt::UserRole) == selectedPid)
             {
-                const QModelIndex proxyRestored =
-                    this->m_proxy->mapFromSource(idx);
+                const QModelIndex proxyRestored = this->m_proxy->mapFromSource(idx);
                 this->ui->tableView->setCurrentIndex(proxyRestored);
                 break;
             }
@@ -245,7 +243,7 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     connect(kernelAct, &QAction::toggled, this, [this](bool checked)
     {
         this->m_proxy->ShowKernelTasks = checked;
-        this->m_model->setShowKernelTasks(checked);
+        this->m_model->SetShowKernelTasks(checked);
         CFG->ShowKernelTasks = checked;
         this->m_proxy->ApplyFilters();
         this->onTimerTick();
@@ -258,7 +256,7 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     connect(otherUsersAct, &QAction::toggled, this, [this](bool checked)
     {
         this->m_proxy->ShowOtherUsersProcs = checked;
-        this->m_model->setShowOtherUsersProcs(checked);
+        this->m_model->SetShowOtherUsersProcs(checked);
         CFG->ShowOtherUsersProcs = checked;
         this->m_proxy->ApplyFilters();
         this->onTimerTick();
@@ -291,7 +289,7 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     }
 
     signalMenu->addSeparator();
-    QAction *customSig = signalMenu->addAction(tr("Custom signal…"));
+    QAction *customSig = signalMenu->addAction(tr("Custom signal..."));
     connect(customSig, &QAction::triggered, this, [this]()
     {
         bool ok;
@@ -323,7 +321,7 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
 
     // ── Priority ─────────────────────────────────────────────────────────────
     menu.addSeparator();
-    QAction *reniceAction = menu.addAction(tr("Change priority (renice)…"));
+    QAction *reniceAction = menu.addAction(tr("Change priority (renice)..."));
     reniceAction->setEnabled(hasSelection);
     connect(reniceAction, &QAction::triggered, this, &ProcessesWidget::reniceSelected);
 
@@ -347,8 +345,7 @@ void ProcessesWidget::updateStatusBar()
 QList<pid_t> ProcessesWidget::selectedPids() const
 {
     QList<pid_t> pids;
-    const QModelIndexList rows =
-        this->ui->tableView->selectionModel()->selectedRows(OS::ProcessModel::ColPid);
+    const QModelIndexList rows = this->ui->tableView->selectionModel()->selectedRows(OS::ProcessModel::ColPid);
     pids.reserve(rows.size());
     for (const QModelIndex &proxyIdx : rows)
     {
@@ -375,6 +372,7 @@ void ProcessesWidget::sendSignalToSelected(int signal)
             LOG_INFO(QString("Sent %1 to PID %2").arg(OS::ProcessHelper::signalName(signal)).arg(pid));
         }
     }
+
     if (!errors.isEmpty())
     {
         QMessageBox::warning(this, tr("Signal failed"), errors.join('\n'));

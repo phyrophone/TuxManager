@@ -21,7 +21,6 @@
 
 #include "os/processmodel.h"
 #include "os/processfilterproxy.h"
-#include "os/processhelper.h"
 
 #include <QTimer>
 #include <QWidget>

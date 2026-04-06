@@ -33,7 +33,8 @@ ProcessFilterProxy::ProcessFilterProxy(QObject *parent) : QSortFilterProxyModel(
 
 void ProcessFilterProxy::ApplyFilters()
 {
-    this->invalidateFilter();
+    this->beginFilterChange();
+    this->endFilterChange(QSortFilterProxyModel::Direction::Rows);
 }
 
 bool ProcessFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
@@ -42,7 +43,7 @@ bool ProcessFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sour
     if (!model)
         return true;
 
-    const QList<Process> &procs = model->processes();
+    const QList<Process> &procs = model->GetProcesses();
     if (sourceRow < 0 || sourceRow >= procs.size())
         return false;
 
@@ -68,4 +69,3 @@ bool ProcessFilterProxy::isKernelTask(const Process &proc)
     // hidden. PID 2 (kthreadd) has PF_KTHREAD set so it is covered naturally.
     return proc.isKernelThread;
 }
-

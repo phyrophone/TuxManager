@@ -57,7 +57,7 @@ CpuGraphArea::CpuGraphArea(QWidget *parent) : QWidget(parent), m_stack(new QStac
 
 // ── Public interface ──────────────────────────────────────────────────────────
 
-void CpuGraphArea::setMode(GraphMode mode)
+void CpuGraphArea::SetMode(GraphMode mode)
 {
     if (this->m_mode == mode)
         return;

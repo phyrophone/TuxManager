@@ -354,7 +354,7 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
 
     menu.addSeparator();
     QMenu *timeMenu = menu.addMenu(tr("Graph time"));
-    QVector<int> intervals = CFG->RefreshRateAvailableIntervals;
+    QVector<int> intervals = CFG->DataWindowAvailableIntervals;
     if (intervals.isEmpty())
         intervals.append(CFG->PerfGraphWindowSec);
 
@@ -371,7 +371,7 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
         return;
 
     const int requestedWindow = picked->data().toInt();
-    if (CFG->RefreshRateAvailableIntervals.contains(requestedWindow))
+    if (CFG->DataWindowAvailableIntervals.contains(requestedWindow))
     {
         CFG->PerfGraphWindowSec = requestedWindow;
         this->applyGraphWindowSeconds();

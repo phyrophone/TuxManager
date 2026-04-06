@@ -45,25 +45,25 @@ namespace Perf
 
             explicit GraphWidget(QWidget *parent = nullptr);
 
-            /// Replace the displayed history and trigger a repaint.
+            //! Replace the displayed history and trigger a repaint.
             void SetHistory(const QVector<double> &data, double maxVal = 100.0);
-            /// Bind to an external history vector (shared source of truth, no copy).
+            //! Bind to an external history vector (shared source of truth, no copy).
             void SetHistoryRef(const QVector<double> &data, double maxVal = 100.0);
 
-            /// Optional secondary (kernel-time) history drawn as a darker overlay.
-            /// Pass an empty vector to disable.
+            //! Optional secondary (kernel-time) history drawn as a darker overlay.
+            //! Pass an empty vector to disable.
             void SetSecondaryHistory(const QVector<double> &data2);
-            /// Bind secondary history to an external vector (no copy).
+            //! Bind secondary history to an external vector (no copy).
             void SetSecondaryHistoryRef(const QVector<double> &data2);
 
-            /// Optional: change the line / fill colour pair from the default blue.
+            //! Optional: change the line / fill colour pair from the default blue.
             void SetColor(QColor line, QColor fill, QColor fill2 = QColor());
 
-            /// Number of horizontal grid divisions.
+            //! Number of horizontal grid divisions.
             void SetGridColumns(int cols) { this->m_gridCols = cols; update(); }
-            /// Number of vertical grid divisions.
+            //! Number of vertical grid divisions.
             void SetGridRows(int rows)    { this->m_gridRows = rows; update(); }
-            /// Number of fixed time slots across the X axis (controls scrolling).
+            //! Number of fixed time slots across the X axis (controls scrolling).
             void SetSampleCapacity(int samples);
 
             //! Enable/disable the vertical guide line that follows mouse hover.

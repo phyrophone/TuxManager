@@ -62,8 +62,8 @@ namespace Perf
             QLabel *m_copyBwGraphMaxLabel { nullptr };
             QLabel *m_copyBwLegendLabel { nullptr };
 
-            QVector<QComboBox *>  m_engineSelectors;
-            QVector<QLabel *>     m_engineValueLabels;
+            QVector<QComboBox *>   m_engineSelectors;
+            QVector<QLabel *>      m_engineValueLabels;
             QVector<GraphWidget *> m_engineGraphs;
             QVector<int>           m_selectedEngineBySlot;
 

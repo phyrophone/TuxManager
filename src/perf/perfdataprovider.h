@@ -55,8 +55,7 @@ namespace Perf
             void SetGpuSamplingEnabled(bool enabled) { this->m_gpuSamplingEnabled = enabled; }
 
             // ── Aggregate CPU ─────────────────────────────────────────────────────
-            double CpuPercent()  const { return this->m_cpuHistory.isEmpty() ? 0.0
-                                                : this->m_cpuHistory.last(); }
+            double CpuPercent()  const { return this->m_cpuHistory.isEmpty() ? 0.0 : this->m_cpuHistory.last(); }
             const QVector<double> &CpuHistory()       const { return this->m_cpuHistory; }
             const QVector<double> &CpuKernelHistory() const { return this->m_cpuKernelHistory; }
 
@@ -368,6 +367,9 @@ namespace Perf
             void detectDrmCards();
             bool sampleNvml();
             bool sampleDrm();
+            //! Run all samples that are enabled
+            void sample();
+
             QHash<QString, qint64> scanDrmFdInfoEngines(DrmCard &card);
             void unloadGpuBackends();
             static double parsePercentField(const QString &field);

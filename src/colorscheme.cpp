@@ -96,8 +96,7 @@ namespace
         if (text.isEmpty())
             return fallback;
 
-        QColor color;
-        color.setNamedColor(text);
+        const QColor color = QColor::fromString(text);
         return color.isValid() ? color : fallback;
     }
 }

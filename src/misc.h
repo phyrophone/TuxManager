@@ -28,6 +28,9 @@ namespace Misc
     //! return minutes / hours instead (so 600 returns "10 minutes"), used by UI
     QString SimplifyTime(int secs);
 
+    //! Takes time in milliseconds and returns either "<n> ms" or "<n> s".
+    QString SimplifyTimeMS(int ms);
+
     //! Formats bytes per second with binary units and B/s fallback for sub-KB values.
     QString FormatBytesPerSecond(double bytesPerSec);
 

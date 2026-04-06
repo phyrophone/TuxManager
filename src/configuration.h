@@ -49,7 +49,11 @@ class Configuration : public QObject
         int RefreshRateMs { 1000 };  ///< How often live data is refreshed (ms)
         bool UseCustomColorScheme { false };
         QVariantMap CustomColorScheme;
+        //! Intervals (in ms) available in menus for refresh rate (250ms, 1s, 5s etc.)
         QVector<int> RefreshRateAvailableIntervals;
+
+        //! Intervals (in s) for how long should we retain the data (1 min, 2 min etc.)
+        QVector<int> DataWindowAvailableIntervals;
 
         // ── Processes tab ─────────────────────────────────────────────────────────
         bool ShowKernelTasks     { true };  ///< Show kernel threads in the process list

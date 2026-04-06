@@ -68,7 +68,7 @@ CpuDetailWidget::CpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
 
     connect(this->m_graphArea, &CpuGraphArea::contextMenuRequested, this, &CpuDetailWidget::onContextMenuRequested);
 
-    this->m_graphArea->setMode(
+    this->m_graphArea->SetMode(
                 CFG->CpuGraphMode == 1
                 ? CpuGraphArea::GraphMode::PerCore
                 : CpuGraphArea::GraphMode::Overall);
@@ -208,18 +208,18 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
     actOverall->setCheckable(true);
     actPerCore->setCheckable(true);
 
-    const bool isOverall = (this->m_graphArea->mode() == CpuGraphArea::GraphMode::Overall);
+    const bool isOverall = (this->m_graphArea->GetMode() == CpuGraphArea::GraphMode::Overall);
     actOverall->setChecked( isOverall);
     actPerCore->setChecked(!isOverall);
 
     connect(actOverall, &QAction::triggered, this, [this]()
     {
-        this->m_graphArea->setMode(CpuGraphArea::GraphMode::Overall);
+        this->m_graphArea->SetMode(CpuGraphArea::GraphMode::Overall);
         CFG->CpuGraphMode = 0;
     });
     connect(actPerCore, &QAction::triggered, this, [this]()
     {
-        this->m_graphArea->setMode(CpuGraphArea::GraphMode::PerCore);
+        this->m_graphArea->SetMode(CpuGraphArea::GraphMode::PerCore);
         CFG->CpuGraphMode = 1;
     });
 
@@ -228,7 +228,7 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
     // ── Show kernel times ─────────────────────────────────────────────────────
     QAction *actKernel = menu.addAction(tr("Show kernel times"));
     actKernel->setCheckable(true);
-    actKernel->setChecked(this->m_graphArea->showKernelTime());
+    actKernel->setChecked(this->m_graphArea->GetShowKernelTime());
     connect(actKernel, &QAction::triggered, this, [this](bool checked)
     {
         this->m_graphArea->SetShowKernelTime(checked);

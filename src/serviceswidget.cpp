@@ -50,10 +50,7 @@ ServicesWidget::ServicesWidget(QWidget *parent)
     qRegisterMetaType<QList<OS::Service>>("QList<Os::Service>");
 
     this->m_proxy->setSourceModel(this->m_model);
-    connect(this->ui->searchEdit,
-            &QLineEdit::textChanged,
-            this->m_proxy,
-            &OS::ServiceFilterProxy::setFilterFixedString);
+    connect(this->ui->searchEdit, &QLineEdit::textChanged, this->m_proxy, &OS::ServiceFilterProxy::setFilterFixedString);
 
     this->ui->tableView->setModel(this->m_proxy);
     this->ui->tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);

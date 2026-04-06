@@ -83,10 +83,11 @@ void Configuration::Load()
     this->PerfGraphWindowSec =  s.value("Performance/GraphWindowSec",    this->PerfGraphWindowSec).toInt();
 
     // For now this is hardcoded, we may want to make it customizable later
-    this->RefreshRateAvailableIntervals.append(QList<int> { 60, 120, 300, 900 });
+    this->RefreshRateAvailableIntervals.append(QList<int> { 250, 500, 1000, 2000, 5000 });
+    this->DataWindowAvailableIntervals.append(QList<int> { 60, 120, 300, 900 });
 
-    if (!this->RefreshRateAvailableIntervals.contains(this->PerfGraphWindowSec))
-        this->PerfGraphWindowSec = this->RefreshRateAvailableIntervals[0];
+    if (!this->DataWindowAvailableIntervals.contains(this->PerfGraphWindowSec))
+        this->PerfGraphWindowSec = this->DataWindowAvailableIntervals[0];
 
     // Color scheme
     // we always start with either dark or light default even if there is customization layered over it,

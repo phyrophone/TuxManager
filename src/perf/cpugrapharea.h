@@ -46,11 +46,11 @@ namespace Perf
 
             explicit CpuGraphArea(QWidget *parent = nullptr);
 
-            void setMode(GraphMode mode);
-            GraphMode mode() const { return this->m_mode; }
+            void SetMode(GraphMode mode);
+            GraphMode GetMode() const { return this->m_mode; }
 
             void SetShowKernelTime(bool show);
-            bool showKernelTime() const { return this->m_showKernelTime; }
+            bool GetShowKernelTime() const { return this->m_showKernelTime; }
             void ApplyColorScheme();
 
             /// Call after every PerfDataProvider::updated() signal.

@@ -42,9 +42,23 @@ QString Misc::SimplifyTime(int secs)
     return QString::number(secs) + ((secs == 1) ? " second" : " seconds");
 }
 
+QString Misc::SimplifyTimeMS(int ms)
+{
+    if (ms < 0)
+        ms = 0;
+
+    if (ms > 0 && (ms % 1000) == 0)
+        return QString::number(ms / 1000) + " s";
+
+    return QString::number(ms) + " ms";
+}
+
 QString Misc::FormatBytesPerSecond(double bytesPerSec)
 {
     const double v = (bytesPerSec < 0.0) ? 0.0 : bytesPerSec;
+
+    if (v >= 1024.0 * 1024.0 * 1024.0)
+        return QString::number(v / (1024.0 * 1024.0 * 1024.0), 'f', 2) + QObject::tr(" GB/s");
 
     if (v >= 1024.0 * 1024.0)
         return QString::number(v / (1024.0 * 1024.0), 'f', 1) + QObject::tr(" MB/s");

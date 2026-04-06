@@ -27,66 +27,66 @@ using namespace OS;
 
 namespace
 {
-struct sd_bus;
-struct sd_bus_message;
-struct sd_bus_error;
+    struct sd_bus;
+    struct sd_bus_message;
+    struct sd_bus_error;
 
-using FnSdBusOpenSystem = int (*)(sd_bus **);
-using FnSdBusUnref = sd_bus *(*)(sd_bus *);
-using FnSdBusCallMethod = int (*)(sd_bus *, const char *, const char *, const char *,
-                                  const char *, sd_bus_error *, sd_bus_message **,
-                                  const char *, ...);
-using FnSdBusMessageUnref = sd_bus_message *(*)(sd_bus_message *);
-using FnSdBusMessageEnterContainer = int (*)(sd_bus_message *, char, const char *);
-using FnSdBusMessageExitContainer = int (*)(sd_bus_message *);
-using FnSdBusMessageRead = int (*)(sd_bus_message *, const char *, ...);
+    using FnSdBusOpenSystem = int (*)(sd_bus **);
+    using FnSdBusUnref = sd_bus *(*)(sd_bus *);
+    using FnSdBusCallMethod = int (*)(sd_bus *, const char *, const char *, const char *,
+                                      const char *, sd_bus_error *, sd_bus_message **,
+                                      const char *, ...);
+    using FnSdBusMessageUnref = sd_bus_message *(*)(sd_bus_message *);
+    using FnSdBusMessageEnterContainer = int (*)(sd_bus_message *, char, const char *);
+    using FnSdBusMessageExitContainer = int (*)(sd_bus_message *);
+    using FnSdBusMessageRead = int (*)(sd_bus_message *, const char *, ...);
 
-void *g_sdLib = nullptr;
-FnSdBusOpenSystem pSdBusOpenSystem = nullptr;
-FnSdBusUnref pSdBusUnref = nullptr;
-FnSdBusCallMethod pSdBusCallMethod = nullptr;
-FnSdBusMessageUnref pSdBusMessageUnref = nullptr;
-FnSdBusMessageEnterContainer pSdBusMessageEnterContainer = nullptr;
-FnSdBusMessageExitContainer pSdBusMessageExitContainer = nullptr;
-FnSdBusMessageRead pSdBusMessageRead = nullptr;
+    void *g_sdLib = nullptr;
+    FnSdBusOpenSystem pSdBusOpenSystem = nullptr;
+    FnSdBusUnref pSdBusUnref = nullptr;
+    FnSdBusCallMethod pSdBusCallMethod = nullptr;
+    FnSdBusMessageUnref pSdBusMessageUnref = nullptr;
+    FnSdBusMessageEnterContainer pSdBusMessageEnterContainer = nullptr;
+    FnSdBusMessageExitContainer pSdBusMessageExitContainer = nullptr;
+    FnSdBusMessageRead pSdBusMessageRead = nullptr;
 
-bool ensureSdBusLoaded(QString *error)
-{
-    if (pSdBusOpenSystem && pSdBusCallMethod && pSdBusMessageRead)
-        return true;
-
-    if (!g_sdLib)
+    bool ensureSdBusLoaded(QString *error)
     {
-        g_sdLib = ::dlopen("libsystemd.so.0", RTLD_LAZY | RTLD_LOCAL);
+        if (pSdBusOpenSystem && pSdBusCallMethod && pSdBusMessageRead)
+            return true;
+
         if (!g_sdLib)
-            g_sdLib = ::dlopen("libsystemd.so", RTLD_LAZY | RTLD_LOCAL);
-    }
-    if (!g_sdLib)
-    {
-        if (error)
-            *error = QObject::tr("libsystemd not found");
-        return false;
-    }
+        {
+            g_sdLib = ::dlopen("libsystemd.so.0", RTLD_LAZY | RTLD_LOCAL);
+            if (!g_sdLib)
+                g_sdLib = ::dlopen("libsystemd.so", RTLD_LAZY | RTLD_LOCAL);
+        }
+        if (!g_sdLib)
+        {
+            if (error)
+                *error = QObject::tr("libsystemd not found");
+            return false;
+        }
 
-    pSdBusOpenSystem = reinterpret_cast<FnSdBusOpenSystem>(::dlsym(g_sdLib, "sd_bus_open_system"));
-    pSdBusUnref = reinterpret_cast<FnSdBusUnref>(::dlsym(g_sdLib, "sd_bus_unref"));
-    pSdBusCallMethod = reinterpret_cast<FnSdBusCallMethod>(::dlsym(g_sdLib, "sd_bus_call_method"));
-    pSdBusMessageUnref = reinterpret_cast<FnSdBusMessageUnref>(::dlsym(g_sdLib, "sd_bus_message_unref"));
-    pSdBusMessageEnterContainer = reinterpret_cast<FnSdBusMessageEnterContainer>(::dlsym(g_sdLib, "sd_bus_message_enter_container"));
-    pSdBusMessageExitContainer = reinterpret_cast<FnSdBusMessageExitContainer>(::dlsym(g_sdLib, "sd_bus_message_exit_container"));
-    pSdBusMessageRead = reinterpret_cast<FnSdBusMessageRead>(::dlsym(g_sdLib, "sd_bus_message_read"));
+        pSdBusOpenSystem = reinterpret_cast<FnSdBusOpenSystem>(::dlsym(g_sdLib, "sd_bus_open_system"));
+        pSdBusUnref = reinterpret_cast<FnSdBusUnref>(::dlsym(g_sdLib, "sd_bus_unref"));
+        pSdBusCallMethod = reinterpret_cast<FnSdBusCallMethod>(::dlsym(g_sdLib, "sd_bus_call_method"));
+        pSdBusMessageUnref = reinterpret_cast<FnSdBusMessageUnref>(::dlsym(g_sdLib, "sd_bus_message_unref"));
+        pSdBusMessageEnterContainer = reinterpret_cast<FnSdBusMessageEnterContainer>(::dlsym(g_sdLib, "sd_bus_message_enter_container"));
+        pSdBusMessageExitContainer = reinterpret_cast<FnSdBusMessageExitContainer>(::dlsym(g_sdLib, "sd_bus_message_exit_container"));
+        pSdBusMessageRead = reinterpret_cast<FnSdBusMessageRead>(::dlsym(g_sdLib, "sd_bus_message_read"));
 
-    if (!pSdBusOpenSystem || !pSdBusUnref || !pSdBusCallMethod || !pSdBusMessageUnref
-        || !pSdBusMessageEnterContainer || !pSdBusMessageExitContainer || !pSdBusMessageRead)
-    {
+        if (!pSdBusOpenSystem || !pSdBusUnref || !pSdBusCallMethod || !pSdBusMessageUnref
+            || !pSdBusMessageEnterContainer || !pSdBusMessageExitContainer || !pSdBusMessageRead)
+        {
+            if (error)
+                *error = QObject::tr("libsystemd missing sd-bus symbols");
+            return false;
+        }
         if (error)
-            *error = QObject::tr("libsystemd missing sd-bus symbols");
-        return false;
+            error->clear();
+        return true;
     }
-    if (error)
-        error->clear();
-    return true;
-}
 } // namespace
 
 bool ServiceHelper::IsSystemdAvailable(QString *reason)

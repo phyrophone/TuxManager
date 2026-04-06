@@ -18,6 +18,7 @@
 
 #include "graphwidget.h"
 #include "../colorscheme.h"
+#include "misc.h"
 
 #include <cmath>
 #include <QMouseEvent>
@@ -350,13 +351,7 @@ QString GraphWidget::formatValue(double v) const
                     .arg(this->m_percentTooltipAbsoluteUnit);
         }
         case ValueFormat::BytesPerSec:
-            if (v >= 1024.0 * 1024.0 * 1024.0)
-                return QString::number(v / (1024.0 * 1024.0 * 1024.0), 'f', 2) + tr(" GB/s");
-            if (v >= 1024.0 * 1024.0)
-                return QString::number(v / (1024.0 * 1024.0), 'f', 1) + tr(" MB/s");
-            if (v >= 1024.0)
-                return QString::number(v / 1024.0, 'f', 0) + tr(" KB/s");
-            return QString::number(v, 'f', 0) + tr(" B/s");
+            return Misc::FormatBytesPerSecond(v);
         case ValueFormat::Raw:
             return QString::number(v, 'f', 2);
         case ValueFormat::Auto:
