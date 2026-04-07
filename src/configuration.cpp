@@ -24,6 +24,8 @@
 #include <QSettings>
 #include <QVariantList>
 
+#include <unistd.h>
+
 Configuration *Configuration::s_instance = nullptr;
 
 Configuration *Configuration::instance()
@@ -49,6 +51,7 @@ void Configuration::Load()
     this->RefreshRateMs  =       s.value("General/RefreshRateMs",        this->RefreshRateMs).toInt();
     this->UseCustomColorScheme = s.value("General/UseCustomColorScheme", this->UseCustomColorScheme).toBool();
     this->CustomColorScheme =    s.value("General/CustomColorScheme",    this->CustomColorScheme).toMap();
+    this->IsSuperuser = (::geteuid() == 0);
 
     // Processes
     this->ShowKernelTasks        = s.value("Processes/ShowKernelTasks",     this->ShowKernelTasks).toBool();

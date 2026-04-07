@@ -49,6 +49,7 @@ class Configuration : public QObject
         int RefreshRateMs { 1000 };  ///< How often live data is refreshed (ms)
         bool UseCustomColorScheme { false };
         QVariantMap CustomColorScheme;
+        bool IsSuperuser { false };  ///< True when effective UID is 0 (runtime-only).
         //! Intervals (in ms) available in menus for refresh rate (250ms, 1s, 5s etc.)
         QVector<int> RefreshRateAvailableIntervals;
 

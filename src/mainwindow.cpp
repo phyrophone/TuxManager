@@ -29,6 +29,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
     this->ui->setupUi(this);
 
+    if (CFG->IsSuperuser)
+    {
+        // Make user aware of this
+        this->setWindowTitle(this->windowTitle() + " (superuser)");
+    }
+
     this->ui->processesLayout->addWidget(this->m_processesWidget);
     this->ui->performanceLayout->addWidget(this->m_performanceWidget);
     this->ui->usersLayout->addWidget(this->m_usersWidget);
