@@ -60,6 +60,9 @@ namespace OS
             /// Reload all process data from /proc and update CPU%.
             /// Call this on a timer tick.
             void Refresh();
+            /// Reload process data and return it without resetting the table model.
+            /// Useful for alternate views (e.g. tree) to avoid unnecessary table updates.
+            QList<Process> RefreshSnapshot();
             void SetShowKernelTasks(bool show) { this->m_showKernelTasks = show; }
             void SetShowOtherUsersProcs(bool show) { this->m_showOtherUsersProcs = show; }
 

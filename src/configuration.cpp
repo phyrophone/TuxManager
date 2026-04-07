@@ -49,6 +49,7 @@ void Configuration::Load()
 
     // General
     this->RefreshRateMs  =       s.value("General/RefreshRateMs",        this->RefreshRateMs).toInt();
+    this->RefreshPaused =        s.value("General/RefreshPaused",        this->RefreshPaused).toBool();
     this->UseCustomColorScheme = s.value("General/UseCustomColorScheme", this->UseCustomColorScheme).toBool();
     this->CustomColorScheme =    s.value("General/CustomColorScheme",    this->CustomColorScheme).toMap();
     this->IsSuperuser = (::geteuid() == 0);
@@ -56,6 +57,7 @@ void Configuration::Load()
     // Processes
     this->ShowKernelTasks        = s.value("Processes/ShowKernelTasks",     this->ShowKernelTasks).toBool();
     this->ShowOtherUsersProcs    = s.value("Processes/ShowOtherUsersProcs", this->ShowOtherUsersProcs).toBool();
+    this->ProcessTreeView        = s.value("Processes/TreeView",            this->ProcessTreeView).toBool();
     this->ProcessListSortColumn  = s.value("Processes/SortColumn",          this->ProcessListSortColumn).toInt();
     this->ProcessListSortOrder   = s.value("Processes/SortOrder",           this->ProcessListSortOrder).toInt();
 
@@ -86,8 +88,11 @@ void Configuration::Load()
     this->PerfGraphWindowSec =  s.value("Performance/GraphWindowSec",    this->PerfGraphWindowSec).toInt();
 
     // For now this is hardcoded, we may want to make it customizable later
-    this->RefreshRateAvailableIntervals.append(QList<int> { 250, 500, 1000, 2000, 5000 });
+    this->RefreshRateAvailableIntervals.append(QList<int> { 250, 500, 1000, 2000, 5000, 15000 });
     this->DataWindowAvailableIntervals.append(QList<int> { 60, 120, 300, 900 });
+
+    if (!this->RefreshRateAvailableIntervals.contains(this->RefreshRateMs))
+        this->RefreshRateMs = this->RefreshRateAvailableIntervals[0];
 
     if (!this->DataWindowAvailableIntervals.contains(this->PerfGraphWindowSec))
         this->PerfGraphWindowSec = this->DataWindowAvailableIntervals[0];
@@ -115,12 +120,14 @@ void Configuration::Save()
 
     // General
     s.setValue("General/RefreshRateMs",         this->RefreshRateMs);
+    s.setValue("General/RefreshPaused",         this->RefreshPaused);
     s.setValue("General/UseCustomColorScheme",  this->UseCustomColorScheme);
     s.setValue("General/CustomColorScheme",     this->CustomColorScheme);
 
     // Processes
     s.setValue("Processes/ShowKernelTasks",     this->ShowKernelTasks);
     s.setValue("Processes/ShowOtherUsersProcs", this->ShowOtherUsersProcs);
+    s.setValue("Processes/TreeView",            this->ProcessTreeView);
     s.setValue("Processes/SortColumn",          this->ProcessListSortColumn);
     s.setValue("Processes/SortOrder",           this->ProcessListSortOrder);
 

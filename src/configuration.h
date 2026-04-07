@@ -47,6 +47,7 @@ class Configuration : public QObject
 
         // ── General ──────────────────────────────────────────────────────────────
         int RefreshRateMs { 1000 };  ///< How often live data is refreshed (ms)
+        bool RefreshPaused { false }; ///< True when periodic refresh is paused.
         bool UseCustomColorScheme { false };
         QVariantMap CustomColorScheme;
         bool IsSuperuser { false };  ///< True when effective UID is 0 (runtime-only).
@@ -59,6 +60,7 @@ class Configuration : public QObject
         // ── Processes tab ─────────────────────────────────────────────────────────
         bool ShowKernelTasks     { true };  ///< Show kernel threads in the process list
         bool ShowOtherUsersProcs { true };  ///< Show processes of other users
+        bool ProcessTreeView     { false }; ///< Processes tab: false=table, true=tree
         int  ProcessListSortColumn { 4 };   ///< ColCpu — column index to sort by
         int  ProcessListSortOrder  { 1 };   ///< Qt::DescendingOrder
 

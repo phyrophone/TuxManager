@@ -24,6 +24,7 @@ SOURCES += \
     userswidget.cpp \
     serviceswidget.cpp \
     os/process.cpp \
+    os/processtreemodel.cpp \
     os/processmodel.cpp \
     os/processfilterproxy.cpp \
     os/processhelper.cpp \
@@ -58,6 +59,7 @@ HEADERS += \
     userswidget.h \
     serviceswidget.h \
     os/process.h \
+    os/processtreemodel.h \
     os/processmodel.h \
     os/processfilterproxy.h \
     os/processhelper.h \

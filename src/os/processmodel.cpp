@@ -135,6 +135,15 @@ Qt::ItemFlags ProcessModel::flags(const QModelIndex &index) const
 
 void ProcessModel::Refresh()
 {
+    QList<Process> fresh = this->RefreshSnapshot();
+
+    this->beginResetModel();
+    this->m_processes = std::move(fresh);
+    this->endResetModel();
+}
+
+QList<Process> ProcessModel::RefreshSnapshot()
+{
     // Read total elapsed CPU jiffies (all CPUs, all states) from /proc/stat.
     // Using the actual CPU time budget as the denominator — rather than wall
     // clock time — matches htop's approach and gives accurate results even
@@ -177,9 +186,7 @@ void ProcessModel::Refresh()
         this->m_prevTicks.insert(proc.PID, proc.CPUTicks);
     this->m_prevCpuTotalTicks = totalJiffies;
 
-    this->beginResetModel();
-    this->m_processes = std::move(fresh);
-    this->endResetModel();
+    return fresh;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -25,6 +25,7 @@
 #include "logger.h"
 #include "misc.h"
 #include "perf/graphwidget.h"
+#include "ui/uihelper.h"
 
 #include <QAction>
 #include <QApplication>
@@ -324,6 +325,9 @@ void PerformanceWidget::SetActive(bool active)
 void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &globalPos)
 {
     QMenu menu(this);
+    QHash<QAction *, int> graphWindowActions;
+    QHash<QAction *, int> refreshIntervalActions;
+    QAction *pausedRefreshAction = nullptr;
 
     QAction *cpu = menu.addAction(tr("CPU"));
     cpu->setCheckable(true);
@@ -363,22 +367,28 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
         QAction *a = timeMenu->addAction(Misc::SimplifyTime(sec));
         a->setCheckable(true);
         a->setChecked(CFG->PerfGraphWindowSec == sec);
-        a->setData(sec);
+        graphWindowActions.insert(a, sec);
     }
+
+    QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
+    UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
 
     QAction *picked = menu.exec(globalPos);
     if (!picked)
         return;
 
-    const int requestedWindow = picked->data().toInt();
-    if (CFG->DataWindowAvailableIntervals.contains(requestedWindow))
+    if (graphWindowActions.contains(picked))
     {
+        const int requestedWindow = graphWindowActions.value(picked);
         CFG->PerfGraphWindowSec = requestedWindow;
         this->applyGraphWindowSeconds();
         if (this->m_active)
             this->onProviderUpdated();
         return;
     }
+
+    if (UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_provider))
+        return;
 
     if (picked == customizeColors)
     {

@@ -22,11 +22,18 @@
 #include <QList>
 #include <QString>
 #include <QVariant>
-
-#include <functional>
+#include <QHash>
 
 class QTableView;
 class QModelIndex;
+class QMenu;
+class QAction;
+class QTimer;
+
+namespace Perf
+{
+    class PerfDataProvider;
+}
 
 namespace UIHelper
 {
@@ -51,6 +58,15 @@ namespace UIHelper
                                const std::function<QModelIndex(const QModelIndex &sourceIndex)> &sourceToProxy,
                                const std::function<QVariant(const QModelIndex &sourceKeyIndex)> &sourceKeyResolver,
                                const TableSelectionSnapshot &snapshot);
+
+    void PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction);
+
+    bool ApplyRefreshIntervalAction(QAction *picked,
+                                    const QHash<QAction *, int> &intervalActions,
+                                    QAction *pausedAction,
+                                    Perf::PerfDataProvider *provider = nullptr,
+                                    QTimer *timer = nullptr,
+                                    bool timerOwnerActive = true);
 }
 
 #endif // UI_UIHELPER_H

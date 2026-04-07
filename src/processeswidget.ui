@@ -38,14 +38,6 @@
        </property>
       </spacer>
      </item>
-     <item>
-      <widget class="QLabel" name="refreshLabel">
-       <property name="text"><string>Refresh:</string></property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QComboBox" name="refreshCombo"/>
-     </item>
     </layout>
    </item>
    <item>

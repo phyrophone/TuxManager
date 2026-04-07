@@ -114,11 +114,19 @@ void ServicesWidget::SetActive(bool active)
 
 void ServicesWidget::onTimerTick()
 {
+    if (CFG->RefreshPaused)
+        return;
     this->startRefresh();
 }
 
 void ServicesWidget::startRefresh()
 {
+    if (CFG->RefreshPaused)
+    {
+        this->m_refreshPending = false;
+        return;
+    }
+
     if (this->m_tableContextMenuOpen)
     {
         this->m_refreshPending = true;
@@ -193,7 +201,7 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
             snapshot);
     }
 
-    if (this->m_active && this->m_refreshPending)
+    if (this->m_active && this->m_refreshPending && !CFG->RefreshPaused)
     {
         this->m_refreshPending = false;
         QMetaObject::invokeMethod(this, &ServicesWidget::startRefresh, Qt::QueuedConnection);
@@ -203,6 +211,8 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
 void ServicesWidget::onTableContextMenu(const QPoint &pos)
 {
     this->m_tableContextMenuOpen = true;
+    QHash<QAction *, int> refreshIntervalActions;
+    QAction *pausedRefreshAction = nullptr;
 
     const QModelIndex clickedIndex = this->ui->tableView->indexAt(pos);
     const QModelIndex targetIndex = clickedIndex.isValid() ? clickedIndex : this->ui->tableView->currentIndex();
@@ -241,7 +251,12 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
         QGuiApplication::clipboard()->setText(this->ui->tableView->model()->data(targetIndex, Qt::DisplayRole).toString());
     });
 
-    menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
+    menu.addSeparator();
+    QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
+    UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
+
+    QAction *picked = menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
+    UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, nullptr, this->m_refreshTimer, this->m_active);
 
     this->m_tableContextMenuOpen = false;
 }

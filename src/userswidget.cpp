@@ -21,6 +21,7 @@
 
 #include "configuration.h"
 #include "misc.h"
+#include "ui/uihelper.h"
 
 #include <QFile>
 #include <QHeaderView>
@@ -86,6 +87,9 @@ void UsersWidget::SetActive(bool active)
 
 void UsersWidget::onTimerTick()
 {
+    if (CFG->RefreshPaused)
+        return;
+
     const quint64 totalJiffies = readTotalCpuJiffies();
     const quint64 periodJiffies = (this->m_prevCpuTotalTicks > 0 && totalJiffies > this->m_prevCpuTotalTicks)
                                   ? (totalJiffies - this->m_prevCpuTotalTicks)
@@ -123,6 +127,8 @@ void UsersWidget::onTimerTick()
 void UsersWidget::onContextMenu(const QPoint &pos)
 {
     QMenu menu(this);
+    QHash<QAction *, int> refreshIntervalActions;
+    QAction *pausedRefreshAction = nullptr;
 
     const QTreeWidgetItem *item = this->ui->treeWidget->itemAt(pos);
     const bool isProcessItem = item && item->parent();
@@ -141,21 +147,10 @@ void UsersWidget::onContextMenu(const QPoint &pos)
     }
 
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
+    UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
 
-    for (int ms : CFG->RefreshRateAvailableIntervals)
-    {
-        QAction *a = refreshMenu->addAction(Misc::SimplifyTimeMS(ms));
-        a->setCheckable(true);
-        a->setChecked(CFG->RefreshRateMs == ms);
-        connect(a, &QAction::triggered, this, [this, ms]()
-        {
-            CFG->RefreshRateMs = ms;
-            if (this->m_active)
-                this->m_refreshTimer->start(CFG->RefreshRateMs);
-        });
-    }
-
-    menu.exec(this->ui->treeWidget->viewport()->mapToGlobal(pos));
+    QAction *picked = menu.exec(this->ui->treeWidget->viewport()->mapToGlobal(pos));
+    UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, nullptr, this->m_refreshTimer, this->m_active);
 }
 
 void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)

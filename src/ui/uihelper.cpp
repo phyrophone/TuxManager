@@ -17,13 +17,19 @@
  */
 
 #include "uihelper.h"
+#include "../configuration.h"
+#include "../misc.h"
+#include "../perf/perfdataprovider.h"
 
 #include <QAbstractItemModel>
+#include <QAction>
 #include <QHeaderView>
 #include <QItemSelectionModel>
+#include <QMenu>
 #include <QStringList>
 #include <QScrollBar>
 #include <QTableView>
+#include <QTimer>
 
 QString UIHelper::GetVisibleRowText(const QTableView *view, int row)
 {
@@ -132,4 +138,58 @@ void UIHelper::RestoreTableSelection(QTableView *view,
 
     if (QScrollBar *vsb = view->verticalScrollBar())
         vsb->setValue(snapshot.ScrollPos);
+}
+
+void UIHelper::PopulateRefreshIntervalMenu(QMenu *menu,
+                                           QHash<QAction *, int> &intervalActions,
+                                           QAction *&pausedAction)
+{
+    intervalActions.clear();
+    pausedAction = nullptr;
+    if (!menu)
+        return;
+
+    for (int ms : CFG->RefreshRateAvailableIntervals)
+    {
+        QAction *a = menu->addAction(Misc::SimplifyTimeMS(ms));
+        a->setCheckable(true);
+        a->setChecked(!CFG->RefreshPaused && CFG->RefreshRateMs == ms);
+        intervalActions.insert(a, ms);
+    }
+
+    menu->addSeparator();
+    pausedAction = menu->addAction(QObject::tr("Paused"));
+    pausedAction->setCheckable(true);
+    pausedAction->setChecked(CFG->RefreshPaused);
+}
+
+bool UIHelper::ApplyRefreshIntervalAction(QAction *picked,
+                                          const QHash<QAction *, int> &intervalActions,
+                                          QAction *pausedAction,
+                                          Perf::PerfDataProvider *provider,
+                                          QTimer *timer,
+                                          bool timerOwnerActive)
+{
+    if (!picked)
+        return false;
+
+    if (intervalActions.contains(picked))
+    {
+        const int ms = intervalActions.value(picked);
+        CFG->RefreshPaused = false;
+        CFG->RefreshRateMs = ms;
+        if (provider)
+            provider->SetInterval(ms);
+        if (timer && timerOwnerActive)
+            timer->start(ms);
+        return true;
+    }
+
+    if (picked == pausedAction)
+    {
+        CFG->RefreshPaused = true;
+        return true;
+    }
+
+    return false;
 }

@@ -18,6 +18,7 @@
 
 #include "perfdataprovider.h"
 
+#include "../configuration.h"
 #include "logger.h"
 
 #include <algorithm>
@@ -554,6 +555,8 @@ const QVector<double> &PerfDataProvider::GpuEngineHistory(int gpuIndex, int engi
 void PerfDataProvider::onTimer()
 {
     if (!this->m_active)
+        return;
+    if (CFG->RefreshPaused)
         return;
 
     this->sample();
@@ -1878,6 +1881,9 @@ bool PerfDataProvider::sampleDrm()
 
 void PerfDataProvider::sample()
 {
+    if (CFG->RefreshPaused)
+        return;
+
     if (this->m_cpuSamplingEnabled)
     {
         this->sampleCpu();

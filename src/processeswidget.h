@@ -20,9 +20,14 @@
 #define PROCESSESWIDGET_H
 
 #include "os/processmodel.h"
+#include "os/processtreemodel.h"
 #include "os/processfilterproxy.h"
 
+#include <QModelIndex>
+#include <QSortFilterProxyModel>
+#include <QStackedWidget>
 #include <QTimer>
+#include <QTreeView>
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
@@ -32,6 +37,10 @@ namespace Ui
 }
 QT_END_NAMESPACE
 
+//! Houses both table and tree widgets with lists of processes, the table and tree all reuse
+//! same context menu and filters, but are two separate widgets that user can toggle between
+//!
+//! we are only updating the active widget
 class ProcessesWidget : public QWidget
 {
     Q_OBJECT
@@ -45,21 +54,41 @@ class ProcessesWidget : public QWidget
 
     private slots:
         void onTimerTick();
-        void onRefreshRateChanged(int comboIndex);
         void onHeaderContextMenu(const QPoint &pos);
         void onTableContextMenu(const QPoint &pos);
+        void onTreeContextMenu(const QPoint &pos);
         void updateStatusBar();
 
     private:
         Ui::ProcessesWidget      *ui;
         OS::ProcessModel         *m_model;
+        OS::ProcessTreeModel     *m_treeModel;
         OS::ProcessFilterProxy   *m_proxy;
+        QSortFilterProxyModel    *m_treeProxy;
         QTimer                   *m_refreshTimer;
+        QStackedWidget           *m_viewStack { nullptr };
+        QTreeView                *m_treeView { nullptr };
         bool                      m_active { false };
         bool                      m_tableContextMenuOpen { false };
+        bool                      m_treeViewMode { false };
+        QList<OS::Process>        m_lastProcessSnapshot;
+        QModelIndex               m_contextMenuTargetIndex;
 
         void setupTable();
-        void setupRefreshCombo();
+        void setTreeViewMode(bool enabled);
+        bool selectProcessInTree(pid_t pid);
+        bool selectProcessInTable(pid_t pid);
+        QVariant tableSelectionKeyFromProxy(const QModelIndex &proxyKeyIndex) const;
+        void copyRowSelectionToClipboard();
+        void copyCellSelectionToClipboard();
+        void terminateSelectedProcesses();
+        void killSelectedProcesses();
+        void promptAndSendCustomSignal();
+        void setShowKernelTasks(bool checked);
+        void setShowOtherUsersProcesses(bool checked);
+        void captureExpandedTreePids(const QModelIndex &parentProxy, QSet<pid_t> &expandedPids) const;
+        void restoreExpandedTreePids(const QModelIndex &sourceParent, const QSet<pid_t> &expandedPids);
+        void restoreTreeStateDeferred(const QSet<pid_t> &expandedPids, const QList<pid_t> &treeSelection, pid_t treeCurrentPid, int treeScroll);
 
         /// Collect PIDs of all currently selected rows.
         QList<pid_t> selectedPids() const;
