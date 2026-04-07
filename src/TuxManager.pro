@@ -15,7 +15,8 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     misc.cpp \
-    widgetstyle.cpp \
+    ui/widgetstyle.cpp \
+    ui/uihelper.cpp \
     configuration.cpp \
     logger.cpp \
     processeswidget.cpp \
@@ -48,7 +49,8 @@ HEADERS += \
     colorscheme.h \
     mainwindow.h \
     misc.h \
-    widgetstyle.h \
+    ui/widgetstyle.h \
+    ui/uihelper.h \
     configuration.h \
     logger.h \
     processeswidget.h \

@@ -20,9 +20,15 @@
 #include "ui_serviceswidget.h"
 
 #include "configuration.h"
+#include "ui/uihelper.h"
 
+#include <QClipboard>
 #include <QHeaderView>
+#include <QGuiApplication>
+#include <QMenu>
 #include <QMetaObject>
+
+#include <algorithm>
 
 void ServiceRefreshWorker::fetch(quint64 token)
 {
@@ -54,6 +60,7 @@ ServicesWidget::ServicesWidget(QWidget *parent)
 
     this->ui->tableView->setModel(this->m_proxy);
     this->ui->tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    this->ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
 
     QHeaderView *hv = this->ui->tableView->horizontalHeader();
     hv->setSectionResizeMode(0, QHeaderView::Interactive);
@@ -69,6 +76,7 @@ ServicesWidget::ServicesWidget(QWidget *parent)
     this->ui->tableView->setSortingEnabled(true);
     this->ui->tableView->sortByColumn(0, Qt::AscendingOrder);
 
+    connect(this->ui->tableView, &QTableView::customContextMenuRequested, this, &ServicesWidget::onTableContextMenu);
     connect(this->m_refreshTimer, &QTimer::timeout, this, &ServicesWidget::onTimerTick);
 
     this->m_worker->moveToThread(this->m_workerThread);
@@ -110,6 +118,12 @@ void ServicesWidget::onTimerTick()
 
 void ServicesWidget::startRefresh()
 {
+    if (this->m_tableContextMenuOpen)
+    {
+        this->m_refreshPending = true;
+        return;
+    }
+
     if (this->m_refreshInFlight)
     {
         this->m_refreshPending = true;
@@ -131,6 +145,12 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
 
     if (!this->m_active)
         return;
+
+    if (this->m_tableContextMenuOpen)
+    {
+        this->m_refreshPending = true;
+        return;
+    }
 
     if (!systemdAvailable)
     {
@@ -157,4 +177,50 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
         this->m_refreshPending = false;
         QMetaObject::invokeMethod(this, &ServicesWidget::startRefresh, Qt::QueuedConnection);
     }
+}
+
+void ServicesWidget::onTableContextMenu(const QPoint &pos)
+{
+    this->m_tableContextMenuOpen = true;
+
+    const QModelIndex clickedIndex = this->ui->tableView->indexAt(pos);
+    const QModelIndex targetIndex = clickedIndex.isValid() ? clickedIndex : this->ui->tableView->currentIndex();
+    const bool hasTargetCell = targetIndex.isValid();
+    const QModelIndexList selectedRowsIdx = this->ui->tableView->selectionModel()->selectedRows();
+    QList<int> selectedRows;
+    selectedRows.reserve(selectedRowsIdx.size());
+    for (const QModelIndex &idx : selectedRowsIdx)
+        selectedRows.append(idx.row());
+    std::sort(selectedRows.begin(), selectedRows.end());
+    const bool hasSelectedRows = !selectedRows.isEmpty();
+    const bool multipleRowsSelected = selectedRows.size() > 1;
+    const bool hasRowTarget = hasTargetCell || hasSelectedRows;
+
+    QMenu menu(this);
+    QMenu *copyMenu = menu.addMenu(tr("Copy"));
+
+    QAction *copyRowAct = copyMenu->addAction(tr("Entire row"));
+    copyRowAct->setEnabled(hasRowTarget);
+    connect(copyRowAct, &QAction::triggered, this, [this, targetIndex, selectedRows, multipleRowsSelected]()
+    {
+        if (multipleRowsSelected)
+        {
+            QGuiApplication::clipboard()->setText(UIHelper::GetVisibleRowsText(this->ui->tableView, selectedRows));
+            return;
+        }
+
+        const int row = targetIndex.isValid() ? targetIndex.row() : selectedRows.value(0, -1);
+        QGuiApplication::clipboard()->setText(UIHelper::GetVisibleRowText(this->ui->tableView, row));
+    });
+
+    QAction *copyCellAct = copyMenu->addAction(tr("Selected cell"));
+    copyCellAct->setEnabled(hasTargetCell && !multipleRowsSelected);
+    connect(copyCellAct, &QAction::triggered, this, [this, targetIndex]()
+    {
+        QGuiApplication::clipboard()->setText(this->ui->tableView->model()->data(targetIndex, Qt::DisplayRole).toString());
+    });
+
+    menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
+
+    this->m_tableContextMenuOpen = false;
 }

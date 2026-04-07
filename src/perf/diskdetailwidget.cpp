@@ -20,7 +20,7 @@
 #include "ui_diskdetailwidget.h"
 #include "../colorscheme.h"
 #include "../misc.h"
-#include "../widgetstyle.h"
+#include "../ui/widgetstyle.h"
 
 #include <algorithm>
 #include <QGridLayout>

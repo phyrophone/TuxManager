@@ -22,7 +22,10 @@
 #include "configuration.h"
 #include "logger.h"
 #include "misc.h"
+#include "ui/uihelper.h"
 
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QMenu>
@@ -30,6 +33,7 @@
 #include <QScrollBar>
 #include <QStyle>
 
+#include <algorithm>
 #include <signal.h>
 
 ProcessesWidget::ProcessesWidget(QWidget *parent)
@@ -156,6 +160,9 @@ void ProcessesWidget::SetActive(bool active)
 
 void ProcessesWidget::onTimerTick()
 {
+    if (this->m_tableContextMenuOpen)
+        return;
+
     // Preserve scroll position and selection across refresh
     QScrollBar *vsb       = this->ui->tableView->verticalScrollBar();
     const int   scrollPos = vsb->value();
@@ -208,8 +215,7 @@ void ProcessesWidget::onHeaderContextMenu(const QPoint &pos)
 
     for (int col = 0; col < OS::ProcessModel::ColCount; ++col)
     {
-        const QString title =
-            this->m_model->headerData(col, Qt::Horizontal).toString();
+        const QString title = this->m_model->headerData(col, Qt::Horizontal).toString();
         QAction *action = menu.addAction(title);
         action->setCheckable(true);
         action->setChecked(!hv->isSectionHidden(col));
@@ -229,10 +235,52 @@ void ProcessesWidget::onHeaderContextMenu(const QPoint &pos)
 
 void ProcessesWidget::onTableContextMenu(const QPoint &pos)
 {
+    // Pause refresh during context menu so we don't loose the selection
+    this->m_tableContextMenuOpen = true;
+
+    const QModelIndex clickedIndex = this->ui->tableView->indexAt(pos);
+    const QModelIndex targetIndex = clickedIndex.isValid() ? clickedIndex : this->ui->tableView->currentIndex();
+    const bool hasTargetCell = targetIndex.isValid();
+    const QModelIndexList selectedRowsIdx = this->ui->tableView->selectionModel()->selectedRows();
+    QList<int> selectedRows;
+    selectedRows.reserve(selectedRowsIdx.size());
+    for (const QModelIndex &idx : selectedRowsIdx)
+        selectedRows.append(idx.row());
+    std::sort(selectedRows.begin(), selectedRows.end());
+    const bool hasSelectedRows = !selectedRows.isEmpty();
+    const bool multipleRowsSelected = selectedRows.size() > 1;
+    const bool hasRowTarget = hasTargetCell || hasSelectedRows;
+
     const QList<pid_t> pids = this->selectedPids();
     const bool hasSelection = !pids.isEmpty();
 
     QMenu menu(this);
+
+    // ── Copy submenu ────────────────────────────────────────────────────────
+    QMenu *copyMenu = menu.addMenu(tr("Copy"));
+
+    QAction *copyRowAct = copyMenu->addAction(tr("Entire row"));
+    copyRowAct->setEnabled(hasRowTarget);
+    connect(copyRowAct, &QAction::triggered, this, [this, targetIndex, selectedRows, multipleRowsSelected]()
+    {
+        if (multipleRowsSelected)
+        {
+            QGuiApplication::clipboard()->setText(UIHelper::GetVisibleRowsText(this->ui->tableView, selectedRows));
+            return;
+        }
+
+        const int row = targetIndex.isValid() ? targetIndex.row() : selectedRows.value(0, -1);
+        QGuiApplication::clipboard()->setText(UIHelper::GetVisibleRowText(this->ui->tableView, row));
+    });
+
+    QAction *copyCellAct = copyMenu->addAction(tr("Selected cell"));
+    copyCellAct->setEnabled(hasTargetCell && !multipleRowsSelected);
+    connect(copyCellAct, &QAction::triggered, this, [this, targetIndex]()
+    {
+        QGuiApplication::clipboard()->setText(this->ui->tableView->model()->data(targetIndex, Qt::DisplayRole).toString());
+    });
+
+    menu.addSeparator();
 
     // ── View submenu — always visible ────────────────────────────────────────
     QMenu *viewMenu = menu.addMenu(tr("View"));
@@ -326,6 +374,8 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     connect(reniceAction, &QAction::triggered, this, &ProcessesWidget::reniceSelected);
 
     menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
+
+    this->m_tableContextMenuOpen = false;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -359,6 +409,39 @@ QList<pid_t> ProcessesWidget::selectedPids() const
 void ProcessesWidget::sendSignalToSelected(int signal)
 {
     const QList<pid_t> pids = this->selectedPids();
+    if (pids.isEmpty())
+        return;
+
+    QStringList pidStrings;
+    pidStrings.reserve(pids.size());
+    for (pid_t pid : pids)
+        pidStrings << QString::number(pid);
+
+    const QString signalLabel = OS::ProcessHelper::signalName(signal);
+    const QString signalText = signalLabel.isEmpty() ? QString::number(signal) : signalLabel;
+
+    QString body;
+    if (pids.size() == 1)
+    {
+        body = tr("You are about to send signal %1 to process PID %2.\n\n"
+                  "Do you want to continue?")
+                   .arg(signalText)
+                   .arg(pidStrings.first());
+    } else
+    {
+        body = tr("You are about to send signal %1 to %2 selected processes.\n"
+                  "This will affect all selected processes.\n\n"
+                  "PIDs: %3\n\n"
+                  "Do you want to continue?")
+                   .arg(signalText)
+                   .arg(pids.size())
+                   .arg(pidStrings.join(", "));
+    }
+
+    const QMessageBox::StandardButton answer = QMessageBox::warning(this, tr("Confirm Signal"), body, QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes)
+        return;
+
     QStringList errors;
     for (pid_t pid : pids)
     {

@@ -55,6 +55,7 @@ class ProcessesWidget : public QWidget
         OS::ProcessFilterProxy   *m_proxy;
         QTimer                   *m_refreshTimer;
         bool                      m_active { false };
+        bool                      m_tableContextMenuOpen { false };
 
         void setupTable();
         void setupRefreshCombo();

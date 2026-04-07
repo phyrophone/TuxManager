@@ -20,7 +20,7 @@
 #include "ui_cpudetailwidget.h"
 #include "configuration.h"
 #include "../colorscheme.h"
-#include "../widgetstyle.h"
+#include "../ui/widgetstyle.h"
 
 #include <QAction>
 #include <QApplication>

@@ -59,6 +59,7 @@ class ServicesWidget : public QWidget
     private slots:
         void onTimerTick();
         void onRefreshFinished(quint64 token, bool systemdAvailable, const QString &reason, const QList<OS::Service> &services, const QString &error);
+        void onTableContextMenu(const QPoint &pos);
 
     signals:
         void requestRefresh(quint64 token);
@@ -71,6 +72,7 @@ class ServicesWidget : public QWidget
         QThread            *m_workerThread { nullptr };
         ServiceRefreshWorker *m_worker { nullptr };
         bool                m_active { false };
+        bool                m_tableContextMenuOpen { false };
         bool                m_refreshInFlight { false };
         bool                m_refreshPending { false };
         quint64             m_refreshToken { 0 };
