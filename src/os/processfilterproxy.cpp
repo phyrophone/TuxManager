@@ -58,7 +58,7 @@ bool ProcessFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &sour
         return false;
 
     // ── Other-users filter ───────────────────────────────────────────────────
-    if (!this->ShowOtherUsersProcs && proc.uid != this->m_myUid)
+    if (!this->ShowOtherUsersProcs && proc.UID != this->m_myUid)
         return false;
 
     // ── Free-text search (delegate to base class) ────────────────────────────
@@ -71,5 +71,5 @@ bool ProcessFilterProxy::isKernelTask(const Process &proc)
     // Rely solely on the PF_KTHREAD flag read from /proc/pid/stat (same as
     // htop). PID 1 (systemd/init) is NOT a kernel thread and must NOT be
     // hidden. PID 2 (kthreadd) has PF_KTHREAD set so it is covered naturally.
-    return proc.isKernelThread;
+    return proc.IsKernelThread;
 }

@@ -29,7 +29,7 @@ using namespace OS;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-QString Process::stateString(char state)
+QString Process::GetStateString(char state)
 {
     switch (state)
     {
@@ -49,7 +49,7 @@ QString Process::stateString(char state)
 
 bool Process::loadOneStatAndUid(pid_t pid, Process &out)
 {
-    out.pid = pid;
+    out.PID = pid;
 
     // ── /proc/pid/stat ──────────────────────────────────────────────────────
     // Format: pid (comm) state ppid pgrp session tty_nr tpgid flags
@@ -70,7 +70,7 @@ bool Process::loadOneStatAndUid(pid_t pid, Process &out)
     if (commStart < 0 || commEnd < 0 || commEnd <= commStart)
         return false;
 
-    out.name = QString::fromUtf8(statData.mid(commStart + 1, commEnd - commStart - 1));
+    out.Name = QString::fromUtf8(statData.mid(commStart + 1, commEnd - commStart - 1));
 
     // Fields after ") " (0-indexed):
     //  0:state 1:ppid 2:pgrp 3:session 4:tty_nr 5:tpgid 6:flags
@@ -85,19 +85,19 @@ bool Process::loadOneStatAndUid(pid_t pid, Process &out)
     // PF_KTHREAD is the authoritative kernel-thread flag (same as htop)
     static constexpr quint32 PF_KTHREAD = 0x00200000;
     const quint32 procFlags = f[6].toUInt();
-    out.isKernelThread = (procFlags & PF_KTHREAD) != 0;
+    out.IsKernelThread = (procFlags & PF_KTHREAD) != 0;
 
-    out.state          = f[0].isEmpty() ? '?' : f[0].at(0);
-    out.ppid           = f[1].toLong();
-    out.cpuTicks       = f[11].toULongLong() + f[12].toULongLong(); // utime + stime
-    out.priority       = f[15].toInt();
-    out.nice           = f[16].toInt();
-    out.threads        = f[17].toInt();
-    out.startTimeTicks = f[19].toULongLong();
+    out.State          = f[0].isEmpty() ? '?' : f[0].at(0);
+    out.PPID           = f[1].toLong();
+    out.CPUTicks       = f[11].toULongLong() + f[12].toULongLong(); // utime + stime
+    out.Priority       = f[15].toInt();
+    out.Nice           = f[16].toInt();
+    out.Threads        = f[17].toInt();
+    out.StartTimeTicks = f[19].toULongLong();
     out.vmSizeKb       = f[20].toULongLong() / 1024ULL;
 
     const long pageSize = sysconf(_SC_PAGESIZE);
-    out.vmRssKb        = static_cast<quint64>(f[21].toLongLong())
+    out.VMRssKb        = static_cast<quint64>(f[21].toLongLong())
                          * static_cast<quint64>(pageSize) / 1024ULL;
 
     // ── UID via stat() on /proc/pid directory ─────────────────────────────────
@@ -106,7 +106,7 @@ bool Process::loadOneStatAndUid(pid_t pid, Process &out)
     {
         struct stat st{};
         if (::stat(QString("/proc/%1").arg(pid).toLocal8Bit().constData(), &st) == 0)
-            out.uid = st.st_uid;
+            out.UID = st.st_uid;
     }
 
     return true;
@@ -114,38 +114,38 @@ bool Process::loadOneStatAndUid(pid_t pid, Process &out)
 
 void Process::loadUserAndCmdline(Process &proc)
 {
-    // Resolve uid → username (getpwuid is not thread-safe but fine here)
-    const struct passwd *pw = getpwuid(proc.uid);
-    proc.user = pw ? QString::fromUtf8(pw->pw_name) : QString::number(proc.uid);
+    // Resolve UID → username (getpwuid is not thread-safe but fine here)
+    const struct passwd *pw = getpwuid(proc.UID);
+    proc.User = pw ? QString::fromUtf8(pw->pw_name) : QString::number(proc.UID);
 
     // ── /proc/pid/cmdline ────────────────────────────────────────────────────
     // Kernel threads have no cmdline; use bracketed name as display string.
-    if (proc.isKernelThread)
+    if (proc.IsKernelThread)
     {
-        proc.cmdline = "[" + proc.name + "]";
+        proc.CmdLine = "[" + proc.Name + "]";
         return;
     }
 
-    QFile cmdFile(QString("/proc/%1/cmdline").arg(proc.pid));
+    QFile cmdFile(QString("/proc/%1/cmdline").arg(proc.PID));
     if (cmdFile.open(QIODevice::ReadOnly))
     {
         QByteArray data = cmdFile.readAll();
         cmdFile.close();
         data.replace('\0', ' ');
-        proc.cmdline = QString::fromUtf8(data).trimmed();
+        proc.CmdLine = QString::fromUtf8(data).trimmed();
     }
-    if (proc.cmdline.isEmpty())
-        proc.cmdline = proc.name; // fallback: use comm name
+    if (proc.CmdLine.isEmpty())
+        proc.CmdLine = proc.Name; // fallback: use comm name
 }
 
 // ── Public: load all processes ────────────────────────────────────────────────
 
-QList<Process> Process::loadAll()
+QList<Process> Process::LoadAll()
 {
-    return Process::loadAll(LoadOptions{});
+    return Process::LoadAll(LoadOptions{});
 }
 
-QList<Process> Process::loadAll(const LoadOptions &options)
+QList<Process> Process::LoadAll(const LoadOptions &options)
 {
     QList<Process> list;
 
@@ -166,9 +166,9 @@ QList<Process> Process::loadAll(const LoadOptions &options)
             continue;
 
         // Fast prefilter on fields available from stat + proc dir ownership.
-        if (!options.includeKernelTasks && proc.isKernelThread)
+        if (!options.IncludeKernelTasks && proc.IsKernelThread)
             continue;
-        if (!options.includeOtherUsers && proc.uid != options.myUid)
+        if (!options.IncludeOtherUsers && proc.UID != options.MyUID)
             continue;
 
         loadUserAndCmdline(proc);

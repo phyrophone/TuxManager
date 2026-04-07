@@ -25,47 +25,45 @@
 
 namespace OS
 {
+    //! Describes a single Linux process
+    class Process
+    {
+        public:
+            struct LoadOptions
+            {
+                bool  IncludeKernelTasks  { true };
+                bool  IncludeOtherUsers   { true };
+                uid_t MyUID               { 0 };
+            };
 
-/// Snapshot of a single Linux process read from /proc.
-class Process
-{
-    public:
-        struct LoadOptions
-        {
-            bool  includeKernelTasks  { true };
-            bool  includeOtherUsers   { true };
-            uid_t myUid               { 0 };
-        };
+            pid_t   PID           { 0 };
+            pid_t   PPID          { 0 };
+            QString Name;                     ///< Short name  (/proc/pid/comm)
+            QString CmdLine;                  ///< Full command (/proc/pid/cmdline)
+            char    State         { '?' };    ///< Raw state char: R S D Z T I ...
+            uid_t   UID           { 0 };
+            QString User;                     ///< Resolved username
+            int     Priority      { 0 };
+            int     Nice          { 0 };
+            int     Threads       { 1 };
+            quint64 VMRssKb       { 0 };      ///< Resident set size in KiB
+            quint64 vmSizeKb      { 0 };      ///< Virtual memory size in KiB
+            quint64 CPUTicks      { 0 };      ///< utime + stime in jiffies (for delta CPU%)
+            double  CPUPercent    { 0.0 };    ///< Calculated externally after two samples
+            quint64 StartTimeTicks{ 0 };      ///< Start time in jiffies since boot
+            bool    IsKernelThread{ false };   ///< True when PF_KTHREAD flag is set in /proc/pid/stat flags field
 
-        pid_t   pid           { 0 };
-        pid_t   ppid          { 0 };
-        QString name;                     ///< Short name  (/proc/pid/comm)
-        QString cmdline;                  ///< Full command (/proc/pid/cmdline)
-        char    state         { '?' };    ///< Raw state char: R S D Z T I ...
-        uid_t   uid           { 0 };
-        QString user;                     ///< Resolved username
-        int     priority      { 0 };
-        int     nice          { 0 };
-        int     threads       { 1 };
-        quint64 vmRssKb       { 0 };      ///< Resident set size in KiB
-        quint64 vmSizeKb      { 0 };      ///< Virtual memory size in KiB
-        quint64 cpuTicks      { 0 };      ///< utime + stime in jiffies (for delta CPU%)
-        double  cpuPercent    { 0.0 };    ///< Calculated externally after two samples
-        quint64 startTimeTicks{ 0 };      ///< Start time in jiffies since boot
-        bool    isKernelThread{ false };   ///< True when PF_KTHREAD flag is set in /proc/pid/stat flags field
+            /// Load a snapshot of every running process from /proc.
+            static QList<Process> LoadAll();
+            static QList<Process> LoadAll(const LoadOptions &options);
 
-        /// Load a snapshot of every running process from /proc.
-        static QList<Process> loadAll();
-        static QList<Process> loadAll(const LoadOptions &options);
+            /// Human-readable description of a raw state character.
+            static QString GetStateString(char state);
 
-        /// Human-readable description of a raw state character.
-        static QString stateString(char state);
-
-    private:
-        static bool loadOneStatAndUid(pid_t pid, Process &out);
-        static void loadUserAndCmdline(Process &proc);
-};
-
+        private:
+            static bool loadOneStatAndUid(pid_t pid, Process &out);
+            static void loadUserAndCmdline(Process &proc);
+    };
 } // namespace Os
 
 #endif // OS_PROCESS_H

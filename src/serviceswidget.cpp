@@ -19,6 +19,7 @@
 #include "serviceswidget.h"
 #include "ui_serviceswidget.h"
 
+#include "os/servicehelper.h"
 #include "configuration.h"
 #include "ui/uihelper.h"
 
@@ -33,7 +34,7 @@
 void ServiceRefreshWorker::fetch(quint64 token)
 {
     QString reason;
-    const bool systemdAvailable = OS::Service::IsSystemdAvailable(&reason);
+    const bool systemdAvailable = OS::ServiceHelper::IsSystemdAvailable(&reason);
     QString error;
     QList<OS::Service> services;
     if (systemdAvailable)
@@ -166,10 +167,30 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
         this->ui->statusLabel->setText(tr("Services unavailable"));
     } else
     {
+        const UIHelper::TableSelectionSnapshot snapshot = UIHelper::CaptureTableSelection(
+            this->ui->tableView,
+            OS::ServiceModel::ColService,
+            [this](const QModelIndex &proxyKeyIndex) -> QVariant
+            {
+                const QModelIndex srcIdx = this->m_proxy->mapToSource(proxyKeyIndex);
+                if (!srcIdx.isValid())
+                    return {};
+                return this->m_model->data(srcIdx, Qt::UserRole);
+            });
+
         this->ui->unavailableLabel->setVisible(false);
         this->ui->tableView->setVisible(true);
         this->m_model->SetServices(services);
         this->ui->statusLabel->setText(tr("Services: %1").arg(services.size()));
+
+        UIHelper::RestoreTableSelection(
+            this->ui->tableView,
+            OS::ServiceModel::ColService,
+            this->m_model->rowCount(),
+            [this](int row) -> QModelIndex { return this->m_model->index(row, OS::ServiceModel::ColService); },
+            [this](const QModelIndex &sourceIndex) -> QModelIndex { return this->m_proxy->mapFromSource(sourceIndex); },
+            [this](const QModelIndex &sourceKeyIndex) -> QVariant { return this->m_model->data(sourceKeyIndex, Qt::UserRole); },
+            snapshot);
     }
 
     if (this->m_active && this->m_refreshPending)

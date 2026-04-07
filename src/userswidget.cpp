@@ -92,29 +92,29 @@ void UsersWidget::onTimerTick()
                                   : 0;
 
     OS::Process::LoadOptions opts;
-    opts.includeKernelTasks = false;
-    opts.includeOtherUsers = true;
-    opts.myUid = ::getuid();
+    opts.IncludeKernelTasks = false;
+    opts.IncludeOtherUsers = true;
+    opts.MyUID = ::getuid();
 
-    QList<OS::Process> fresh = OS::Process::loadAll(opts);
+    QList<OS::Process> fresh = OS::Process::LoadAll(opts);
 
     if (periodJiffies > 0)
     {
         const double periodPerCpu = static_cast<double>(periodJiffies) / this->m_numCpus;
         for (OS::Process &proc : fresh)
         {
-            const auto it = this->m_prevTicks.constFind(proc.pid);
-            if (it == this->m_prevTicks.cend() || proc.cpuTicks < it.value())
+            const auto it = this->m_prevTicks.constFind(proc.PID);
+            if (it == this->m_prevTicks.cend() || proc.CPUTicks < it.value())
                 continue;
 
-            const double pct = static_cast<double>(proc.cpuTicks - it.value()) / periodPerCpu * 100.0;
-            proc.cpuPercent = qMin(pct, 100.0 * this->m_numCpus);
+            const double pct = static_cast<double>(proc.CPUTicks - it.value()) / periodPerCpu * 100.0;
+            proc.CPUPercent = qMin(pct, 100.0 * this->m_numCpus);
         }
     }
 
     this->m_prevTicks.clear();
     for (const OS::Process &proc : fresh)
-        this->m_prevTicks.insert(proc.pid, proc.cpuTicks);
+        this->m_prevTicks.insert(proc.PID, proc.CPUTicks);
     this->m_prevCpuTotalTicks = totalJiffies;
 
     this->rebuildTree(fresh);
@@ -123,6 +123,23 @@ void UsersWidget::onTimerTick()
 void UsersWidget::onContextMenu(const QPoint &pos)
 {
     QMenu menu(this);
+
+    const QTreeWidgetItem *item = this->ui->treeWidget->itemAt(pos);
+    const bool isProcessItem = item && item->parent();
+    const pid_t selectedPid = isProcessItem
+                              ? static_cast<pid_t>(item->data(0, Qt::UserRole).toLongLong())
+                              : 0;
+
+    if (isProcessItem && selectedPid > 0)
+    {
+        QAction *goToProcessAction = menu.addAction(tr("Go to process"));
+        connect(goToProcessAction, &QAction::triggered, this, [this, selectedPid]()
+        {
+            emit goToProcessRequested(selectedPid);
+        });
+        menu.addSeparator();
+    }
+
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
 
     for (int ms : CFG->RefreshRateAvailableIntervals)
@@ -162,20 +179,20 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
     QHash<uid_t, UserAgg> agg;
     for (const OS::Process &p : allProcs)
     {
-        if (p.uid < 1000)
+        if (p.UID < 1000)
             continue;
 
-        auto it = agg.find(p.uid);
+        auto it = agg.find(p.UID);
         if (it == agg.end())
         {
             UserAgg a;
-            a.name = p.user;
-            it = agg.insert(p.uid, a);
+            a.name = p.User;
+            it = agg.insert(p.UID, a);
         }
 
         it->procs.append(p);
-        it->cpuPct += p.cpuPercent;
-        it->memKb += p.vmRssKb;
+        it->cpuPct += p.CPUPercent;
+        it->memKb += p.VMRssKb;
     }
 
     this->ui->treeWidget->clear();
@@ -200,15 +217,16 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
         QList<OS::Process> procs = a.procs;
         std::sort(procs.begin(), procs.end(), [](const OS::Process &x, const OS::Process &y)
         {
-            return x.cpuPercent > y.cpuPercent;
+            return x.CPUPercent > y.CPUPercent;
         });
 
         for (const OS::Process &p : procs)
         {
             auto *procItem = new QTreeWidgetItem(userItem);
-            procItem->setText(0, tr("%1 (pid %2)").arg(p.name).arg(p.pid));
-            procItem->setText(1, QString::number(p.cpuPercent, 'f', 1) + "%");
-            procItem->setText(2, Misc::FormatKiB(p.vmRssKb, 1));
+            procItem->setText(0, tr("%1 (pid %2)").arg(p.Name).arg(p.PID));
+            procItem->setData(0, Qt::UserRole, static_cast<qlonglong>(p.PID));
+            procItem->setText(1, QString::number(p.CPUPercent, 'f', 1) + "%");
+            procItem->setText(2, Misc::FormatKiB(p.VMRssKb, 1));
             procItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
             procItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
         }

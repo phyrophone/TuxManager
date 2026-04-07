@@ -20,38 +20,116 @@
 
 #include <QAbstractItemModel>
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QStringList>
+#include <QScrollBar>
 #include <QTableView>
 
-namespace UIHelper
+QString UIHelper::GetVisibleRowText(const QTableView *view, int row)
 {
-    QString GetVisibleRowText(const QTableView *view, int row)
+    if (!view || !view->model() || row < 0)
+        return QString();
+
+    const QAbstractItemModel *model = view->model();
+    const QHeaderView *header = view->horizontalHeader();
+    QStringList parts;
+    parts.reserve(model->columnCount());
+    for (int col = 0; col < model->columnCount(); ++col)
     {
-        if (!view || !view->model() || row < 0)
-            return QString();
+        if (header && header->isSectionHidden(col))
+            continue;
 
-        const QAbstractItemModel *model = view->model();
-        const QHeaderView *header = view->horizontalHeader();
-        QStringList parts;
-        parts.reserve(model->columnCount());
-        for (int col = 0; col < model->columnCount(); ++col)
-        {
-            if (header && header->isSectionHidden(col))
-                continue;
+        const QModelIndex idx = model->index(row, col);
+        parts << model->data(idx, Qt::DisplayRole).toString();
+    }
+    return parts.join('\t');
+}
 
-            const QModelIndex idx = model->index(row, col);
-            parts << model->data(idx, Qt::DisplayRole).toString();
-        }
-        return parts.join('\t');
+QString UIHelper::GetVisibleRowsText(const QTableView *view, const QList<int> &rows)
+{
+    QStringList lines;
+    lines.reserve(rows.size());
+    for (int row : rows)
+        lines << GetVisibleRowText(view, row);
+
+    return lines.join('\n');
+}
+
+UIHelper::TableSelectionSnapshot UIHelper::CaptureTableSelection(const QTableView *view, int keyColumn, const std::function<QVariant(const QModelIndex &proxyKeyIndex)> &proxyKeyResolver)
+{
+    TableSelectionSnapshot out;
+    if (!view || !view->model())
+        return out;
+
+    if (const QScrollBar *vsb = view->verticalScrollBar())
+        out.ScrollPos = vsb->value();
+
+    QItemSelectionModel *selectionModel = view->selectionModel();
+    if (!selectionModel || !proxyKeyResolver)
+        return out;
+
+    const QModelIndexList selectedRows = selectionModel->selectedRows(keyColumn);
+    for (const QModelIndex &proxyIdx : selectedRows)
+    {
+        const QVariant key = proxyKeyResolver(proxyIdx);
+        if (!key.isNull() && !out.SelectedKeys.contains(key))
+            out.SelectedKeys.append(key);
     }
 
-    QString GetVisibleRowsText(const QTableView *view, const QList<int> &rows)
-    {
-        QStringList lines;
-        lines.reserve(rows.size());
-        for (int row : rows)
-            lines << GetVisibleRowText(view, row);
+    const QModelIndex currentProxy = view->currentIndex();
+    if (currentProxy.isValid())
+        out.CurrentKey = proxyKeyResolver(currentProxy.sibling(currentProxy.row(), keyColumn));
 
-        return lines.join('\n');
+    return out;
+}
+
+void UIHelper::RestoreTableSelection(QTableView *view,
+                           int keyColumn,
+                           int sourceRowCount,
+                           const std::function<QModelIndex(int sourceRow)> &sourceIndexForRow,
+                           const std::function<QModelIndex(const QModelIndex &sourceIndex)> &sourceToProxy,
+                           const std::function<QVariant(const QModelIndex &sourceKeyIndex)> &sourceKeyResolver,
+                           const UIHelper::TableSelectionSnapshot &snapshot)
+{
+    if (!view || !view->model())
+        return;
+    if (!sourceIndexForRow || !sourceToProxy || !sourceKeyResolver)
+        return;
+
+    QItemSelectionModel *selectionModel = view->selectionModel();
+    if (!selectionModel)
+        return;
+
+    selectionModel->clearSelection();
+    QModelIndex restoredCurrentProxy;
+
+    for (int row = 0; row < sourceRowCount; ++row)
+    {
+        const QModelIndex sourceKeyIdx = sourceIndexForRow(row);
+        if (!sourceKeyIdx.isValid())
+            continue;
+
+        const QModelIndex proxyIdx = sourceToProxy(sourceKeyIdx);
+        if (!proxyIdx.isValid())
+            continue;
+
+        const QVariant key = sourceKeyResolver(sourceKeyIdx);
+        if (snapshot.SelectedKeys.contains(key))
+            selectionModel->select(proxyIdx, QItemSelectionModel::Select | QItemSelectionModel::Rows);
+
+        if (!snapshot.CurrentKey.isNull() && key == snapshot.CurrentKey)
+            restoredCurrentProxy = proxyIdx;
     }
+
+    if (restoredCurrentProxy.isValid())
+        selectionModel->setCurrentIndex(restoredCurrentProxy, QItemSelectionModel::NoUpdate);
+    else
+    {
+        const QModelIndexList selectedRows = selectionModel->selectedRows(keyColumn);
+        if (!selectedRows.isEmpty())
+            selectionModel->setCurrentIndex(selectedRows.first(), QItemSelectionModel::NoUpdate);
+    }
+
+    if (QScrollBar *vsb = view->verticalScrollBar())
+        vsb->setValue(snapshot.ScrollPos);
 }

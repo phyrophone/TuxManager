@@ -64,17 +64,17 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
     {
         switch (static_cast<Column>(index.column()))
         {
-            case ColPid:      return proc.pid;
-            case ColName:     return proc.name;
-            case ColUser:     return proc.user;
-            case ColState:    return Process::stateString(proc.state);
-            case ColCpu:      return QString::number(proc.cpuPercent, 'f', 1) + " %";
-            case ColMemRss:   return Misc::FormatKiB(proc.vmRssKb, 0);
+            case ColPid:      return proc.PID;
+            case ColName:     return proc.Name;
+            case ColUser:     return proc.User;
+            case ColState:    return Process::GetStateString(proc.State);
+            case ColCpu:      return QString::number(proc.CPUPercent, 'f', 1) + " %";
+            case ColMemRss:   return Misc::FormatKiB(proc.VMRssKb, 0);
             case ColMemVirt:  return Misc::FormatKiB(proc.vmSizeKb, 0);
-            case ColThreads:  return proc.threads;
-            case ColPriority: return proc.priority;
-            case ColNice:     return proc.nice;
-            case ColCmdline:  return proc.cmdline;
+            case ColThreads:  return proc.Threads;
+            case ColPriority: return proc.Priority;
+            case ColNice:     return proc.Nice;
+            case ColCmdline:  return proc.CmdLine;
             default: break;
         }
     }
@@ -84,13 +84,13 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
     {
         switch (static_cast<Column>(index.column()))
         {
-            case ColPid:      return static_cast<qlonglong>(proc.pid);
-            case ColCpu:      return proc.cpuPercent;
-            case ColMemRss:   return static_cast<qulonglong>(proc.vmRssKb);
+            case ColPid:      return static_cast<qlonglong>(proc.PID);
+            case ColCpu:      return proc.CPUPercent;
+            case ColMemRss:   return static_cast<qulonglong>(proc.VMRssKb);
             case ColMemVirt:  return static_cast<qulonglong>(proc.vmSizeKb);
-            case ColThreads:  return proc.threads;
-            case ColPriority: return proc.priority;
-            case ColNice:     return proc.nice;
+            case ColThreads:  return proc.Threads;
+            case ColPriority: return proc.Priority;
+            case ColNice:     return proc.Nice;
             default:          return this->data(index, Qt::DisplayRole);
         }
     }
@@ -145,10 +145,10 @@ void ProcessModel::Refresh()
         ? (totalJiffies - this->m_prevCpuTotalTicks) : 0;
 
     Process::LoadOptions opts;
-    opts.includeKernelTasks = this->m_showKernelTasks;
-    opts.includeOtherUsers  = this->m_showOtherUsersProcs;
-    opts.myUid              = this->m_myUid;
-    QList<Process> fresh = Process::loadAll(opts);
+    opts.IncludeKernelTasks = this->m_showKernelTasks;
+    opts.IncludeOtherUsers  = this->m_showOtherUsersProcs;
+    opts.MyUID              = this->m_myUid;
+    QList<Process> fresh = Process::LoadAll(opts);
 
     // Calculate CPU% per process: (delta process ticks) / (period per CPU) * 100
     if (periodJiffies > 0)
@@ -158,14 +158,14 @@ void ProcessModel::Refresh()
 
         for (Process &proc : fresh)
         {
-            if (this->m_prevTicks.contains(proc.pid))
+            if (this->m_prevTicks.contains(proc.PID))
             {
-                const quint64 prevTicks = this->m_prevTicks.value(proc.pid);
-                if (proc.cpuTicks >= prevTicks)
+                const quint64 prevTicks = this->m_prevTicks.value(proc.PID);
+                if (proc.CPUTicks >= prevTicks)
                 {
-                    const double pct = static_cast<double>(proc.cpuTicks - prevTicks) / periodPerCpu * 100.0;
+                    const double pct = static_cast<double>(proc.CPUTicks - prevTicks) / periodPerCpu * 100.0;
                     // Cap at 100 % × num_cpus (matches htop's MINIMUM() clamp)
-                    proc.cpuPercent = qMin(pct, 100.0 * this->m_numCpus);
+                    proc.CPUPercent = qMin(pct, 100.0 * this->m_numCpus);
                 }
             }
         }
@@ -174,12 +174,12 @@ void ProcessModel::Refresh()
     // Store snapshots for next sample
     this->m_prevTicks.clear();
     for (const Process &proc : fresh)
-        this->m_prevTicks.insert(proc.pid, proc.cpuTicks);
+        this->m_prevTicks.insert(proc.PID, proc.CPUTicks);
     this->m_prevCpuTotalTicks = totalJiffies;
 
-    beginResetModel();
+    this->beginResetModel();
     this->m_processes = std::move(fresh);
-    endResetModel();
+    this->endResetModel();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

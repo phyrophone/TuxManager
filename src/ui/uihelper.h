@@ -19,15 +19,38 @@
 #ifndef UI_UIHELPER_H
 #define UI_UIHELPER_H
 
-#include <QString>
 #include <QList>
+#include <QString>
+#include <QVariant>
+
+#include <functional>
 
 class QTableView;
+class QModelIndex;
 
 namespace UIHelper
 {
+    struct TableSelectionSnapshot
+    {
+        QList<QVariant> SelectedKeys;
+        QVariant CurrentKey;
+        int ScrollPos { 0 };
+    };
+
     QString GetVisibleRowText(const QTableView *view, int row);
     QString GetVisibleRowsText(const QTableView *view, const QList<int> &rows);
+
+    TableSelectionSnapshot CaptureTableSelection(const QTableView *view,
+                                                 int keyColumn,
+                                                 const std::function<QVariant(const QModelIndex &proxyKeyIndex)> &proxyKeyResolver);
+
+    void RestoreTableSelection(QTableView *view,
+                               int keyColumn,
+                               int sourceRowCount,
+                               const std::function<QModelIndex(int sourceRow)> &sourceIndexForRow,
+                               const std::function<QModelIndex(const QModelIndex &sourceIndex)> &sourceToProxy,
+                               const std::function<QVariant(const QModelIndex &sourceKeyIndex)> &sourceKeyResolver,
+                               const TableSelectionSnapshot &snapshot);
 }
 
 #endif // UI_UIHELPER_H

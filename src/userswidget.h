@@ -43,6 +43,9 @@ class UsersWidget : public QWidget
         void SetActive(bool active);
         bool IsActive() const { return this->m_active; }
 
+    signals:
+        void goToProcessRequested(pid_t pid);
+
     private slots:
         void onTimerTick();
         void onContextMenu(const QPoint &pos);

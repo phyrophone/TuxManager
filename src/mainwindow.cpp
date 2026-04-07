@@ -54,6 +54,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         CFG->ActiveTab = index;
         this->updateTabActivity(index);
     });
+
+    connect(this->m_usersWidget, &UsersWidget::goToProcessRequested, this, [this](pid_t pid)
+    {
+        this->ui->tabWidget->setCurrentIndex(0);
+        this->m_processesWidget->SelectProcessByPid(pid);
+    });
 }
 
 MainWindow::~MainWindow()

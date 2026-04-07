@@ -26,57 +26,24 @@
 
 using namespace OS;
 
-// ── Signal sending ────────────────────────────────────────────────────────────
-
-bool ProcessHelper::sendSignal(pid_t pid, int signal, QString &errorMsg)
+bool ProcessHelper::SendSignal(pid_t pid, int signal, QString &errorMsg)
 {
     if (::kill(pid, signal) == 0)
         return true;
-    errorMsg = QString("kill(%1, %2) failed: %3")
-               .arg(pid).arg(signal).arg(strerror(errno));
+    errorMsg = QString("kill(%1, %2) failed: %3").arg(pid).arg(signal).arg(strerror(errno));
     return false;
 }
 
-bool ProcessHelper::kill(pid_t pid, QString &errorMsg)
-{
-    return sendSignal(pid, SIGKILL, errorMsg);
-}
-
-bool ProcessHelper::term(pid_t pid, QString &errorMsg)
-{
-    return sendSignal(pid, SIGTERM, errorMsg);
-}
-
-bool ProcessHelper::hup(pid_t pid, QString &errorMsg)
-{
-    return sendSignal(pid, SIGHUP, errorMsg);
-}
-
-bool ProcessHelper::stop(pid_t pid, QString &errorMsg)
-{
-    return sendSignal(pid, SIGSTOP, errorMsg);
-}
-
-bool ProcessHelper::cont(pid_t pid, QString &errorMsg)
-{
-    return sendSignal(pid, SIGCONT, errorMsg);
-}
-
-// ── Priority ──────────────────────────────────────────────────────────────────
-
-bool ProcessHelper::renice(pid_t pid, int nice, QString &errorMsg)
+bool ProcessHelper::Renice(pid_t pid, int nice, QString &errorMsg)
 {
     errno = 0;
     if (setpriority(PRIO_PROCESS, static_cast<id_t>(pid), nice) == 0)
         return true;
-    errorMsg = QString("setpriority(%1, %2) failed: %3")
-               .arg(pid).arg(nice).arg(strerror(errno));
+    errorMsg = QString("setpriority(%1, %2) failed: %3").arg(pid).arg(nice).arg(strerror(errno));
     return false;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-QString ProcessHelper::signalName(int signal)
+QString ProcessHelper::GetSignalName(int signal)
 {
     switch (signal)
     {

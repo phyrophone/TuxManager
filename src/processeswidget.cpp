@@ -30,7 +30,6 @@
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
-#include <QScrollBar>
 #include <QStyle>
 
 #include <algorithm>
@@ -65,6 +64,37 @@ ProcessesWidget::ProcessesWidget(QWidget *parent)
 ProcessesWidget::~ProcessesWidget()
 {
     delete this->ui;
+}
+
+bool ProcessesWidget::SelectProcessByPid(pid_t pid)
+{
+    if (pid <= 0)
+        return false;
+
+    for (int row = 0; row < this->m_model->rowCount(); ++row)
+    {
+        const QModelIndex sourceIdx = this->m_model->index(row, OS::ProcessModel::ColPid);
+        if (!sourceIdx.isValid())
+            continue;
+        if (static_cast<pid_t>(this->m_model->data(sourceIdx, Qt::UserRole).toLongLong()) != pid)
+            continue;
+
+        const QModelIndex proxyIdx = this->m_proxy->mapFromSource(sourceIdx);
+        if (!proxyIdx.isValid())
+            return false;
+
+        QItemSelectionModel *selectionModel = this->ui->tableView->selectionModel();
+        if (!selectionModel)
+            return false;
+
+        selectionModel->clearSelection();
+        selectionModel->select(proxyIdx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        selectionModel->setCurrentIndex(proxyIdx, QItemSelectionModel::NoUpdate);
+        this->ui->tableView->scrollTo(proxyIdx, QAbstractItemView::PositionAtCenter);
+        return true;
+    }
+
+    return false;
 }
 
 // ── Private setup ─────────────────────────────────────────────────────────────
@@ -163,39 +193,27 @@ void ProcessesWidget::onTimerTick()
     if (this->m_tableContextMenuOpen)
         return;
 
-    // Preserve scroll position and selection across refresh
-    QScrollBar *vsb       = this->ui->tableView->verticalScrollBar();
-    const int   scrollPos = vsb->value();
-
-    // Remember which PID row is selected so we can restore it after refresh
-    const QModelIndex proxyIdx = this->ui->tableView->currentIndex();
-    QVariant selectedPid;
-    if (proxyIdx.isValid())
-    {
-        const QModelIndex srcIdx = this->m_proxy->mapToSource(proxyIdx.sibling(proxyIdx.row(), OS::ProcessModel::ColPid));
-        selectedPid = this->m_model->data(srcIdx, Qt::UserRole);
-    }
+    const UIHelper::TableSelectionSnapshot snapshot = UIHelper::CaptureTableSelection(
+        this->ui->tableView,
+        OS::ProcessModel::ColPid,
+        [this](const QModelIndex &proxyKeyIndex) -> QVariant
+        {
+            const QModelIndex srcIdx = this->m_proxy->mapToSource(proxyKeyIndex);
+            if (!srcIdx.isValid())
+                return {};
+            return this->m_model->data(srcIdx, Qt::UserRole);
+        });
 
     this->m_model->Refresh();
 
-    // Restore selection by PID
-    if (!selectedPid.isNull())
-    {
-        for (int row = 0; row < this->m_model->rowCount(); ++row)
-        {
-            const QModelIndex idx = this->m_model->index(row, OS::ProcessModel::ColPid);
-            if (this->m_model->data(idx, Qt::UserRole) == selectedPid)
-            {
-                const QModelIndex proxyRestored = this->m_proxy->mapFromSource(idx);
-                this->ui->tableView->setCurrentIndex(proxyRestored);
-                break;
-            }
-        }
-    }
-
-    // Restore scroll position (do this after selection restore so
-    // setCurrentIndex() does not scroll the view away)
-    vsb->setValue(scrollPos);
+    UIHelper::RestoreTableSelection(
+        this->ui->tableView,
+        OS::ProcessModel::ColPid,
+        this->m_model->rowCount(),
+        [this](int row) -> QModelIndex { return this->m_model->index(row, OS::ProcessModel::ColPid); },
+        [this](const QModelIndex &sourceIndex) -> QModelIndex { return this->m_proxy->mapFromSource(sourceIndex); },
+        [this](const QModelIndex &sourceKeyIndex) -> QVariant { return this->m_model->data(sourceKeyIndex, Qt::UserRole); },
+        snapshot);
 }
 
 void ProcessesWidget::onRefreshRateChanged(int comboIndex)
@@ -382,12 +400,13 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
 
 void ProcessesWidget::updateStatusBar()
 {
-    const int total   = this->m_model->rowCount();
-    const int visible = this->m_proxy->rowCount();
+    const int totalTasks = this->m_model->rowCount();
 
-    QString text = tr("Tasks: %1").arg(total);
-    if (visible != total)
-        text += tr("  (Showing %1)").arg(visible);
+    qlonglong totalThreads = 0;
+    const QList<OS::Process> &all = this->m_model->GetProcesses();
+    for (const OS::Process &p : all)
+        totalThreads += qMax(0, p.Threads);
+    const QString text = tr("Tasks: %1  Threads: %2").arg(totalTasks).arg(totalThreads);
 
     this->ui->statusLabel->setText(text);
 }
@@ -417,7 +436,7 @@ void ProcessesWidget::sendSignalToSelected(int signal)
     for (pid_t pid : pids)
         pidStrings << QString::number(pid);
 
-    const QString signalLabel = OS::ProcessHelper::signalName(signal);
+    const QString signalLabel = OS::ProcessHelper::GetSignalName(signal);
     const QString signalText = signalLabel.isEmpty() ? QString::number(signal) : signalLabel;
 
     QString body;
@@ -446,13 +465,13 @@ void ProcessesWidget::sendSignalToSelected(int signal)
     for (pid_t pid : pids)
     {
         QString err;
-        if (!OS::ProcessHelper::sendSignal(pid, signal, err))
+        if (!OS::ProcessHelper::SendSignal(pid, signal, err))
         {
             LOG_WARN(err);
             errors << err;
         } else
         {
-            LOG_INFO(QString("Sent %1 to PID %2").arg(OS::ProcessHelper::signalName(signal)).arg(pid));
+            LOG_INFO(QString("Sent %1 to PID %2").arg(OS::ProcessHelper::GetSignalName(signal)).arg(pid));
         }
     }
 
@@ -477,7 +496,7 @@ void ProcessesWidget::reniceSelected()
     for (pid_t pid : pids)
     {
         QString err;
-        if (!OS::ProcessHelper::renice(pid, nice, err))
+        if (!OS::ProcessHelper::Renice(pid, nice, err))
         {
             LOG_WARN(err);
             errors << err;

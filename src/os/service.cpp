@@ -23,11 +23,6 @@
 
 using namespace OS;
 
-bool Service::IsSystemdAvailable(QString *reason)
-{
-    return ServiceHelper::IsSystemdAvailable(reason);
-}
-
 QList<Service> Service::LoadAll(QString *error)
 {
     QList<Service> out;
@@ -47,11 +42,11 @@ QList<Service> Service::LoadAll(QString *error)
         for (const auto &r : rows)
         {
             Service s;
-            s.unit = r.unit;
-            s.description = r.description;
-            s.loadState = r.loadState;
-            s.activeState = r.activeState;
-            s.subState = r.subState;
+            s.Unit = r.unit;
+            s.Description = r.description;
+            s.LoadState = r.loadState;
+            s.ActiveState = r.activeState;
+            s.SubState = r.subState;
             out.append(s);
         }
         if (error)
@@ -94,11 +89,11 @@ QList<Service> Service::LoadAll(QString *error)
             continue;
 
         Service s;
-        s.unit        = m.captured(1);
-        s.loadState   = m.captured(2);
-        s.activeState = m.captured(3);
-        s.subState    = m.captured(4);
-        s.description = m.captured(5).trimmed();
+        s.Unit        = m.captured(1);
+        s.LoadState   = m.captured(2);
+        s.ActiveState = m.captured(3);
+        s.SubState    = m.captured(4);
+        s.Description = m.captured(5).trimmed();
         out.append(s);
     }
 

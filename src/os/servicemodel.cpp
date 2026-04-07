@@ -55,11 +55,11 @@ QVariant ServiceModel::data(const QModelIndex &index, int role) const
     {
         switch (static_cast<Column>(index.column()))
         {
-            case ColService:     return s.unit;
-            case ColLoad:        return s.loadState;
-            case ColActive:      return s.activeState;
-            case ColSubState:    return s.subState;
-            case ColDescription: return s.description;
+            case ColService:     return s.Unit;
+            case ColLoad:        return s.LoadState;
+            case ColActive:      return s.ActiveState;
+            case ColSubState:    return s.SubState;
+            case ColDescription: return s.Description;
             default:             return {};
         }
     }
