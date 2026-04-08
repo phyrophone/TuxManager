@@ -6,7 +6,10 @@ This directory contains Linux packaging scripts for Tux Manager.
 
 - Debian/Ubuntu (`.deb`) via `package-deb.sh`
 - Fedora/RHEL/Alma/Rocky (`.rpm` + `.src.rpm`) via `package-rpm.sh`
-- Flatpak (`.flatpak`) via `package-flatpak.sh`
+- AppImage (`.AppImage`) via `package-appimage.sh`
+
+## Unsupported targets
+- Flatpak (`.flatpak`) via `package-flatpak.sh` - runs in container and doesn't allow access to host's /proc
 
 ## Dependencies
 
@@ -36,6 +39,8 @@ Notes:
 
 ### Flatpak
 
+NOTE: flatpak doesn't work right now - the resulting app runs in isolation and doesn't have access to /proc so you can't use it to full extent
+
 Required tools/runtime:
 
 ```bash
@@ -47,6 +52,28 @@ flatpak install flathub org.kde.Platform//6.7 org.kde.Sdk//6.7
 Notes:
 - The script validates that `flatpak`, `flatpak-builder`, `flathub`, and required runtime/sdk refs are present before building.
 - The resulting bundle is written to `packaging/output/`.
+
+### AppImage
+
+Required tools/packages:
+
+* https://github.com/linuxdeploy/linuxdeploy
+* https://github.com/linuxdeploy/linuxdeploy-plugin-qt
+* https://github.com/linuxdeploy/linuxdeploy-plugin-appimage
+
+Download released appimages from all 3, put them into some directory and create symlinks with bare names, then add this folder to PATH variable
+
+```bash
+sudo apt-get install build-essential pkg-config qt6-base-dev
+linuxdeploy --version
+linuxdeploy-plugin-qt --help
+linuxdeploy-plugin-appimage --help
+```
+
+Notes:
+- `linuxdeploy`, `linuxdeploy-plugin-qt`, and `linuxdeploy-plugin-appimage` must be available in `PATH`.
+- The script reuses the desktop/icon metadata from `packaging/flatpak/`.
+- The resulting AppImage is written to `packaging/output/`.
 
 ## Usage
 
@@ -105,6 +132,23 @@ Optional:
 Output (in `packaging/output/`):
 - `tux-manager-<version>-<arch>.flatpak`
 
+### Build AppImage
+
+```bash
+cd packaging
+./package-appimage.sh
+```
+
+Optional:
+
+```bash
+./package-appimage.sh --qt /path/to/qt/bin
+./package-appimage.sh --version 1.2.3
+```
+
+Output (in `packaging/output/`):
+- `tux-manager-<version>-<arch>.AppImage`
+
 ## Install
 
 ### Debian/Ubuntu
@@ -125,4 +169,11 @@ sudo dnf install packaging/output/tux-manager-*.rpm
 ```bash
 flatpak install --user packaging/output/tux-manager-*.flatpak
 flatpak run io.github.benapetr.TuxManager
+```
+
+### AppImage
+
+```bash
+chmod +x packaging/output/tux-manager-*.AppImage
+./packaging/output/tux-manager-*.AppImage
 ```
