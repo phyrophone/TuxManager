@@ -60,7 +60,6 @@ class UsersWidget : public QWidget
         QSet<uid_t>      m_expandedUsers;
         bool             m_hasExpansionSnapshot { false };
 
-        static quint64 readTotalCpuJiffies();
         void rebuildTree(const QList<OS::Process> &allProcs);
 };
 

@@ -21,9 +21,9 @@
 
 #include "configuration.h"
 #include "misc.h"
+#include "os/proc.h"
 #include "ui/uihelper.h"
 
-#include <QFile>
 #include <QHeaderView>
 #include <QMenu>
 #include <QTreeWidgetItem>
@@ -90,7 +90,7 @@ void UsersWidget::onTimerTick()
     if (CFG->RefreshPaused)
         return;
 
-    const quint64 totalJiffies = readTotalCpuJiffies();
+    const quint64 totalJiffies = OS::Proc::ReadTotalCpuJiffies();
     const quint64 periodJiffies = (this->m_prevCpuTotalTicks > 0 && totalJiffies > this->m_prevCpuTotalTicks)
                                   ? (totalJiffies - this->m_prevCpuTotalTicks)
                                   : 0;
@@ -230,21 +230,4 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
     }
 
     this->ui->statusLabel->setText(tr("Logged in users: %1").arg(agg.size()));
-}
-
-quint64 UsersWidget::readTotalCpuJiffies()
-{
-    QFile f("/proc/stat");
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return 0;
-
-    const QByteArray line = f.readLine();
-    f.close();
-
-    const QList<QByteArray> parts = line.simplified().split(' ');
-    quint64 total = 0;
-    const int last = qMin(parts.size() - 1, 8);
-    for (int i = 1; i <= last; ++i)
-        total += parts.at(i).toULongLong();
-    return total;
 }

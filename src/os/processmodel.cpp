@@ -17,8 +17,8 @@
  */
 
 #include "processmodel.h"
+#include "proc.h"
 #include "../misc.h"
-#include <QFile>
 #include <unistd.h>
 
 using namespace OS;
@@ -148,7 +148,7 @@ QList<Process> ProcessModel::RefreshSnapshot()
     // Using the actual CPU time budget as the denominator — rather than wall
     // clock time — matches htop's approach and gives accurate results even
     // when the timer fires slightly early or late.
-    const quint64 totalJiffies = readTotalCpuJiffies();
+    const quint64 totalJiffies = Proc::ReadTotalCpuJiffies();
     const quint64 periodJiffies =
         (this->m_prevCpuTotalTicks > 0 && totalJiffies > this->m_prevCpuTotalTicks)
         ? (totalJiffies - this->m_prevCpuTotalTicks) : 0;
@@ -187,28 +187,6 @@ QList<Process> ProcessModel::RefreshSnapshot()
     this->m_prevCpuTotalTicks = totalJiffies;
 
     return fresh;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-quint64 ProcessModel::readTotalCpuJiffies()
-{
-    QFile f("/proc/stat");
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return 0;
-
-    const QByteArray line = f.readLine(); // first line: "cpu  user nice system ..."
-    f.close();
-
-    // Format: cpu user nice system idle iowait irq softirq steal [guest guestnice]
-    // guest/guestnice are already included in user/nice, so sum only fields 1–8.
-    const QList<QByteArray> parts = line.simplified().split(' ');
-    quint64 total = 0;
-    // parts[0] = "cpu", parts[1..8] = user nice system idle iowait irq softirq steal
-    const int last = qMin(parts.size() - 1, 8);
-    for (int i = 1; i <= last; ++i)
-        total += parts[i].toULongLong();
-    return total;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

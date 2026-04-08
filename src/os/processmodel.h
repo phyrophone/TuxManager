@@ -78,10 +78,6 @@ namespace OS
             bool                    m_showKernelTasks { true };
             bool                    m_showOtherUsersProcs { true };
 
-            /// Read the total elapsed CPU jiffies from /proc/stat (all CPUs, all states).
-            /// Returns 0 on error.
-            static quint64 readTotalCpuJiffies();
-
             static QString columnHeader(Column col);
     };
 } // namespace Os

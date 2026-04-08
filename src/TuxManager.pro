@@ -23,6 +23,7 @@ SOURCES += \
     performancewidget.cpp \
     userswidget.cpp \
     serviceswidget.cpp \
+    os/proc.cpp \
     os/process.cpp \
     os/processtreemodel.cpp \
     os/processmodel.cpp \
@@ -58,6 +59,7 @@ HEADERS += \
     performancewidget.h \
     userswidget.h \
     serviceswidget.h \
+    os/proc.h \
     os/process.h \
     os/processtreemodel.h \
     os/processmodel.h \
