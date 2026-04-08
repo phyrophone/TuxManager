@@ -566,9 +566,7 @@ void PerfDataProvider::onTimer()
 
 // Parse one "cpu..." line from /proc/stat — returns total jiffies and writes
 // idle and kernel jiffies via output parameters.
-quint64 PerfDataProvider::parseCpuLine(const QList<QByteArray> &parts,
-                                       quint64 &outIdle,
-                                       quint64 &outKernel)
+quint64 PerfDataProvider::parseCpuLine(const QList<QByteArray> &parts, quint64 &outIdle, quint64 &outKernel)
 {
     // Fields (1-indexed after the label):
     // 1:user 2:nice 3:system 4:idle 5:iowait 6:irq 7:softirq 8:steal
@@ -731,16 +729,12 @@ bool PerfDataProvider::sampleMemory()
     this->m_swapUsedKb   = qMax<qint64>(0, swapTotal - swapFree);
 
     // Graph tracks used / total (htop formula matches the green bar)
-    const double frac = (memTotal > 0)
-                        ? static_cast<double>(this->m_memUsedKb) / static_cast<double>(memTotal)
-                        : 0.0;
+    const double frac = (memTotal > 0) ? static_cast<double>(this->m_memUsedKb) / static_cast<double>(memTotal) : 0.0;
     appendHistory(this->m_memHistory, frac * 100.0);
 
     if (this->m_swapSamplingEnabled)
     {
-        const double swapFrac = (swapTotal > 0)
-                                ? static_cast<double>(this->m_swapUsedKb) / static_cast<double>(swapTotal)
-                                : 0.0;
+        const double swapFrac = (swapTotal > 0) ? static_cast<double>(this->m_swapUsedKb) / static_cast<double>(swapTotal) : 0.0;
         appendHistory(this->m_swapUsageHistory, swapFrac * 100.0);
 
         quint64 pswpin = 0;
@@ -807,8 +801,23 @@ QString PerfDataProvider::readSysTextFile(const QString &path)
 bool PerfDataProvider::shouldIgnoreBlockDevice(const QString &baseName)
 {
     return baseName.startsWith("loop")
+           || baseName.startsWith("sr")
            || baseName.startsWith("ram")
            || baseName.startsWith("zram");
+}
+
+QStringList PerfDataProvider::listTrackedBlockDevices(const QSet<QString> &measurableDevices)
+{
+    QStringList out;
+    const QDir sysBlockDir("/sys/block");
+    const QStringList entries = sysBlockDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    for (const QString &name : entries)
+    {
+        if (PerfDataProvider::shouldIgnoreBlockDevice(name) || !measurableDevices.contains(name))
+            continue;
+        out.append(name);
+    }
+    return out;
 }
 
 QSet<QString> PerfDataProvider::resolveBaseBlockDevices(const QString &devName)
@@ -866,7 +875,6 @@ QSet<QString> PerfDataProvider::resolveBaseBlockDevices(const QString &devName)
 
 void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
 {
-    QSet<QString> rawDevNames;
     QHash<QString, QSet<QString>> mountPointsByRaw;
     QHash<QString, qint64> formattedByRaw;
     QHash<QString, bool> rawHasSwap;
@@ -890,7 +898,6 @@ void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
             if (!source.startsWith("/dev/"))
                 continue;
             const QString raw = QFileInfo(source).fileName();
-            rawDevNames.insert(raw);
 
             const QString mountPoint = (parts.size() > 4) ? QString::fromUtf8(parts.at(4)) : QString();
             if (!mountPoint.isEmpty())
@@ -901,8 +908,7 @@ void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
                     struct statvfs vfs{};
                     if (::statvfs(mountPoint.toUtf8().constData(), &vfs) == 0)
                     {
-                        formattedByRaw.insert(raw, static_cast<qint64>(vfs.f_blocks)
-                                                    * static_cast<qint64>(vfs.f_frsize));
+                        formattedByRaw.insert(raw, static_cast<qint64>(vfs.f_blocks) * static_cast<qint64>(vfs.f_frsize));
                     }
                 }
             }
@@ -932,48 +938,61 @@ void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
             if (!src.startsWith("/dev/"))
                 continue;
             const QString raw = QFileInfo(src).fileName();
-            rawDevNames.insert(raw);
             rawHasSwap.insert(raw, true);
         }
         sf.close();
     }
 
-    QSet<QString> baseDevices;
+    const QStringList trackedDevices = listTrackedBlockDevices(measurableDevices);
+    const QSet<QString> baseDevices(trackedDevices.cbegin(), trackedDevices.cend());
     QHash<QString, bool> systemByBase;
     QHash<QString, bool> pageFileByBase;
     QHash<QString, qint64> formattedByBase;
-    for (const QString &raw : rawDevNames)
+
+    for (auto it = mountPointsByRaw.cbegin(); it != mountPointsByRaw.cend(); ++it)
     {
+        const QString &raw = it.key();
         const QSet<QString> bases = resolveBaseBlockDevices(raw);
         for (const QString &b : bases)
         {
-            if (!shouldIgnoreBlockDevice(b) && measurableDevices.contains(b))
+            if (!baseDevices.contains(b))
+                continue;
+
+            for (const QString &mp : it.value())
             {
-                baseDevices.insert(b);
-                for (const QString &mp : mountPointsByRaw.value(raw))
-                {
-                    if (mp == "/")
-                        systemByBase[b] = true;
-                }
-                if (rawHasSwap.value(raw, false))
-                    pageFileByBase[b] = true;
-                formattedByBase[b] += formattedByRaw.value(raw, 0);
+                if (mp == "/")
+                    systemByBase[b] = true;
             }
+            formattedByBase[b] += formattedByRaw.value(raw, 0);
         }
     }
 
-    QStringList names = baseDevices.values();
-    std::sort(names.begin(), names.end());
-    // Keep discovered disk objects persistent so their history vectors remain stable.
-    if (this->m_disks.isEmpty())
+    for (auto it = rawHasSwap.cbegin(); it != rawHasSwap.cend(); ++it)
     {
-        this->m_disks.reserve(names.size());
-        for (const QString &name : names)
+        if (!it.value())
+            continue;
+
+        const QSet<QString> bases = resolveBaseBlockDevices(it.key());
+        for (const QString &b : bases)
         {
-            DiskSample d;
-            d.name = name;
-            this->m_disks.append(d);
+            if (baseDevices.contains(b))
+                pageFileByBase[b] = true;
         }
+    }
+
+    // Keep discovered disk objects persistent so their history vectors remain stable.
+    QSet<QString> existingNames;
+    for (const DiskSample &disk : std::as_const(this->m_disks))
+        existingNames.insert(disk.name);
+
+    for (const QString &name : trackedDevices)
+    {
+        if (existingNames.contains(name))
+            continue;
+
+        DiskSample d;
+        d.name = name;
+        this->m_disks.append(d);
     }
 
     for (DiskSample &d : this->m_disks)

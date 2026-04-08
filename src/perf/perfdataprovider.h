@@ -107,7 +107,7 @@ namespace Perf
             const QVector<double> &SwapInHistory()    const { return this->m_swapInHistory;    }
             const QVector<double> &SwapOutHistory()   const { return this->m_swapOutHistory;   }
 
-            // ── Disks (base block devices backing mounted/swap paths) ────────────
+            // ── Disks (physical / virtual block devices from sysfs, excluding pseudo devices) ──
             int DiskCount() const { return this->m_disks.size(); }
             QString DiskName(int i) const;
             QString DiskModel(int i) const;
@@ -375,6 +375,7 @@ namespace Perf
             static double parsePercentField(const QString &field);
             static qint64 parseMiBField(const QString &field);
 
+            static QStringList listTrackedBlockDevices(const QSet<QString> &measurableDevices);
             static QSet<QString> resolveBaseBlockDevices(const QString &devName);
             static bool shouldIgnoreBlockDevice(const QString &baseName);
             static QString readSysTextFile(const QString &path);
