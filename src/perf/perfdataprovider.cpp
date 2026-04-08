@@ -802,6 +802,7 @@ bool PerfDataProvider::shouldIgnoreBlockDevice(const QString &baseName)
 {
     return baseName.startsWith("loop")
            || baseName.startsWith("sr")
+           || baseName.startsWith("dm-")
            || baseName.startsWith("ram")
            || baseName.startsWith("zram");
 }
