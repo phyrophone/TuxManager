@@ -64,6 +64,8 @@ ServicesWidget::ServicesWidget(QWidget *parent)
     this->ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
 
     QHeaderView *hv = this->ui->tableView->horizontalHeader();
+    hv->setSectionsMovable(true);
+    hv->setContextMenuPolicy(Qt::CustomContextMenu);
     hv->setSectionResizeMode(0, QHeaderView::Interactive);
     hv->setSectionResizeMode(1, QHeaderView::Interactive);
     hv->setSectionResizeMode(2, QHeaderView::Interactive);
@@ -77,6 +79,7 @@ ServicesWidget::ServicesWidget(QWidget *parent)
     this->ui->tableView->setSortingEnabled(true);
     this->ui->tableView->sortByColumn(0, Qt::AscendingOrder);
 
+    connect(hv, &QHeaderView::customContextMenuRequested, this, &ServicesWidget::onHeaderContextMenu);
     connect(this->ui->tableView, &QTableView::customContextMenuRequested, this, &ServicesWidget::onTableContextMenu);
     connect(this->m_refreshTimer, &QTimer::timeout, this, &ServicesWidget::onTimerTick);
 
@@ -208,6 +211,14 @@ void ServicesWidget::onRefreshFinished(quint64 token, bool systemdAvailable, con
     }
 }
 
+void ServicesWidget::onHeaderContextMenu(const QPoint &pos)
+{
+    this->showHeaderContextMenu(this->ui->tableView->horizontalHeader(), OS::ServiceModel::ColCount, [this](int col)
+    {
+        return this->m_model->headerData(col, Qt::Horizontal).toString();
+    }, pos);
+}
+
 void ServicesWidget::onTableContextMenu(const QPoint &pos)
 {
     this->m_tableContextMenuOpen = true;
@@ -259,4 +270,30 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
     UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, nullptr, this->m_refreshTimer, this->m_active);
 
     this->m_tableContextMenuOpen = false;
+}
+
+void ServicesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos)
+{
+    if (!header)
+        return;
+
+    QMenu menu(this);
+
+    for (int col = 0; col < columnCount; ++col)
+    {
+        QAction *action = menu.addAction(titleForColumn(col));
+        action->setCheckable(true);
+        action->setChecked(!header->isSectionHidden(col));
+        action->setData(col);
+    }
+
+    const QAction *chosen = menu.exec(header->mapToGlobal(pos));
+    if (!chosen)
+        return;
+
+    const int col = chosen->data().toInt();
+    if (chosen->isChecked())
+        header->showSection(col);
+    else
+        header->hideSection(col);
 }

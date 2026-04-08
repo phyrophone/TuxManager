@@ -24,11 +24,14 @@
 #include "os/processfilterproxy.h"
 
 #include <QModelIndex>
+#include <QHeaderView>
 #include <QSortFilterProxyModel>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QTreeView>
 #include <QWidget>
+
+#include <functional>
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -76,6 +79,7 @@ class ProcessesWidget : public QWidget
 
         void setupTable();
         void setTreeViewMode(bool enabled);
+        void showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos);
         bool selectProcessInTree(pid_t pid);
         bool selectProcessInTable(pid_t pid);
         QVariant tableSelectionKeyFromProxy(const QModelIndex &proxyKeyIndex) const;

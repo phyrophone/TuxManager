@@ -58,7 +58,6 @@ ProcessesWidget::ProcessesWidget(QWidget *parent)
         this->m_proxy->setFilterFixedString(text);
         this->m_treeProxy->setFilterFixedString(text);
     });
-    connect(this->ui->tableView->horizontalHeader(), &QHeaderView::customContextMenuRequested, this, &ProcessesWidget::onHeaderContextMenu);
     connect(this->m_refreshTimer, &QTimer::timeout, this, &ProcessesWidget::onTimerTick);
 
     // Update status bar whenever the proxy's visible row count changes
@@ -178,6 +177,13 @@ void ProcessesWidget::setupTable()
     hv->setStretchLastSection(true);
     hv->setContextMenuPolicy(Qt::CustomContextMenu);
     hv->setSectionResizeMode(QHeaderView::Interactive);
+    connect(hv, &QHeaderView::customContextMenuRequested, this, [this, hv](const QPoint &pos)
+    {
+        this->showHeaderContextMenu(hv, OS::ProcessModel::ColCount, [this](int col)
+        {
+            return this->m_model->headerData(col, Qt::Horizontal).toString();
+        }, pos);
+    });
 
     connect(hv, &QHeaderView::sortIndicatorChanged, this, [](int column, Qt::SortOrder order)
     {
@@ -220,8 +226,18 @@ void ProcessesWidget::setupTable()
     this->m_treeView->setRootIsDecorated(true);
     this->m_treeView->setItemsExpandable(true);
     this->m_treeView->setUniformRowHeights(true);
-    this->m_treeView->header()->setSectionResizeMode(QHeaderView::Interactive);
-    this->m_treeView->header()->setStretchLastSection(true);
+    QHeaderView *treeHeader = this->m_treeView->header();
+    treeHeader->setSectionsMovable(true);
+    treeHeader->setContextMenuPolicy(Qt::CustomContextMenu);
+    treeHeader->setSectionResizeMode(QHeaderView::Interactive);
+    treeHeader->setStretchLastSection(true);
+    connect(treeHeader, &QHeaderView::customContextMenuRequested, this, [this, treeHeader](const QPoint &pos)
+    {
+        this->showHeaderContextMenu(treeHeader, OS::ProcessTreeModel::ColCount, [this](int col)
+        {
+            return this->m_treeModel->headerData(col, Qt::Horizontal).toString();
+        }, pos);
+    });
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColPid, 60);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColName, 160);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColUser, 90);
@@ -344,26 +360,36 @@ void ProcessesWidget::onTimerTick()
 void ProcessesWidget::onHeaderContextMenu(const QPoint &pos)
 {
     QHeaderView *hv = this->ui->tableView->horizontalHeader();
+    this->showHeaderContextMenu(hv, OS::ProcessModel::ColCount, [this](int col)
+    {
+        return this->m_model->headerData(col, Qt::Horizontal).toString();
+    }, pos);
+}
+
+void ProcessesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos)
+{
+    if (!header)
+        return;
+
     QMenu menu(this);
 
-    for (int col = 0; col < OS::ProcessModel::ColCount; ++col)
+    for (int col = 0; col < columnCount; ++col)
     {
-        const QString title = this->m_model->headerData(col, Qt::Horizontal).toString();
-        QAction *action = menu.addAction(title);
+        QAction *action = menu.addAction(titleForColumn(col));
         action->setCheckable(true);
-        action->setChecked(!hv->isSectionHidden(col));
+        action->setChecked(!header->isSectionHidden(col));
         action->setData(col);
     }
 
-    const QAction *chosen = menu.exec(hv->mapToGlobal(pos));
+    const QAction *chosen = menu.exec(header->mapToGlobal(pos));
     if (!chosen)
         return;
 
     const int col = chosen->data().toInt();
     if (chosen->isChecked())
-        hv->showSection(col);
+        header->showSection(col);
     else
-        hv->hideSection(col);
+        header->hideSection(col);
 }
 
 void ProcessesWidget::onTableContextMenu(const QPoint &pos)

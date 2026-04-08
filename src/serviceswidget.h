@@ -23,10 +23,13 @@
 #include "os/servicemodel.h"
 #include "os/servicefilterproxy.h"
 
+#include <QHeaderView>
 #include <QObject>
 #include <QThread>
 #include <QTimer>
 #include <QWidget>
+
+#include <functional>
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -58,6 +61,7 @@ class ServicesWidget : public QWidget
 
     private slots:
         void onTimerTick();
+        void onHeaderContextMenu(const QPoint &pos);
         void onRefreshFinished(quint64 token, bool systemdAvailable, const QString &reason, const QList<OS::Service> &services, const QString &error);
         void onTableContextMenu(const QPoint &pos);
 
@@ -78,6 +82,7 @@ class ServicesWidget : public QWidget
         quint64             m_refreshToken { 0 };
 
         void startRefresh();
+        void showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos);
 };
 
 #endif // SERVICESWIDGET_H
