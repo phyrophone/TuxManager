@@ -79,10 +79,12 @@ class ServicesWidget : public QWidget
         bool                m_tableContextMenuOpen { false };
         bool                m_refreshInFlight { false };
         bool                m_refreshPending { false };
+        bool                m_headerPersistenceEnabled { false };
         quint64             m_refreshToken { 0 };
 
         void startRefresh();
         void showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos);
+        void saveHeaderState() const;
 };
 
 #endif // SERVICESWIDGET_H

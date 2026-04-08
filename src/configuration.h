@@ -63,6 +63,11 @@ class Configuration : public QObject
         bool ProcessTreeView     { false }; ///< Processes tab: false=table, true=tree
         int  ProcessListSortColumn { 4 };   ///< ColCpu — column index to sort by
         int  ProcessListSortOrder  { 1 };   ///< Qt::DescendingOrder
+        QByteArray ProcessListHeaderState;  ///< Saved via QHeaderView::saveState()
+        QByteArray ProcessTreeHeaderState;  ///< Saved via QHeaderView::saveState()
+
+        // ── Services tab ──────────────────────────────────────────────────────────
+        QByteArray ServicesHeaderState;     ///< Saved via QHeaderView::saveState()
 
         // ── Performance tab (GPU) ─────────────────────────────────────────────
         /// Selected engine indices for the 4 GPU engine selectors.

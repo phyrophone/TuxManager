@@ -184,6 +184,8 @@ void ProcessesWidget::setupTable()
             return this->m_model->headerData(col, Qt::Horizontal).toString();
         }, pos);
     });
+    connect(hv, &QHeaderView::sectionMoved, this, [this]() { this->saveTableHeaderState(); });
+    connect(hv, &QHeaderView::sectionResized, this, [this]() { this->saveTableHeaderState(); });
 
     connect(hv, &QHeaderView::sortIndicatorChanged, this, [](int column, Qt::SortOrder order)
     {
@@ -214,6 +216,11 @@ void ProcessesWidget::setupTable()
     hv->hideSection(OS::ProcessModel::ColMemVirt);
     hv->hideSection(OS::ProcessModel::ColPriority);
     hv->hideSection(OS::ProcessModel::ColNice);
+    if (!CFG->ProcessListHeaderState.isEmpty())
+    {
+        hv->restoreState(CFG->ProcessListHeaderState);
+    }
+    this->m_tableHeaderPersistenceEnabled = true;
 
     this->m_treeView->setModel(this->m_treeProxy);
     this->m_treeView->setSortingEnabled(true);
@@ -238,6 +245,8 @@ void ProcessesWidget::setupTable()
             return this->m_treeModel->headerData(col, Qt::Horizontal).toString();
         }, pos);
     });
+    connect(treeHeader, &QHeaderView::sectionMoved, this, [this]() { this->saveTreeHeaderState(); });
+    connect(treeHeader, &QHeaderView::sectionResized, this, [this]() { this->saveTreeHeaderState(); });
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColPid, 60);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColName, 160);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColUser, 90);
@@ -251,6 +260,11 @@ void ProcessesWidget::setupTable()
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColMemVirt, true);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColPriority, true);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColNice, true);
+    if (!CFG->ProcessTreeHeaderState.isEmpty())
+    {
+        treeHeader->restoreState(CFG->ProcessTreeHeaderState);
+    }
+    this->m_treeHeaderPersistenceEnabled = true;
     connect(this->m_treeView, &QTreeView::customContextMenuRequested, this, &ProcessesWidget::onTreeContextMenu);
 
     this->setTreeViewMode(CFG->ProcessTreeView);
@@ -390,6 +404,29 @@ void ProcessesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount
         header->showSection(col);
     else
         header->hideSection(col);
+
+    if (header == this->ui->tableView->horizontalHeader())
+        this->saveTableHeaderState();
+    else if (header == this->m_treeView->header())
+        this->saveTreeHeaderState();
+}
+
+void ProcessesWidget::saveTableHeaderState() const
+{
+    if (!this->m_tableHeaderPersistenceEnabled)
+        return;
+
+    if (QHeaderView *header = this->ui->tableView ? this->ui->tableView->horizontalHeader() : nullptr)
+        CFG->ProcessListHeaderState = header->saveState();
+}
+
+void ProcessesWidget::saveTreeHeaderState() const
+{
+    if (!this->m_treeHeaderPersistenceEnabled)
+        return;
+
+    if (this->m_treeView && this->m_treeView->header())
+        CFG->ProcessTreeHeaderState = this->m_treeView->header()->saveState();
 }
 
 void ProcessesWidget::onTableContextMenu(const QPoint &pos)

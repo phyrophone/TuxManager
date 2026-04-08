@@ -74,12 +74,16 @@ class ProcessesWidget : public QWidget
         bool                      m_active { false };
         bool                      m_tableContextMenuOpen { false };
         bool                      m_treeViewMode { false };
+        bool                      m_tableHeaderPersistenceEnabled { false };
+        bool                      m_treeHeaderPersistenceEnabled { false };
         QList<OS::Process>        m_lastProcessSnapshot;
         QModelIndex               m_contextMenuTargetIndex;
 
         void setupTable();
         void setTreeViewMode(bool enabled);
         void showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos);
+        void saveTableHeaderState() const;
+        void saveTreeHeaderState() const;
         bool selectProcessInTree(pid_t pid);
         bool selectProcessInTable(pid_t pid);
         QVariant tableSelectionKeyFromProxy(const QModelIndex &proxyKeyIndex) const;

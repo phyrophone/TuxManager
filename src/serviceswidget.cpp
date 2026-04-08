@@ -72,12 +72,17 @@ ServicesWidget::ServicesWidget(QWidget *parent)
     hv->setSectionResizeMode(3, QHeaderView::Interactive);
     hv->setSectionResizeMode(4, QHeaderView::Stretch);
     hv->setMinimumSectionSize(60);
+    connect(hv, &QHeaderView::sectionMoved, this, [this]() { this->saveHeaderState(); });
+    connect(hv, &QHeaderView::sectionResized, this, [this]() { this->saveHeaderState(); });
     this->ui->tableView->setColumnWidth(0, 260);
     this->ui->tableView->setColumnWidth(1, 90);
     this->ui->tableView->setColumnWidth(2, 90);
     this->ui->tableView->setColumnWidth(3, 100);
     this->ui->tableView->setSortingEnabled(true);
     this->ui->tableView->sortByColumn(0, Qt::AscendingOrder);
+    if (!CFG->ServicesHeaderState.isEmpty())
+        hv->restoreState(CFG->ServicesHeaderState);
+    this->m_headerPersistenceEnabled = true;
 
     connect(hv, &QHeaderView::customContextMenuRequested, this, &ServicesWidget::onHeaderContextMenu);
     connect(this->ui->tableView, &QTableView::customContextMenuRequested, this, &ServicesWidget::onTableContextMenu);
@@ -296,4 +301,15 @@ void ServicesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount,
         header->showSection(col);
     else
         header->hideSection(col);
+
+    this->saveHeaderState();
+}
+
+void ServicesWidget::saveHeaderState() const
+{
+    if (!this->m_headerPersistenceEnabled)
+        return;
+
+    if (this->ui && this->ui->tableView && this->ui->tableView->horizontalHeader())
+        CFG->ServicesHeaderState = this->ui->tableView->horizontalHeader()->saveState();
 }
