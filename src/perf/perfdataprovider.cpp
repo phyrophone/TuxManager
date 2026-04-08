@@ -828,8 +828,7 @@ QSet<QString> PerfDataProvider::resolveBaseBlockDevices(const QString &devName)
         return out;
 
     const QString sysPath = QString("/sys/class/block/%1").arg(devName);
-    const QFileInfo fi(sysPath);
-    if (!fi.exists())
+    if (!QFileInfo::exists(sysPath))
         return out;
 
     // Device-mapper / md devices can have one or more "slaves".
@@ -959,7 +958,8 @@ void PerfDataProvider::refreshDisks(const QSet<QString> &measurableDevices)
             if (!baseDevices.contains(b))
                 continue;
 
-            for (const QString &mp : it.value())
+            const QSet<QString> &mountPoints = it.value();
+            for (const QString &mp : mountPoints)
             {
                 if (mp == "/")
                     systemByBase[b] = true;
@@ -1520,7 +1520,7 @@ bool PerfDataProvider::sampleNvml()
         appendHistory(g.copyRxHistory, g.copyRxBps);
 
         QHash<QString, GpuEngineSample> oldEngines;
-        for (const GpuEngineSample &e : g.engines)
+        for (const GpuEngineSample &e : std::as_const(g.engines))
             oldEngines.insert(e.key, e);
 
         QVector<GpuEngineSample> engines;
@@ -1834,7 +1834,7 @@ bool PerfDataProvider::sampleDrm()
 
         // ── Engine data ──────────────────────────────────────────────────────
         QHash<QString, GpuEngineSample> oldEngines;
-        for (const GpuEngineSample &e : g.engines)
+        for (const GpuEngineSample &e : std::as_const(g.engines))
             oldEngines.insert(e.key, e);
 
         QVector<GpuEngineSample> engines;
@@ -1852,7 +1852,7 @@ bool PerfDataProvider::sampleDrm()
             addEngine("gfx", "GFX", g.utilPct);
 
         // Dynamic sysfs engines (vcn_busy_percent, jpeg_busy_percent, …).
-        for (const auto &ep : card.engineBusyPaths)
+        for (const auto &ep : std::as_const(card.engineBusyPaths))
         {
             bool ok = false;
             const int pct = readSysTextFile(ep.second).trimmed().toInt(&ok);
@@ -1865,7 +1865,7 @@ bool PerfDataProvider::sampleDrm()
             const QHash<QString, qint64> curNs = this->scanDrmFdInfoEngines(card);
             QSet<QString> sysFsKeys;
             sysFsKeys.insert(QStringLiteral("gfx"));
-            for (const auto &ep : card.engineBusyPaths)
+            for (const auto &ep : std::as_const(card.engineBusyPaths))
                 sysFsKeys.insert(ep.first);
 
             for (auto it = curNs.cbegin(); it != curNs.cend(); ++it)

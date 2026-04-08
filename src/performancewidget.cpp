@@ -208,7 +208,8 @@ void PerformanceWidget::onProviderUpdated()
     const double cpuPct = this->m_provider->CpuPercent();
     const int cpuTempC = this->m_provider->CpuTemperatureC();
     const QString cpuSub = (cpuTempC >= 0)
-                           ? tr("%1%2 %3C").arg(QString::number(cpuPct, 'f', 0)).arg("%").arg(cpuTempC)
+                           ? tr("%1%2 %3C", "%1=value %2=percent sign %3=temperature in Celsius")
+                                 .arg(QString::number(cpuPct, 'f', 0), "%", QString::number(cpuTempC))
                            : QString::number(cpuPct, 'f', 0) + "%";
     if (CFG->PerfShowCpu)
     {
@@ -223,9 +224,9 @@ void PerformanceWidget::onProviderUpdated()
                            ? static_cast<int>(static_cast<double>(used) / total * 100.0)
                            : 0;
     const QString memSub = QString("%1/%2 (%3%)")
-                           .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, used)), 1))
-                           .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, total)), 1))
-                           .arg(pct);
+                           .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, used)), 1),
+                                Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, total)), 1),
+                                QString::number(pct));
     if (CFG->PerfShowMemory)
     {
         if (auto *item = this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex))
@@ -241,9 +242,9 @@ void PerformanceWidget::onProviderUpdated()
     QString swapSub;
     if (swapTotal > 0)
         swapSub = QString("%1/%2 (%3%)")
-                  .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapUsed)), 1))
-                  .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapTotal)), 1))
-                  .arg(swapPct);
+                  .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapUsed)), 1),
+                       Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapTotal)), 1),
+                       QString::number(swapPct));
     else
         swapSub = tr("Off");
     if (CFG->PerfShowSwap)
@@ -262,7 +263,9 @@ void PerformanceWidget::onProviderUpdated()
             if (!item)
                 continue;
 
-            const QString diskSub = tr("%1 %2").arg(this->m_provider->DiskType(i)).arg(QString::number(this->m_provider->DiskActivePercent(i), 'f', 0) + "%");
+            const QString diskSub = tr("%1 %2", "%1=disk type %2=active percentage")
+                                    .arg(this->m_provider->DiskType(i),
+                                         QString::number(this->m_provider->DiskActivePercent(i), 'f', 0) + "%");
             item->Update(diskSub, this->m_provider->DiskActiveHistory(i));
         }
     }
@@ -277,9 +280,13 @@ void PerformanceWidget::onProviderUpdated()
             if (!item)
                 continue;
 
-            const QString utilText = tr("%1%2").arg(QString::number(this->m_provider->GpuUtilPercent(i), 'f', 0)).arg("%");
+            const QString utilText = tr("%1%2", "%1=GPU utilization value %2=percent sign")
+                                     .arg(QString::number(this->m_provider->GpuUtilPercent(i), 'f', 0), "%");
             const int tempC = this->m_provider->GpuTemperatureC(i);
-            const QString sub = (tempC >= 0) ? tr("%1 %2C").arg(utilText).arg(tempC) : utilText;
+            const QString sub = (tempC >= 0)
+                                ? tr("%1 %2C", "%1=GPU utilization %2=temperature in Celsius")
+                                      .arg(utilText, QString::number(tempC))
+                                : utilText;
             item->Update(sub, this->m_provider->GpuUtilHistory(i));
         }
     }
@@ -298,9 +305,8 @@ void PerformanceWidget::onProviderUpdated()
             const double rx = this->m_provider->NetworkRxBytesPerSec(i);
             const QVector<double> &rxHistory = this->m_provider->NetworkRxHistory(i);
             const QVector<double> &txHistory = this->m_provider->NetworkTxHistory(i);
-            const QString netSub = tr("U:%1 D:%2")
-                                   .arg(Misc::FormatBytesPerSecond(tx))
-                                   .arg(Misc::FormatBytesPerSecond(rx));
+            const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate")
+                                   .arg(Misc::FormatBytesPerSecond(tx), Misc::FormatBytesPerSecond(rx));
             double maxRate = 1024.0; // keep at least 1KB/s visual range
             for (double v : rxHistory)
                 maxRate = qMax(maxRate, v);
@@ -465,23 +471,23 @@ void PerformanceWidget::ApplyColorScheme()
     applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex), scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
     applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_swapPanelIndex), scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
 
-    for (Perf::SidePanelItem *item : this->m_diskItems)
+    for (Perf::SidePanelItem *item : std::as_const(this->m_diskItems))
         applySidePanelItem(item, scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
-    for (Perf::SidePanelItem *item : this->m_networkItems)
+    for (Perf::SidePanelItem *item : std::as_const(this->m_networkItems))
         applySidePanelItem(item, scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor);
-    for (Perf::SidePanelItem *item : this->m_gpuItems)
+    for (Perf::SidePanelItem *item : std::as_const(this->m_gpuItems))
         applySidePanelItem(item, scheme->GpuGraphLineColor, scheme->GpuGraphFillColor);
 
     this->m_cpuDetail->ApplyColorScheme();
     this->m_memDetail->ApplyColorScheme();
     this->m_swapDetail->ApplyColorScheme();
-    for (Perf::DiskDetailWidget *detail : this->m_diskDetails)
+    for (Perf::DiskDetailWidget *detail : std::as_const(this->m_diskDetails))
         if (detail)
             detail->ApplyColorScheme();
-    for (Perf::NetworkDetailWidget *detail : this->m_networkDetails)
+    for (Perf::NetworkDetailWidget *detail : std::as_const(this->m_networkDetails))
         if (detail)
             detail->ApplyColorScheme();
-    for (Perf::GpuDetailWidget *detail : this->m_gpuDetails)
+    for (Perf::GpuDetailWidget *detail : std::as_const(this->m_gpuDetails))
         if (detail)
             detail->ApplyColorScheme();
 

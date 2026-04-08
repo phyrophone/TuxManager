@@ -829,17 +829,14 @@ void ProcessesWidget::sendSignalToSelected(int signal)
     {
         body = tr("You are about to send signal %1 to process PID %2.\n\n"
                   "Do you want to continue?")
-                   .arg(signalText)
-                   .arg(pidStrings.first());
+                   .arg(signalText, pidStrings.first());
     } else
     {
         body = tr("You are about to send signal %1 to %2 selected processes.\n"
                   "This will affect all selected processes.\n\n"
                   "PIDs: %3\n\n"
                   "Do you want to continue?")
-                   .arg(signalText)
-                   .arg(pids.size())
-                   .arg(pidStrings.join(", "));
+                   .arg(signalText, QString::number(pids.size()), pidStrings.join(", "));
     }
 
     const QMessageBox::StandardButton answer = QMessageBox::warning(this, tr("Confirm Signal"), body, QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
