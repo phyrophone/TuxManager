@@ -26,6 +26,7 @@
 
 #include <QHeaderView>
 #include <QMenu>
+#include <QScrollBar>
 #include <QTreeWidgetItem>
 
 #include <unistd.h>
@@ -39,6 +40,24 @@ namespace
         double cpuPct { 0.0 };
         quint64 memKb { 0 };
     };
+
+    struct TreeSelectionSnapshot
+    {
+        QStringList selectedKeys;
+        QString currentKey;
+        int scrollPos { 0 };
+    };
+
+    QString itemKey(const QTreeWidgetItem *item)
+    {
+        if (!item)
+            return {};
+
+        if (item->parent())
+            return QStringLiteral("p:%1").arg(item->data(0, Qt::UserRole).toLongLong());
+
+        return QStringLiteral("u:%1").arg(item->data(0, Qt::UserRole).toUInt());
+    }
 } // namespace
 
 UsersWidget::UsersWidget(QWidget *parent) : QWidget(parent), ui(new Ui::UsersWidget), m_refreshTimer(new QTimer(this))
@@ -155,6 +174,8 @@ void UsersWidget::onContextMenu(const QPoint &pos)
 
 void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
 {
+    TreeSelectionSnapshot selectionSnapshot;
+
     // Preserve expanded/collapsed state of top-level user rows.
     if (this->ui->treeWidget->topLevelItemCount() > 0)
     {
@@ -170,6 +191,18 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
         this->m_expandedUsers = expanded;
         this->m_hasExpansionSnapshot = true;
     }
+
+    const QList<QTreeWidgetItem *> selectedItems = this->ui->treeWidget->selectedItems();
+    selectionSnapshot.selectedKeys.reserve(selectedItems.size());
+    for (const QTreeWidgetItem *item : selectedItems)
+    {
+        const QString key = itemKey(item);
+        if (!key.isEmpty())
+            selectionSnapshot.selectedKeys.append(key);
+    }
+    selectionSnapshot.currentKey = itemKey(this->ui->treeWidget->currentItem());
+    if (QScrollBar *scrollBar = this->ui->treeWidget->verticalScrollBar())
+        selectionSnapshot.scrollPos = scrollBar->value();
 
     QHash<uid_t, UserAgg> agg;
     for (const OS::Process &p : allProcs)
@@ -191,6 +224,7 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
     }
 
     this->ui->treeWidget->clear();
+    QTreeWidgetItem *restoredCurrentItem = nullptr;
 
     QList<uid_t> uids = agg.keys();
     std::sort(uids.begin(), uids.end(), [&](uid_t a, uid_t b)
@@ -208,6 +242,11 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
         userItem->setText(2, Misc::FormatKiB(a.memKb, 1));
         userItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
         userItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+        const QString userKey = itemKey(userItem);
+        if (selectionSnapshot.selectedKeys.contains(userKey))
+            userItem->setSelected(true);
+        if (!restoredCurrentItem && selectionSnapshot.currentKey == userKey)
+            restoredCurrentItem = userItem;
 
         QList<OS::Process> procs = a.procs;
         std::sort(procs.begin(), procs.end(), [](const OS::Process &x, const OS::Process &y)
@@ -224,9 +263,23 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
             procItem->setText(2, Misc::FormatKiB(p.VMRssKb, 1));
             procItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
             procItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+            const QString procKey = itemKey(procItem);
+            if (selectionSnapshot.selectedKeys.contains(procKey))
+                procItem->setSelected(true);
+            if (!restoredCurrentItem && selectionSnapshot.currentKey == procKey)
+                restoredCurrentItem = procItem;
         }
 
         userItem->setExpanded(this->m_hasExpansionSnapshot && this->m_expandedUsers.contains(uid));
+    }
+
+    if (restoredCurrentItem)
+    {
+        this->ui->treeWidget->setCurrentItem(restoredCurrentItem);
+        this->ui->treeWidget->scrollToItem(restoredCurrentItem, QAbstractItemView::PositionAtCenter);
+    } else if (QScrollBar *scrollBar = this->ui->treeWidget->verticalScrollBar())
+    {
+        scrollBar->setValue(selectionSnapshot.scrollPos);
     }
 
     this->ui->statusLabel->setText(tr("Logged in users: %1").arg(agg.size()));
