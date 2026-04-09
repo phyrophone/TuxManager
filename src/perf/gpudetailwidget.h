@@ -19,14 +19,16 @@
 #ifndef PERF_GPUDETAILWIDGET_H
 #define PERF_GPUDETAILWIDGET_H
 
+#include "globals.h"
 #include "graphwidget.h"
 #include "historybuffer.h"
-#include "perfdataprovider.h"
 
 #include <QComboBox>
 #include <QLabel>
 #include <QVector>
 #include <QWidget>
+
+class Metrics;
 
 namespace Perf
 {
@@ -37,7 +39,7 @@ namespace Perf
         public:
             explicit GpuDetailWidget(QWidget *parent = nullptr);
 
-            void SetGpu(PerfDataProvider *provider, int index);
+            void SetGpu(Metrics *provider, int index);
             void ApplyColorScheme();
 
         private slots:
@@ -50,7 +52,7 @@ namespace Perf
             void bindEngineGraphSource(int slot);
             void bindMemoryAndCopySources(bool hasSharedData);
 
-            PerfDataProvider *m_provider { nullptr };
+            Metrics *m_provider { nullptr };
             int               m_gpuIndex { -1 };
 
             QLabel *m_titleLabel { nullptr };
@@ -79,7 +81,7 @@ namespace Perf
             const HistoryBuffer *m_sharedMemHistorySource { nullptr };
             const HistoryBuffer *m_copyTxHistory { nullptr };
             const HistoryBuffer *m_copyRxHistory { nullptr };
-            HistoryBuffer m_sharedMemHistory { HISTORY_SIZE };
+            HistoryBuffer m_sharedMemHistory { TUX_MANAGER_HISTORY_SIZE };
     };
 } // namespace Perf
 

@@ -23,11 +23,11 @@
 
 class QGridLayout;
 class QStackedWidget;
+class Metrics;
 
 namespace Perf
 {
     class GraphWidget;
-    class PerfDataProvider;
 
     /// Switchable CPU graph container.
     ///
@@ -45,7 +45,7 @@ namespace Perf
             enum class GraphMode { Overall, PerCore };
 
             explicit CpuGraphArea(QWidget *parent = nullptr);
-            void SetProvider(const PerfDataProvider *provider);
+            void SetProvider(const Metrics *provider);
 
             void SetMode(GraphMode mode);
             GraphMode GetMode() const { return this->m_mode; }
@@ -54,7 +54,7 @@ namespace Perf
             bool GetShowKernelTime() const { return this->m_showKernelTime; }
             void ApplyColorScheme();
 
-            /// Call after every PerfDataProvider::updated() signal.
+            /// Call after every Metrics::updated() signal.
             void UpdateData();
 
         signals:
@@ -73,7 +73,7 @@ namespace Perf
             QWidget               *m_perCoreContainer { nullptr };
             QGridLayout           *m_perCoreGrid      { nullptr };
             QVector<GraphWidget *> m_coreGraphs;
-            const PerfDataProvider *m_provider        { nullptr };
+            const Metrics         *m_provider        { nullptr };
 
             GraphMode              m_mode            { GraphMode::Overall };
             bool                   m_showKernelTime  { false };

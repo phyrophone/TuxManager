@@ -20,12 +20,13 @@
 #define PERF_SWAPDETAILWIDGET_H
 
 #include "historybuffer.h"
-#include "perfdataprovider.h"
 #include "graphwidget.h"
 
 #include <QLabel>
 #include <QVector>
 #include <QWidget>
+
+class Metrics;
 
 namespace Perf
 {
@@ -36,14 +37,14 @@ namespace Perf
         public:
             explicit SwapDetailWidget(QWidget *parent = nullptr);
 
-            void SetProvider(PerfDataProvider *provider);
+            void SetProvider(Metrics *provider);
             void ApplyColorScheme();
 
         private slots:
             void onUpdated();
 
         private:
-            PerfDataProvider *m_provider { nullptr };
+            Metrics *m_provider { nullptr };
 
             QLabel *m_titleLabel { nullptr };
             QLabel *m_totalLabel { nullptr };

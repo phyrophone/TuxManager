@@ -18,7 +18,7 @@
 
 #include "sidepanelitem.h"
 #include "../colorscheme.h"
-#include "perfdataprovider.h"
+#include "globals.h"
 
 #include <QPainter>
 #include <QPaintEvent>
@@ -39,7 +39,7 @@ SidePanelItem::SidePanelItem(const QString &title, QWidget *parent) : QWidget(pa
     QVBoxLayout *lay = new QVBoxLayout(this);
     lay->setContentsMargins(6, 22, 6, 4);   // leave room for title text
     lay->setSpacing(0);
-    this->m_graph->SetSampleCapacity(HISTORY_SIZE);
+    this->m_graph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->m_graph->SetHoverLineEnabled(false);
     this->m_graph->SetHoverTooltipEnabled(false);
     lay->addWidget(this->m_graph);

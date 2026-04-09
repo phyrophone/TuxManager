@@ -19,7 +19,6 @@
 #ifndef PERFORMANCEWIDGET_H
 #define PERFORMANCEWIDGET_H
 
-#include "perf/perfdataprovider.h"
 #include "perf/sidepanel.h"
 #include "perf/cpudetailwidget.h"
 #include "perf/memorydetailwidget.h"
@@ -32,6 +31,8 @@
 #include <QStackedWidget>
 #include <QVector>
 #include <QWidget>
+
+class Metrics;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class PerformanceWidget; }
@@ -55,7 +56,7 @@ class PerformanceWidget : public QWidget
     private:
         Ui::PerformanceWidget      *ui;
 
-        Perf::PerfDataProvider     *m_provider;
+        Metrics                    *m_provider;
         Perf::SidePanel            *m_sidePanel;
         QStackedWidget             *m_stack;
         Perf::CpuDetailWidget      *m_cpuDetail;

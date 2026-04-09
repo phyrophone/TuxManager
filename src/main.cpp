@@ -19,6 +19,7 @@
 #include "mainwindow.h"
 #include "configuration.h"
 #include "logger.h"
+#include "globals.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -27,13 +28,10 @@
 #include <cstdio>
 #include <cstring>
 
-static constexpr char kVersion[] = "1.0.2";
-static constexpr char kAppName[] = "Tux Manager";
-
 // Pre-screen --help / --version before QApplication so they work without a display.
 static void print_version()
 {
-    printf("%s %s\n", kAppName, kVersion);
+    printf("%s %s\n", TUX_MANAGER_PRODUCT_NAME, TUX_MANAGER_VERSION_STRING);
 }
 
 static void print_help()
@@ -45,7 +43,7 @@ static void print_help()
            "  -V, --version  Show version and exit\n"
            "  -v             Increase log verbosity.\n"
            "                 Repeat for more detail: -v, -vv, -vvv\n",
-           kAppName);
+           TUX_MANAGER_PRODUCT_NAME);
 }
 
 int main(int argc, char *argv[])
@@ -67,9 +65,9 @@ int main(int argc, char *argv[])
     }
 
     QApplication a(argc, argv);
-    a.setOrganizationName(kAppName);
-    a.setApplicationName(kAppName);
-    a.setApplicationVersion(kVersion);
+    a.setOrganizationName(TUX_MANAGER_PRODUCT_NAME);
+    a.setApplicationName(TUX_MANAGER_PRODUCT_NAME);
+    a.setApplicationVersion(TUX_MANAGER_VERSION_STRING);
     a.setWindowIcon(QIcon(":/tux_manager_256.ico"));
 
     // ── Command-line parsing (remaining options) ──────────────────────────────

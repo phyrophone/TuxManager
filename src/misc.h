@@ -22,6 +22,8 @@
 #include <QString>
 #include <QtGlobal>
 
+class HistoryBuffer;
+
 namespace Misc
 {
     //! Takes time (seconds) and either returns a string (like "15 seconds") or if divisible by 60 or 3600
@@ -42,6 +44,16 @@ namespace Misc
 
     //! Formats a MiB quantity using binary units (B, KB, MB, GB, TB).
     QString FormatMiB(quint64 mebibytes, int precision = 1);
+
+    quint16 ReadLe16(const QByteArray &raw, int off);
+    quint32 ReadLe32(const QByteArray &raw, int off);
+
+    QString ReadFile(const QString &path);
+
+    bool TextContainsAnyToken(const QString &text, const QStringList &tokens);
+    QString FileNameFromSymlink(const QString &path);
+
+    void PushHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cachedMax, double minMax = 0.0);
 }
 
 #endif // MISC_H

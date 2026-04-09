@@ -14,7 +14,14 @@ SOURCES += \
     colorscheme.cpp \
     main.cpp \
     mainwindow.cpp \
+    metrics.cpp \
     misc.cpp \
+    system/cpu.cpp \
+    system/gpu.cpp \
+    system/kernel.cpp \
+    system/memory.cpp \
+    system/network.cpp \
+    system/storage.cpp \
     ui/widgetstyle.cpp \
     ui/uihelper.cpp \
     configuration.cpp \
@@ -33,7 +40,6 @@ SOURCES += \
     os/servicemodel.cpp \
     os/servicefilterproxy.cpp \
     os/servicehelper.cpp \
-    perf/perfdataprovider.cpp \
     perf/graphwidget.cpp \
     perf/sidepanelitem.cpp \
     perf/sidepanel.cpp \
@@ -49,11 +55,20 @@ SOURCES += \
 HEADERS += \
     colorschemedialog.h \
     colorscheme.h \
+    globals.h \
     mainwindow.h \
+    metrics.h \
     misc.h \
+    system/cpu.h \
+    system/gpu.h \
+    system/kernel.h \
+    system/memory.h \
+    system/network.h \
+    system/storage.h \
     ui/widgetstyle.h \
     ui/uihelper.h \
     configuration.h \
+    historybuffer.h \
     logger.h \
     processeswidget.h \
     performancewidget.h \
@@ -69,8 +84,6 @@ HEADERS += \
     os/servicemodel.h \
     os/servicefilterproxy.h \
     os/servicehelper.h \
-    perf/perfdataprovider.h \
-    perf/historybuffer.h \
     perf/graphwidget.h \
     perf/sidepanelitem.h \
     perf/sidepanel.h \

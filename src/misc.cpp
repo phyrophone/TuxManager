@@ -17,9 +17,12 @@
  */
 
 #include "misc.h"
+#include "historybuffer.h"
 
 #include <array>
 #include <QObject>
+#include <QFile>
+#include <QFileInfo>
 #include <QtGlobal>
 
 QString Misc::SimplifyTime(int secs)
@@ -93,4 +96,89 @@ QString Misc::FormatKiB(quint64 kibibytes, int precision)
 QString Misc::FormatMiB(quint64 mebibytes, int precision)
 {
     return FormatBytes(mebibytes * 1024ULL * 1024ULL, precision);
+}
+
+quint16 Misc::ReadLe16(const QByteArray &raw, int off)
+{
+    if (off < 0 || off + 1 >= raw.size())
+        return 0;
+    const quint16 b0 = static_cast<unsigned char>(raw.at(off));
+    const quint16 b1 = static_cast<unsigned char>(raw.at(off + 1));
+    return static_cast<quint16>(b0 | (b1 << 8));
+}
+
+quint32 Misc::ReadLe32(const QByteArray &raw, int off)
+{
+    if (off < 0 || off + 3 >= raw.size())
+        return 0;
+    const quint32 b0 = static_cast<unsigned char>(raw.at(off));
+    const quint32 b1 = static_cast<unsigned char>(raw.at(off + 1));
+    const quint32 b2 = static_cast<unsigned char>(raw.at(off + 2));
+    const quint32 b3 = static_cast<unsigned char>(raw.at(off + 3));
+    return static_cast<quint32>(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));
+}
+
+QString Misc::ReadFile(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    const QString out = QString::fromUtf8(f.readAll()).trimmed();
+    f.close();
+    return out;
+}
+
+bool Misc::TextContainsAnyToken(const QString &text, const QStringList &tokens)
+{
+    const QString lower = text.toLower();
+    for (const QString &t : tokens)
+    {
+        if (lower.contains(t))
+            return true;
+    }
+    return false;
+}
+
+QString Misc::FileNameFromSymlink(const QString &path)
+{
+    const QString target = QFileInfo(path).symLinkTarget();
+    if (target.isEmpty())
+        return {};
+    return QFileInfo(target).fileName();
+}
+
+void Misc::PushHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cachedMax, double minMax)
+{
+    double removed = 0.0;
+    bool removedWasCurrentMax = false;
+    if (vec.size() >= vec.capacity() && !vec.isEmpty())
+    {
+        removed = vec.first();
+        removedWasCurrentMax = (removed >= cachedMax);
+    }
+
+    vec.Push(val);
+
+    if (vec.isEmpty())
+    {
+        cachedMax = minMax;
+        return;
+    }
+
+    if (val >= cachedMax)
+    {
+        cachedMax = qMax(minMax, val);
+        return;
+    }
+
+    if (removedWasCurrentMax)
+    {
+        double recomputedMax = minMax;
+        for (int i = 0; i < vec.size(); ++i)
+            recomputedMax = qMax(recomputedMax, vec.at(i));
+        cachedMax = recomputedMax;
+        return;
+    }
+
+    cachedMax = qMax(cachedMax, minMax);
 }

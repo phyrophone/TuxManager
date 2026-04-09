@@ -29,11 +29,7 @@ class QModelIndex;
 class QMenu;
 class QAction;
 class QTimer;
-
-namespace Perf
-{
-    class PerfDataProvider;
-}
+class Metrics;
 
 namespace UIHelper
 {
@@ -64,7 +60,7 @@ namespace UIHelper
     bool ApplyRefreshIntervalAction(QAction *picked,
                                     const QHash<QAction *, int> &intervalActions,
                                     QAction *pausedAction,
-                                    Perf::PerfDataProvider *provider = nullptr,
+                                    Metrics *provider = nullptr,
                                     QTimer *timer = nullptr,
                                     bool timerOwnerActive = true);
 }

@@ -20,10 +20,11 @@
 #define PERF_CPUDETAILWIDGET_H
 
 #include "cpugrapharea.h"
-#include "perfdataprovider.h"
 
 #include <QMenu>
 #include <QWidget>
+
+class Metrics;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class CpuDetailWidget; }
@@ -39,7 +40,7 @@ namespace Perf
             explicit CpuDetailWidget(QWidget *parent = nullptr);
             ~CpuDetailWidget();
 
-            void SetProvider(PerfDataProvider *provider);
+            void SetProvider(Metrics *provider);
             void ApplyColorScheme();
 
         private slots:
@@ -48,7 +49,7 @@ namespace Perf
 
         private:
             Ui::CpuDetailWidget  *ui;
-            PerfDataProvider     *m_provider   { nullptr };
+            Metrics              *m_provider   { nullptr };
             CpuGraphArea         *m_graphArea  { nullptr };
     };
 } // namespace Perf

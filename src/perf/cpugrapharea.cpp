@@ -21,7 +21,7 @@
 #include "../colorscheme.h"
 #include "configuration.h"
 #include "graphwidget.h"
-#include "perfdataprovider.h"
+#include "metrics.h"
 
 #include <QContextMenuEvent>
 #include <QGridLayout>
@@ -57,7 +57,7 @@ CpuGraphArea::CpuGraphArea(QWidget *parent) : QWidget(parent), m_stack(new QStac
 
 // ── Public interface ──────────────────────────────────────────────────────────
 
-void CpuGraphArea::SetProvider(const PerfDataProvider *provider)
+void CpuGraphArea::SetProvider(const Metrics *provider)
 {
     this->m_provider = provider;
     if (!this->m_provider)
@@ -65,7 +65,7 @@ void CpuGraphArea::SetProvider(const PerfDataProvider *provider)
 
     this->bindOverallGraphSources();
 
-    const int cores = this->m_provider->CoreCount();
+    const int cores = Metrics::GetCPU()->CoreCount();
     if (cores > 0)
     {
         this->ensureCoreGraphs(cores);
@@ -109,7 +109,7 @@ void CpuGraphArea::UpdateData()
     this->m_overallGraph->Tick();
 
     // ── Per-core grid ─────────────────────────────────────────────────────────
-    const int cores = this->m_provider->CoreCount();
+    const int cores = Metrics::GetCPU()->CoreCount();
     if (cores > 0)
     {
         const bool coreGraphsRebuilt = (this->m_coreGraphs.size() != cores);
@@ -122,7 +122,7 @@ void CpuGraphArea::UpdateData()
             GraphWidget *g = this->m_coreGraphs.at(i);
             if (!coreGraphsRebuilt)
                 g->Tick();
-            const double coreMhz = this->m_provider->CoreCurrentMhz(i);
+            const double coreMhz = Metrics::GetCPU()->CoreCurrentMhz(i);
             if (coreMhz > 0.0)
                 g->SetOverlayText(tr("%1 GHz").arg(coreMhz / 1000.0, 0, 'f', 2));
             else
@@ -201,9 +201,9 @@ void CpuGraphArea::bindOverallGraphSources()
     if (!this->m_provider)
         return;
 
-    this->m_overallGraph->SetDataSource(this->m_provider->CpuHistory());
+    this->m_overallGraph->SetDataSource(Metrics::GetCPU()->CpuHistory());
     if (this->m_showKernelTime)
-        this->m_overallGraph->SetOverlayDataSource(this->m_provider->CpuKernelHistory());
+        this->m_overallGraph->SetOverlayDataSource(Metrics::GetCPU()->CpuKernelHistory());
     else
         this->m_overallGraph->ClearOverlayDataSource();
 }
@@ -217,9 +217,9 @@ void CpuGraphArea::bindCoreGraphSources(int count)
     for (int i = 0; i < boundCount; ++i)
     {
         GraphWidget *g = this->m_coreGraphs.at(i);
-        g->SetDataSource(this->m_provider->CoreHistory(i));
+        g->SetDataSource(Metrics::GetCPU()->CoreHistory(i));
         if (this->m_showKernelTime)
-            g->SetOverlayDataSource(this->m_provider->CoreKernelHistory(i));
+            g->SetOverlayDataSource(Metrics::GetCPU()->CoreKernelHistory(i));
         else
             g->ClearOverlayDataSource();
     }

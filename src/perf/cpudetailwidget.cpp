@@ -19,6 +19,7 @@
 #include "cpudetailwidget.h"
 #include "ui_cpudetailwidget.h"
 #include "configuration.h"
+#include "metrics.h"
 #include "../colorscheme.h"
 #include "../ui/widgetstyle.h"
 
@@ -80,21 +81,21 @@ CpuDetailWidget::~CpuDetailWidget()
     delete this->ui;
 }
 
-void CpuDetailWidget::SetProvider(PerfDataProvider *provider)
+void CpuDetailWidget::SetProvider(Metrics *provider)
 {
     if (this->m_provider)
-        disconnect(this->m_provider, &PerfDataProvider::updated, this, &CpuDetailWidget::onUpdated);
+        disconnect(this->m_provider, &Metrics::updated, this, &CpuDetailWidget::onUpdated);
 
     this->m_provider = provider;
 
     if (this->m_provider)
     {
         // Populate one-time static labels from metadata
-        this->ui->modelNameLabel->setText(this->m_provider->CpuModelName());
-        this->ui->statLogicalCpusValue->setText(QString::number(this->m_provider->CpuLogicalCount()));
+        this->ui->modelNameLabel->setText(Metrics::GetCPU()->CpuModelName());
+        this->ui->statLogicalCpusValue->setText(QString::number(Metrics::GetCPU()->CpuLogicalCount()));
         this->m_graphArea->SetProvider(this->m_provider);
 
-        connect(this->m_provider, &PerfDataProvider::updated, this, &CpuDetailWidget::onUpdated);
+        connect(this->m_provider, &Metrics::updated, this, &CpuDetailWidget::onUpdated);
         this->onUpdated();
     }
 }
@@ -134,7 +135,7 @@ void CpuDetailWidget::onUpdated()
     if (!this->m_provider)
         return;
 
-    const double pct = this->m_provider->CpuPercent();
+    const double pct = Metrics::GetCPU()->CpuPercent();
 
     // Header utilisation
     this->ui->utilizationLabel->setText(QString::number(pct, 'f', 0) + "%");
@@ -142,18 +143,18 @@ void CpuDetailWidget::onUpdated()
     // Stats panel
     this->ui->statUtilValue->setText(QString::number(pct, 'f', 1) + "%");
 
-    const double curMhz = this->m_provider->CpuCurrentMhz();
+    const double curMhz = Metrics::GetCPU()->CpuCurrentMhz();
     if (curMhz > 0.0)
         this->ui->statSpeedValue->setText(
                 tr("%1 GHz").arg(curMhz / 1000.0, 0, 'f', 2));
     else
         this->ui->statSpeedValue->setText(tr("—"));
 
-    const int cpuTempC = this->m_provider->CpuTemperatureC();
+    const int cpuTempC = Metrics::GetCPU()->CpuTemperatureC();
     this->ui->statTempValue->setText(cpuTempC >= 0 ? tr("%1 C").arg(cpuTempC) : tr("—"));
 
-    this->ui->statProcessesValue->setText(QString::number(this->m_provider->ProcessCount()));
-    this->ui->statThreadsValue->setText(QString::number(this->m_provider->ThreadCount()));
+    this->ui->statProcessesValue->setText(QString::number(Metrics::GetKernel()->ProcessCount()));
+    this->ui->statThreadsValue->setText(QString::number(Metrics::GetKernel()->ThreadCount()));
 
     // Uptime from /proc/uptime
     QFile f("/proc/uptime");
@@ -183,9 +184,9 @@ void CpuDetailWidget::onUpdated()
     // Update the graph area
     this->m_graphArea->UpdateData();
 
-    if (this->m_provider->CpuIsVirtualMachine())
+    if (Metrics::GetCPU()->CpuIsVirtualMachine())
     {
-        const QString vendor = this->m_provider->CpuVmVendor();
+        const QString vendor = Metrics::GetCPU()->CpuVmVendor();
         if (vendor.isEmpty())
             this->ui->statVmValue->setText(tr("Yes"));
         else

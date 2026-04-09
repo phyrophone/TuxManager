@@ -102,7 +102,7 @@ namespace Perf
 
             int             m_gridCols  { 5 };
             int             m_gridRows  { 4 };
-            int             m_sampleCapacity { 60 };  ///< Matches PerfDataProvider::HISTORY_SIZE.
+            int             m_sampleCapacity { 60 };  ///< Matches the default history window in seconds.
             int             m_historyTick { 0 };      ///< Advances as samples arrive; used for grid phase.
             int             m_hoverSlot { -1 };
             bool            m_hoverLineEnabled { true };

@@ -17,6 +17,8 @@
  */
 
 #include "memorydetailwidget.h"
+#include "globals.h"
+#include "metrics.h"
 #include "ui_memorydetailwidget.h"
 #include "../colorscheme.h"
 #include "../misc.h"
@@ -63,7 +65,7 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
 
     // Memory graph: purple / magenta
     this->ui->graphWidget->SetColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
-    this->ui->graphWidget->SetSampleCapacity(HISTORY_SIZE);
+    this->ui->graphWidget->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->ui->graphWidget->SetGridColumns(6);
     this->ui->graphWidget->SetGridRows(4);
     this->ui->graphWidget->SetSeriesNames(tr("Used memory"));
@@ -112,37 +114,37 @@ void MemoryDetailWidget::ApplyColorScheme()
     this->update();
 }
 
-void MemoryDetailWidget::setProvider(PerfDataProvider *provider)
+void MemoryDetailWidget::setProvider(Metrics *provider)
 {
     if (this->m_provider)
-        disconnect(this->m_provider, &PerfDataProvider::updated, this, &MemoryDetailWidget::onUpdated);
+        disconnect(this->m_provider, &Metrics::updated, this, &MemoryDetailWidget::onUpdated);
 
     this->m_provider = provider;
     this->m_memHistory = nullptr;
 
     if (this->m_provider)
     {
-        const qint64 total = this->m_provider->MemTotalKb();
-        this->m_memHistory = &this->m_provider->MemHistory();
+        const qint64 total = Metrics::GetMemory()->MemTotalKb();
+        this->m_memHistory = &Metrics::GetMemory()->MemHistory();
 
         this->ui->totalLabel->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, total)), 1));
         this->ui->graphWidget->SetPercentTooltipAbsolute(static_cast<double>(total) / (1024.0 * 1024.0), tr("GB"), 2);
         this->ui->graphWidget->SetDataSource(*this->m_memHistory);
 
-        const int dimmUsed = this->m_provider->MemDimmSlotsUsed();
-        const int dimmTotal = this->m_provider->MemDimmSlotsTotal();
+        const int dimmUsed = Metrics::GetMemory()->MemDimmSlotsUsed();
+        const int dimmTotal = Metrics::GetMemory()->MemDimmSlotsTotal();
         if (dimmTotal > 0)
             this->ui->statDimmSlotsValue->setText(tr("%1 / %2").arg(dimmUsed).arg(dimmTotal));
         else
             this->ui->statDimmSlotsValue->setText(tr("—"));
 
-        const int memMtps = this->m_provider->MemSpeedMtps();
+        const int memMtps = Metrics::GetMemory()->MemSpeedMtps();
         if (memMtps > 0)
             this->ui->statMemSpeedValue->setText(tr("%1 MT/s").arg(memMtps));
         else
             this->ui->statMemSpeedValue->setText(tr("—"));
 
-        connect(this->m_provider, &PerfDataProvider::updated, this, &MemoryDetailWidget::onUpdated);
+        connect(this->m_provider, &Metrics::updated, this, &MemoryDetailWidget::onUpdated);
         this->onUpdated();
     }
 }
@@ -152,13 +154,13 @@ void MemoryDetailWidget::onUpdated()
     if (!this->m_provider)
         return;
 
-    const qint64 total   = this->m_provider->MemTotalKb();
-    const qint64 used    = this->m_provider->MemUsedKb();
-    const qint64 avail   = this->m_provider->MemAvailKb();
-    const qint64 free    = this->m_provider->MemFreeKb();
-    const qint64 cached  = this->m_provider->MemCachedKb();   // includes buffers
-    const qint64 buffers = this->m_provider->MemBuffersKb();
-    const qint64 dirty   = this->m_provider->MemDirtyKb();
+    const qint64 total   = Metrics::GetMemory()->MemTotalKb();
+    const qint64 used    = Metrics::GetMemory()->MemUsedKb();
+    const qint64 avail   = Metrics::GetMemory()->MemAvailKb();
+    const qint64 free    = Metrics::GetMemory()->MemFreeKb();
+    const qint64 cached  = Metrics::GetMemory()->MemCachedKb();   // includes buffers
+    const qint64 buffers = Metrics::GetMemory()->MemBuffersKb();
+    const qint64 dirty   = Metrics::GetMemory()->MemDirtyKb();
 
     this->ui->statInUseValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, used)), 1));
     this->ui->statAvailValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, avail)), 1));

@@ -20,10 +20,13 @@
 #include "../colorscheme.h"
 #include "../misc.h"
 #include "../ui/widgetstyle.h"
+#include "globals.h"
+#include "metrics.h"
 
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <utility>
 
 using namespace Perf;
 
@@ -64,7 +67,7 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
 
     this->m_usageGraph = new GraphWidget(this);
     this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
-    this->m_usageGraph->SetSampleCapacity(HISTORY_SIZE);
+    this->m_usageGraph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->m_usageGraph->SetGridColumns(6);
     this->m_usageGraph->SetGridRows(4);
     this->m_usageGraph->SetSeriesNames(tr("Swap usage"));
@@ -93,7 +96,7 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
 
     this->m_activityGraph = new GraphWidget(this);
     this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor, scheme->SwapActivityGraphFillColor, scheme->SwapActivityGraphSecondaryFillColor);
-    this->m_activityGraph->SetSampleCapacity(HISTORY_SIZE);
+    this->m_activityGraph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->m_activityGraph->SetGridColumns(6);
     this->m_activityGraph->SetGridRows(4);
     this->m_activityGraph->SetSeriesNames(tr("Swap in"), tr("Swap out"));
@@ -148,19 +151,19 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->addLayout(stats);
 }
 
-void SwapDetailWidget::SetProvider(PerfDataProvider *provider)
+void SwapDetailWidget::SetProvider(Metrics *provider)
 {
     this->m_provider = provider;
 
-    this->m_usageHistory = &this->m_provider->SwapUsageHistory();
-    this->m_outHistory = &this->m_provider->SwapOutHistory();
-    this->m_inHistory = &this->m_provider->SwapInHistory();
+    this->m_usageHistory = &Metrics::GetMemory()->SwapUsageHistory();
+    this->m_outHistory = &Metrics::GetMemory()->SwapOutHistory();
+    this->m_inHistory = &Metrics::GetMemory()->SwapInHistory();
 
     this->m_usageGraph->SetDataSource(*this->m_usageHistory, 100.0);
     this->m_activityGraph->SetDataSource(*this->m_inHistory, 1024.0);
     this->m_activityGraph->SetOverlayDataSource(*this->m_outHistory);
 
-    connect(this->m_provider, &PerfDataProvider::updated, this, &SwapDetailWidget::onUpdated);
+    connect(this->m_provider, &Metrics::updated, this, &SwapDetailWidget::onUpdated);
     this->onUpdated();
 }
 
@@ -169,9 +172,9 @@ void SwapDetailWidget::ApplyColorScheme()
     const ColorScheme *scheme = ColorScheme::GetCurrent();
     WidgetStyle::ApplyTextStyle(this->m_titleLabel, scheme->SwapUsageGraphLineColor, 18, true);
     WidgetStyle::ApplyTextStyle(this->m_totalLabel, scheme->MutedTextColor, 11);
-    for (QLabel *label : this->m_statLabels)
+    for (QLabel *label : std::as_const(this->m_statLabels))
         WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
-    for (QLabel *label : this->m_axisLabels)
+    for (QLabel *label : std::as_const(this->m_axisLabels))
         WidgetStyle::ApplyTextStyle(label, scheme->AxisLabelColor);
     this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
     this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor, scheme->SwapActivityGraphFillColor, scheme->SwapActivityGraphSecondaryFillColor);
@@ -183,11 +186,11 @@ void SwapDetailWidget::onUpdated()
     if (!this->m_provider)
         return;
 
-    const qint64 totalKb = this->m_provider->SwapTotalKb();
-    const qint64 usedKb = this->m_provider->SwapUsedKb();
-    const qint64 freeKb = this->m_provider->SwapFreeKb();
-    const double inBps = this->m_provider->SwapInBytesPerSec();
-    const double outBps = this->m_provider->SwapOutBytesPerSec();
+    const qint64 totalKb = Metrics::GetMemory()->SwapTotalKb();
+    const qint64 usedKb = Metrics::GetMemory()->SwapUsedKb();
+    const qint64 freeKb = Metrics::GetMemory()->SwapFreeKb();
+    const double inBps = Metrics::GetMemory()->SwapInBytesPerSec();
+    const double outBps = Metrics::GetMemory()->SwapOutBytesPerSec();
 
     const double usedPct = (totalKb > 0)
                            ? static_cast<double>(usedKb) * 100.0 / static_cast<double>(totalKb)
@@ -203,7 +206,7 @@ void SwapDetailWidget::onUpdated()
 
     this->m_usageGraph->SetPercentTooltipAbsolute(static_cast<double>(totalKb) / (1024.0 * 1024.0), tr("GB"), 2);
 
-    const double maxRate = this->m_provider->SwapMaxActivityBytesPerSec();
+    const double maxRate = Metrics::GetMemory()->SwapMaxActivityBytesPerSec();
     this->m_activityGraph->SetMax(maxRate);
 
     this->m_usageGraph->Tick();

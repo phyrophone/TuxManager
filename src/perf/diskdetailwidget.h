@@ -20,9 +20,10 @@
 #define PERF_DISKDETAILWIDGET_H
 
 #include "historybuffer.h"
-#include "perfdataprovider.h"
 
 #include <QWidget>
+
+class Metrics;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class DiskDetailWidget; }
@@ -38,7 +39,7 @@ namespace Perf
             explicit DiskDetailWidget(QWidget *parent = nullptr);
             ~DiskDetailWidget();
 
-            void SetDisk(PerfDataProvider *provider, int index);
+            void SetDisk(Metrics *provider, int index);
             void ApplyColorScheme();
 
         private slots:
@@ -46,7 +47,7 @@ namespace Perf
 
         private:
             Ui::DiskDetailWidget *ui;
-            PerfDataProvider     *m_provider { nullptr };
+            Metrics              *m_provider { nullptr };
             int                   m_diskIndex { -1 };
             const HistoryBuffer *m_activeHistory { nullptr };
             const HistoryBuffer *m_readHistory { nullptr };

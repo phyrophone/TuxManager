@@ -18,6 +18,7 @@
 
 #include "gpudetailwidget.h"
 #include "configuration.h"
+#include "metrics.h"
 #include "../colorscheme.h"
 #include "../misc.h"
 #include "../ui/widgetstyle.h"
@@ -47,7 +48,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     auto configureGraph = [&](GraphWidget *graph)
     {
         graph->SetColor(scheme->GpuGraphLineColor, scheme->GpuGraphFillColor, scheme->GpuGraphSecondaryFillColor);
-        graph->SetSampleCapacity(HISTORY_SIZE);
+        graph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
         graph->SetGridColumns(6);
         graph->SetGridRows(4);
         graph->SetValueFormat(GraphWidget::ValueFormat::Percent);
@@ -212,10 +213,10 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     root->addLayout(stats);
 }
 
-void GpuDetailWidget::SetGpu(PerfDataProvider *provider, int index)
+void GpuDetailWidget::SetGpu(Metrics *provider, int index)
 {
     if (this->m_provider)
-        disconnect(this->m_provider, &PerfDataProvider::updated, this, &GpuDetailWidget::onUpdated);
+        disconnect(this->m_provider, &Metrics::updated, this, &GpuDetailWidget::onUpdated);
 
     this->m_provider = provider;
     this->m_gpuIndex = index;
@@ -226,12 +227,12 @@ void GpuDetailWidget::SetGpu(PerfDataProvider *provider, int index)
 
     if (this->m_provider)
     {
-        connect(this->m_provider, &PerfDataProvider::updated, this, &GpuDetailWidget::onUpdated);
-        if (this->m_gpuIndex >= 0 && this->m_gpuIndex < this->m_provider->GpuCount())
+        connect(this->m_provider, &Metrics::updated, this, &GpuDetailWidget::onUpdated);
+        if (this->m_gpuIndex >= 0 && this->m_gpuIndex < Metrics::GetGPU()->GpuCount())
         {
             this->bindGpuIdentity();
             this->rebuildEngineSelectors();
-            const bool hasSharedData = (this->m_provider->GpuSharedMemTotalMiB(this->m_gpuIndex) > 0);
+            const bool hasSharedData = (Metrics::GetGPU()->GpuSharedMemTotalMiB(this->m_gpuIndex) > 0);
             this->bindMemoryAndCopySources(hasSharedData);
             for (int slot = 0; slot < this->m_engineGraphs.size(); ++slot)
                 this->bindEngineGraphSource(slot);
@@ -279,10 +280,10 @@ void GpuDetailWidget::onEngineSelectionChanged(int slot, int comboIndex)
 
 void GpuDetailWidget::rebuildEngineSelectors()
 {
-    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= Metrics::GetGPU()->GpuCount())
         return;
 
-    const int engineCount = this->m_provider->GpuEngineCount(this->m_gpuIndex);
+    const int engineCount = Metrics::GetGPU()->GpuEngineCount(this->m_gpuIndex);
     for (int slot = 0; slot < this->m_engineSelectors.size(); ++slot)
     {
         QComboBox *combo = this->m_engineSelectors.at(slot);
@@ -293,7 +294,7 @@ void GpuDetailWidget::rebuildEngineSelectors()
         combo->clear();
 
         for (int i = 0; i < engineCount; ++i)
-            combo->addItem(this->m_provider->GpuEngineName(this->m_gpuIndex, i), i);
+            combo->addItem(Metrics::GetGPU()->GpuEngineName(this->m_gpuIndex, i), i);
 
         int engineIndex = this->m_selectedEngineBySlot[slot];
         if (engineIndex < 0 || engineIndex >= engineCount)
@@ -310,20 +311,20 @@ void GpuDetailWidget::rebuildEngineSelectors()
 
 void GpuDetailWidget::onUpdated()
 {
-    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= Metrics::GetGPU()->GpuCount())
         return;
 
-    const double util = this->m_provider->GpuUtilPercent(this->m_gpuIndex);
-    const int tempC = this->m_provider->GpuTemperatureC(this->m_gpuIndex);
-    const qint64 dedicatedUsedMiB = this->m_provider->GpuMemUsedMiB(this->m_gpuIndex);
-    const qint64 dedicatedTotalMiB = this->m_provider->GpuMemTotalMiB(this->m_gpuIndex);
+    const double util = Metrics::GetGPU()->GpuUtilPercent(this->m_gpuIndex);
+    const int tempC = Metrics::GetGPU()->GpuTemperatureC(this->m_gpuIndex);
+    const qint64 dedicatedUsedMiB = Metrics::GetGPU()->GpuMemUsedMiB(this->m_gpuIndex);
+    const qint64 dedicatedTotalMiB = Metrics::GetGPU()->GpuMemTotalMiB(this->m_gpuIndex);
 
-    qint64 sharedTotalMiB = this->m_provider->GpuSharedMemTotalMiB(this->m_gpuIndex);
-    qint64 sharedUsedMiB  = this->m_provider->GpuSharedMemUsedMiB(this->m_gpuIndex);
+    qint64 sharedTotalMiB = Metrics::GetGPU()->GpuSharedMemTotalMiB(this->m_gpuIndex);
+    qint64 sharedUsedMiB  = Metrics::GetGPU()->GpuSharedMemUsedMiB(this->m_gpuIndex);
     const bool hasSharedData = (sharedTotalMiB > 0);
     if (!hasSharedData)
     {
-        sharedTotalMiB = qMax<qint64>(0, this->m_provider->MemTotalKb() / 1024 / 2);
+        sharedTotalMiB = qMax<qint64>(0, Metrics::GetMemory()->MemTotalKb() / 1024 / 2);
         sharedUsedMiB  = 0;
         this->m_sharedMemHistory.Push(0.0);
     }
@@ -343,8 +344,8 @@ void GpuDetailWidget::onUpdated()
     this->m_sharedMemValueLabel->setText(tr("%1 / %2")
                                          .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedUsedMiB)), 1))
                                          .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedTotalMiB)), 1)));
-    this->m_driverValueLabel->setText(this->m_provider->GpuDriverVersion(this->m_gpuIndex));
-    this->m_backendValueLabel->setText(this->m_provider->GpuBackendName(this->m_gpuIndex));
+    this->m_driverValueLabel->setText(Metrics::GetGPU()->GpuDriverVersion(this->m_gpuIndex));
+    this->m_backendValueLabel->setText(Metrics::GetGPU()->GpuBackendName(this->m_gpuIndex));
 
     // We assume that GPU engines don't change during runtime
     //this->rebuildEngineSelectors();
@@ -359,7 +360,7 @@ void GpuDetailWidget::onUpdated()
 
         if (engineIndex >= 0)
         {
-            value->setText(QString::number(this->m_provider->GpuEnginePercent(this->m_gpuIndex, engineIndex), 'f', 0) + "%");
+            value->setText(QString::number(Metrics::GetGPU()->GpuEnginePercent(this->m_gpuIndex, engineIndex), 'f', 0) + "%");
         } else
         {
             value->setText("0%");
@@ -375,7 +376,7 @@ void GpuDetailWidget::onUpdated()
     this->m_sharedMemGraphMaxLabel->setText(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedTotalMiB)), 1));
     this->m_sharedMemGraph->Tick();
 
-    const double maxCopyRate = this->m_provider->GpuMaxCopyBytesPerSec(this->m_gpuIndex);
+    const double maxCopyRate = Metrics::GetGPU()->GpuMaxCopyBytesPerSec(this->m_gpuIndex);
     this->m_copyBwGraph->SetMax(maxCopyRate);
     this->m_copyBwGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxCopyRate));
     this->m_copyBwGraph->Tick();
@@ -383,16 +384,16 @@ void GpuDetailWidget::onUpdated()
 
 void GpuDetailWidget::bindGpuIdentity()
 {
-    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= Metrics::GetGPU()->GpuCount())
         return;
 
     this->m_titleLabel->setText(tr("GPU %1").arg(this->m_gpuIndex));
-    this->m_modelLabel->setText(this->m_provider->GpuName(this->m_gpuIndex));
+    this->m_modelLabel->setText(Metrics::GetGPU()->GpuName(this->m_gpuIndex));
 }
 
 void GpuDetailWidget::bindEngineGraphSource(int slot)
 {
-    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= Metrics::GetGPU()->GpuCount())
         return;
     if (slot < 0 || slot >= this->m_engineGraphs.size())
         return;
@@ -406,8 +407,8 @@ void GpuDetailWidget::bindEngineGraphSource(int slot)
                             : -1;
     if (engineIndex >= 0)
     {
-        graph->SetSeriesNames(this->m_provider->GpuEngineName(this->m_gpuIndex, engineIndex));
-        graph->SetDataSource(this->m_provider->GpuEngineHistory(this->m_gpuIndex, engineIndex), 100.0);
+        graph->SetSeriesNames(Metrics::GetGPU()->GpuEngineName(this->m_gpuIndex, engineIndex));
+        graph->SetDataSource(Metrics::GetGPU()->GpuEngineHistory(this->m_gpuIndex, engineIndex), 100.0);
     } else
     {
         graph->SetSeriesNames(tr("Value"));
@@ -417,12 +418,12 @@ void GpuDetailWidget::bindEngineGraphSource(int slot)
 
 void GpuDetailWidget::bindMemoryAndCopySources(bool hasSharedData)
 {
-    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= Metrics::GetGPU()->GpuCount())
         return;
 
-    const HistoryBuffer *dedicatedMemHistory = &this->m_provider->GpuMemUsageHistory(this->m_gpuIndex);
-    const HistoryBuffer *copyTxHistory = &this->m_provider->GpuCopyTxHistory(this->m_gpuIndex);
-    const HistoryBuffer *copyRxHistory = &this->m_provider->GpuCopyRxHistory(this->m_gpuIndex);
+    const HistoryBuffer *dedicatedMemHistory = &Metrics::GetGPU()->GpuMemUsageHistory(this->m_gpuIndex);
+    const HistoryBuffer *copyTxHistory = &Metrics::GetGPU()->GpuCopyTxHistory(this->m_gpuIndex);
+    const HistoryBuffer *copyRxHistory = &Metrics::GetGPU()->GpuCopyRxHistory(this->m_gpuIndex);
 
     if (this->m_dedicatedMemHistory != dedicatedMemHistory)
     {
@@ -443,7 +444,7 @@ void GpuDetailWidget::bindMemoryAndCopySources(bool hasSharedData)
     }
 
     const HistoryBuffer *desiredSharedHistory = hasSharedData
-                                                  ? &this->m_provider->GpuSharedMemHistory(this->m_gpuIndex)
+                                                  ? &Metrics::GetGPU()->GpuSharedMemHistory(this->m_gpuIndex)
                                                   : &this->m_sharedMemHistory;
     if (this->m_sharedMemHistorySource != desiredSharedHistory)
     {

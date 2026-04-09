@@ -17,6 +17,7 @@
  */
 
 #include "performancewidget.h"
+#include "metrics.h"
 #include "ui_performancewidget.h"
 
 #include "colorschemedialog.h"
@@ -40,7 +41,7 @@
 PerformanceWidget::PerformanceWidget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::PerformanceWidget)
-    , m_provider(new Perf::PerfDataProvider(this))
+    , m_provider(new Metrics(this))
     , m_sidePanel(new Perf::SidePanel(this))
     , m_stack(new QStackedWidget(this))
     , m_cpuDetail(new Perf::CpuDetailWidget(this))
@@ -58,7 +59,7 @@ PerformanceWidget::PerformanceWidget(QWidget *parent)
     this->m_swapDetail->SetProvider(this->m_provider);
 
     // Update side panel thumbnails on every sample
-    connect(this->m_provider, &Perf::PerfDataProvider::updated, this, &PerformanceWidget::onProviderUpdated);
+    connect(this->m_provider, &Metrics::updated, this, &PerformanceWidget::onProviderUpdated);
 
     // Expensive process/thread counting is only needed for CPU detail page.
     connect(this->m_sidePanel, &Perf::SidePanel::currentChanged, this, [this](int index)
@@ -108,21 +109,21 @@ void PerformanceWidget::setupSidePanel()
     // ── CPU item ─────────────────────────────────────────────────────────────
     auto *cpuItem = new Perf::SidePanelItem(tr("CPU"), this);
     cpuItem->SetGraphColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
-    cpuItem->SetGraphSource(this->m_provider->CpuHistory());
+    cpuItem->SetGraphSource(Metrics::GetCPU()->CpuHistory());
     this->m_cpuPanelIndex = this->m_sidePanel->AddItem(cpuItem);
     this->m_stack->addWidget(this->m_cpuDetail);
 
     // ── Memory item ──────────────────────────────────────────────────────────
     auto *memItem = new Perf::SidePanelItem(tr("Memory"), this);
     memItem->SetGraphColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
-    memItem->SetGraphSource(this->m_provider->MemHistory());
+    memItem->SetGraphSource(Metrics::GetMemory()->MemHistory());
     this->m_memoryPanelIndex = this->m_sidePanel->AddItem(memItem);
     this->m_stack->addWidget(this->m_memDetail);
 
     // ── Swap item ────────────────────────────────────────────────────────────
     auto *swapItem = new Perf::SidePanelItem(tr("Swap"), this);
     swapItem->SetGraphColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
-    swapItem->SetGraphSource(this->m_provider->SwapUsageHistory());
+    swapItem->SetGraphSource(Metrics::GetMemory()->SwapUsageHistory());
     this->m_swapPanelIndex = this->m_sidePanel->AddItem(swapItem);
     this->m_stack->addWidget(this->m_swapDetail);
 
@@ -138,15 +139,15 @@ void PerformanceWidget::setupDiskPanels()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
     this->m_diskPanelStart = this->m_sidePanel->GetCount();
-    const int count = this->m_provider->DiskCount();
+    const int count = Metrics::GetStorage()->DiskCount();
     for (int i = 0; i < count; ++i)
     {
-        const QString devName = this->m_provider->DiskName(i);
+        const QString devName = Metrics::GetStorage()->DiskName(i);
         this->m_diskNames.append(devName);
 
         auto *item = new Perf::SidePanelItem(tr("Disk (%1)").arg(devName), this);
         item->SetGraphColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
-        item->SetGraphSource(this->m_provider->DiskActiveHistory(i));
+        item->SetGraphSource(Metrics::GetStorage()->DiskActiveHistory(i));
         this->m_sidePanel->AddItem(item);
         this->m_diskItems.append(item);
 
@@ -161,15 +162,15 @@ void PerformanceWidget::setupGpuPanels()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
     this->m_gpuPanelStart = this->m_sidePanel->GetCount();
-    const int count = this->m_provider->GpuCount();
+    const int count = Metrics::GetGPU()->GpuCount();
     for (int i = 0; i < count; ++i)
     {
-        const QString GpuName = this->m_provider->GpuName(i);
+        const QString GpuName = Metrics::GetGPU()->GpuName(i);
         this->m_gpuNames.append(GpuName);
 
         auto *item = new Perf::SidePanelItem(tr("GPU %1").arg(i), this);
         item->SetGraphColor(scheme->GpuGraphLineColor, scheme->GpuGraphFillColor);
-        item->SetGraphSource(this->m_provider->GpuUtilHistory(i));
+        item->SetGraphSource(Metrics::GetGPU()->GpuUtilHistory(i));
         this->m_sidePanel->AddItem(item);
         this->m_gpuItems.append(item);
 
@@ -184,15 +185,15 @@ void PerformanceWidget::setupNetworkPanels()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
     this->m_networkPanelStart = this->m_sidePanel->GetCount();
-    const int count = this->m_provider->NetworkCount();
+    const int count = Metrics::GetNetwork()->NetworkCount();
     for (int i = 0; i < count; ++i)
     {
-        const QString ifName = this->m_provider->NetworkName(i);
+        const QString ifName = Metrics::GetNetwork()->NetworkName(i);
         this->m_networkNames.append(ifName);
 
         auto *item = new Perf::SidePanelItem(tr("NIC (%1)").arg(ifName), this);
         item->SetGraphColor(scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor);
-        item->SetGraphSource(this->m_provider->NetworkRxHistory(i), 1024.0);
+        item->SetGraphSource(Metrics::GetNetwork()->NetworkRxHistory(i), 1024.0);
         this->m_sidePanel->AddItem(item);
         this->m_networkItems.append(item);
 
@@ -208,8 +209,8 @@ void PerformanceWidget::setupNetworkPanels()
 void PerformanceWidget::onProviderUpdated()
 {
     // Update CPU side panel item
-    const double cpuPct = this->m_provider->CpuPercent();
-    const int cpuTempC = this->m_provider->CpuTemperatureC();
+    const double cpuPct = Metrics::GetCPU()->CpuPercent();
+    const int cpuTempC = Metrics::GetCPU()->CpuTemperatureC();
     const QString cpuSub = (cpuTempC >= 0)
                            ? tr("%1%2 %3C", "%1=value %2=percent sign %3=temperature in Celsius")
                                  .arg(QString::number(cpuPct, 'f', 0), "%", QString::number(cpuTempC))
@@ -221,8 +222,8 @@ void PerformanceWidget::onProviderUpdated()
     }
 
     // Update Memory side panel item
-    const qint64 used  = this->m_provider->MemUsedKb();
-    const qint64 total = this->m_provider->MemTotalKb();
+    const qint64 used  = Metrics::GetMemory()->MemUsedKb();
+    const qint64 total = Metrics::GetMemory()->MemTotalKb();
     const int    pct     = total > 0
                            ? static_cast<int>(static_cast<double>(used) / total * 100.0)
                            : 0;
@@ -237,8 +238,8 @@ void PerformanceWidget::onProviderUpdated()
     }
 
     // Update Swap side panel item
-    const qint64 swapUsed = this->m_provider->SwapUsedKb();
-    const qint64 swapTotal = this->m_provider->SwapTotalKb();
+    const qint64 swapUsed = Metrics::GetMemory()->SwapUsedKb();
+    const qint64 swapTotal = Metrics::GetMemory()->SwapTotalKb();
     const int swapPct = (swapTotal > 0)
                         ? static_cast<int>(static_cast<double>(swapUsed) / static_cast<double>(swapTotal) * 100.0)
                         : 0;
@@ -260,15 +261,15 @@ void PerformanceWidget::onProviderUpdated()
     {
         for (int i = 0; i < this->m_diskItems.size(); ++i)
         {
-            if (i >= this->m_provider->DiskCount())
+            if (i >= Metrics::GetStorage()->DiskCount())
                 break;
             auto *item = this->m_diskItems.at(i);
             if (!item)
                 continue;
 
             const QString diskSub = tr("%1 %2", "%1=disk type %2=active percentage")
-                                    .arg(this->m_provider->DiskType(i),
-                                         QString::number(this->m_provider->DiskActivePercent(i), 'f', 0) + "%");
+                                    .arg(Metrics::GetStorage()->DiskType(i),
+                                         QString::number(Metrics::GetStorage()->DiskActivePercent(i), 'f', 0) + "%");
             item->Update(diskSub);
         }
     }
@@ -277,15 +278,15 @@ void PerformanceWidget::onProviderUpdated()
     {
         for (int i = 0; i < this->m_gpuItems.size(); ++i)
         {
-            if (i >= this->m_provider->GpuCount())
+            if (i >= Metrics::GetGPU()->GpuCount())
                 break;
             auto *item = this->m_gpuItems.at(i);
             if (!item)
                 continue;
 
             const QString utilText = tr("%1%2", "%1=GPU utilization value %2=percent sign")
-                                     .arg(QString::number(this->m_provider->GpuUtilPercent(i), 'f', 0), "%");
-            const int tempC = this->m_provider->GpuTemperatureC(i);
+                                     .arg(QString::number(Metrics::GetGPU()->GpuUtilPercent(i), 'f', 0), "%");
+            const int tempC = Metrics::GetGPU()->GpuTemperatureC(i);
             const QString sub = (tempC >= 0)
                                 ? tr("%1 %2C", "%1=GPU utilization %2=temperature in Celsius")
                                       .arg(utilText, QString::number(tempC))
@@ -298,17 +299,17 @@ void PerformanceWidget::onProviderUpdated()
     {
         for (int i = 0; i < this->m_networkItems.size(); ++i)
         {
-            if (i >= this->m_provider->NetworkCount())
+            if (i >= Metrics::GetNetwork()->NetworkCount())
                 break;
             auto *item = this->m_networkItems.at(i);
             if (!item)
                 continue;
 
-            const double tx = this->m_provider->NetworkTxBytesPerSec(i);
-            const double rx = this->m_provider->NetworkRxBytesPerSec(i);
+            const double tx = Metrics::GetNetwork()->NetworkTxBytesPerSec(i);
+            const double rx = Metrics::GetNetwork()->NetworkRxBytesPerSec(i);
             const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate")
                                    .arg(Misc::FormatBytesPerSecond(tx), Misc::FormatBytesPerSecond(rx));
-            const double maxRate = this->m_provider->NetworkMaxThroughputBytesPerSec(i);
+            const double maxRate = Metrics::GetNetwork()->NetworkMaxThroughputBytesPerSec(i);
             item->Update(netSub, maxRate);
         }
     }
@@ -517,7 +518,7 @@ void PerformanceWidget::updateSamplingPolicy()
 {
     this->m_provider->SetCpuSamplingEnabled(CFG->PerfShowCpu);
     this->m_provider->SetMemorySamplingEnabled(CFG->PerfShowMemory || CFG->PerfShowSwap);
-    this->m_provider->SetSwapSamplingEnabled(CFG->PerfShowSwap);
+    Metrics::GetMemory()->SetSwapSamplingEnabled(CFG->PerfShowSwap);
     this->m_provider->SetDiskSamplingEnabled(CFG->PerfShowDisks);
     this->m_provider->SetNetworkSamplingEnabled(CFG->PerfShowNetwork);
     this->m_provider->SetGpuSamplingEnabled(CFG->PerfShowGpu);

@@ -19,10 +19,11 @@
 #ifndef PERF_MEMORYDETAILWIDGET_H
 #define PERF_MEMORYDETAILWIDGET_H
 
-#include "perfdataprovider.h"
 #include "historybuffer.h"
 
 #include <QWidget>
+
+class Metrics;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MemoryDetailWidget; }
@@ -38,7 +39,7 @@ namespace Perf
             explicit MemoryDetailWidget(QWidget *parent = nullptr);
             ~MemoryDetailWidget();
 
-            void setProvider(PerfDataProvider *provider);
+            void setProvider(Metrics *provider);
             void ApplyColorScheme();
 
         private slots:
@@ -46,7 +47,7 @@ namespace Perf
 
         private:
             Ui::MemoryDetailWidget *ui;
-            PerfDataProvider       *m_provider { nullptr };
+            Metrics                *m_provider { nullptr };
             const HistoryBuffer  *m_memHistory { nullptr };
     };
 } // namespace Perf

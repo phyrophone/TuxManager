@@ -17,6 +17,8 @@
  */
 
 #include "diskdetailwidget.h"
+#include "globals.h"
+#include "metrics.h"
 #include "ui_diskdetailwidget.h"
 #include "../colorscheme.h"
 #include "../misc.h"
@@ -60,7 +62,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
 
     // Active time graph
     this->ui->activeGraphWidget->SetColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
-    this->ui->activeGraphWidget->SetSampleCapacity(HISTORY_SIZE);
+    this->ui->activeGraphWidget->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->ui->activeGraphWidget->SetGridColumns(6);
     this->ui->activeGraphWidget->SetGridRows(4);
     this->ui->activeGraphWidget->SetSeriesNames(tr("Active time"));
@@ -68,7 +70,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
 
     // Transfer graph (read + write overlay)
     this->ui->transferGraphWidget->SetColor(scheme->DiskTransferGraphLineColor, scheme->DiskTransferGraphFillColor, scheme->DiskTransferGraphSecondaryFillColor);
-    this->ui->transferGraphWidget->SetSampleCapacity(HISTORY_SIZE);
+    this->ui->transferGraphWidget->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->ui->transferGraphWidget->SetGridColumns(6);
     this->ui->transferGraphWidget->SetGridRows(4);
     this->ui->transferGraphWidget->SetSeriesNames(tr("Read"), tr("Write"));
@@ -114,10 +116,10 @@ void DiskDetailWidget::ApplyColorScheme()
     this->update();
 }
 
-void DiskDetailWidget::SetDisk(PerfDataProvider *provider, int index)
+void DiskDetailWidget::SetDisk(Metrics *provider, int index)
 {
     if (this->m_provider)
-        disconnect(this->m_provider, &PerfDataProvider::updated, this, &DiskDetailWidget::onUpdated);
+        disconnect(this->m_provider, &Metrics::updated, this, &DiskDetailWidget::onUpdated);
 
     this->m_provider = provider;
     this->m_diskIndex = index;
@@ -127,15 +129,15 @@ void DiskDetailWidget::SetDisk(PerfDataProvider *provider, int index)
 
     if (this->m_provider)
     {
-        if (this->m_diskIndex >= 0 && this->m_diskIndex < this->m_provider->DiskCount())
+        if (this->m_diskIndex >= 0 && this->m_diskIndex < Metrics::GetStorage()->DiskCount())
         {
-            const QString name = this->m_provider->DiskName(this->m_diskIndex);
-            const QString model = this->m_provider->DiskModel(this->m_diskIndex);
-            const QString type = this->m_provider->DiskType(this->m_diskIndex);
+            const QString name = Metrics::GetStorage()->DiskName(this->m_diskIndex);
+            const QString model = Metrics::GetStorage()->DiskModel(this->m_diskIndex);
+            const QString type = Metrics::GetStorage()->DiskType(this->m_diskIndex);
 
-            this->m_activeHistory = &this->m_provider->DiskActiveHistory(this->m_diskIndex);
-            this->m_readHistory = &this->m_provider->DiskReadHistory(this->m_diskIndex);
-            this->m_writeHistory = &this->m_provider->DiskWriteHistory(this->m_diskIndex);
+            this->m_activeHistory = &Metrics::GetStorage()->DiskActiveHistory(this->m_diskIndex);
+            this->m_readHistory = &Metrics::GetStorage()->DiskReadHistory(this->m_diskIndex);
+            this->m_writeHistory = &Metrics::GetStorage()->DiskWriteHistory(this->m_diskIndex);
 
             this->ui->titleLabel->setText(tr("Disk (%1)").arg(name));
             this->ui->modelLabel->setText(model);
@@ -146,7 +148,7 @@ void DiskDetailWidget::SetDisk(PerfDataProvider *provider, int index)
             this->ui->transferGraphWidget->SetDataSource(*this->m_readHistory, 1024.0);
             this->ui->transferGraphWidget->SetOverlayDataSource(*this->m_writeHistory);
         }
-        connect(this->m_provider, &PerfDataProvider::updated, this, &DiskDetailWidget::onUpdated);
+        connect(this->m_provider, &Metrics::updated, this, &DiskDetailWidget::onUpdated);
     }
     this->onUpdated();
 }
@@ -154,16 +156,16 @@ void DiskDetailWidget::SetDisk(PerfDataProvider *provider, int index)
 void DiskDetailWidget::onUpdated()
 {
     if (!this->m_provider || !this->m_activeHistory || !this->m_readHistory || !this->m_writeHistory
-            || this->m_diskIndex < 0 || this->m_diskIndex >= this->m_provider->DiskCount())
+            || this->m_diskIndex < 0 || this->m_diskIndex >= Metrics::GetStorage()->DiskCount())
         return;
 
-    const double active = this->m_provider->DiskActivePercent(this->m_diskIndex);
-    const double readBps = this->m_provider->DiskReadBytesPerSec(this->m_diskIndex);
-    const double writeBps = this->m_provider->DiskWriteBytesPerSec(this->m_diskIndex);
-    const qint64 capacityBytes = this->m_provider->DiskCapacityBytes(this->m_diskIndex);
-    const qint64 formattedBytes = this->m_provider->DiskFormattedBytes(this->m_diskIndex);
-    const bool isSystemDisk = this->m_provider->DiskIsSystemDisk(this->m_diskIndex);
-    const bool hasSwapFile = this->m_provider->DiskHasSwapFile(this->m_diskIndex);
+    const double active = Metrics::GetStorage()->DiskActivePercent(this->m_diskIndex);
+    const double readBps = Metrics::GetStorage()->DiskReadBytesPerSec(this->m_diskIndex);
+    const double writeBps = Metrics::GetStorage()->DiskWriteBytesPerSec(this->m_diskIndex);
+    const qint64 capacityBytes = Metrics::GetStorage()->DiskCapacityBytes(this->m_diskIndex);
+    const qint64 formattedBytes = Metrics::GetStorage()->DiskFormattedBytes(this->m_diskIndex);
+    const bool isSystemDisk = Metrics::GetStorage()->DiskIsSystemDisk(this->m_diskIndex);
+    const bool hasSwapFile = Metrics::GetStorage()->DiskHasSwapFile(this->m_diskIndex);
     this->ui->activeValueLabel->setText(QString::number(active, 'f', 0) + "%");
     this->ui->readValueLabel->setText(Misc::FormatBytesPerSecond(readBps));
     this->ui->writeValueLabel->setText(Misc::FormatBytesPerSecond(writeBps));
@@ -176,7 +178,7 @@ void DiskDetailWidget::onUpdated()
 
     this->ui->activeGraphMaxLabel->setText(tr("100%"));
 
-    const double maxRate = this->m_provider->DiskMaxTransferBytesPerSec(this->m_diskIndex);
+    const double maxRate = Metrics::GetStorage()->DiskMaxTransferBytesPerSec(this->m_diskIndex);
     this->ui->transferGraphWidget->SetMax(maxRate);
     this->ui->activeGraphWidget->Tick();
     this->ui->transferGraphWidget->Tick();

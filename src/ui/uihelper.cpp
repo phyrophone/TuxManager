@@ -18,8 +18,8 @@
 
 #include "uihelper.h"
 #include "../configuration.h"
+#include "../metrics.h"
 #include "../misc.h"
-#include "../perf/perfdataprovider.h"
 
 #include <QAbstractItemModel>
 #include <QAction>
@@ -166,7 +166,7 @@ void UIHelper::PopulateRefreshIntervalMenu(QMenu *menu,
 bool UIHelper::ApplyRefreshIntervalAction(QAction *picked,
                                           const QHash<QAction *, int> &intervalActions,
                                           QAction *pausedAction,
-                                          Perf::PerfDataProvider *provider,
+                                          Metrics *provider,
                                           QTimer *timer,
                                           bool timerOwnerActive)
 {
