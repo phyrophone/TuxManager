@@ -20,6 +20,7 @@
 #define PERF_MEMORYDETAILWIDGET_H
 
 #include "perfdataprovider.h"
+#include "historybuffer.h"
 
 #include <QWidget>
 
@@ -46,6 +47,7 @@ namespace Perf
         private:
             Ui::MemoryDetailWidget *ui;
             PerfDataProvider       *m_provider { nullptr };
+            const HistoryBuffer  *m_memHistory { nullptr };
     };
 } // namespace Perf
 

@@ -19,8 +19,9 @@
 #ifndef PERF_GRAPHWIDGET_H
 #define PERF_GRAPHWIDGET_H
 
+#include "historybuffer.h"
+
 #include <QColor>
-#include <QVector>
 #include <QWidget>
 
 namespace Perf
@@ -45,16 +46,19 @@ namespace Perf
 
             explicit GraphWidget(QWidget *parent = nullptr);
 
-            //! Replace the displayed history and trigger a repaint.
-            void SetHistory(const QVector<double> &data, double maxVal = 100.0);
-            //! Bind to an external history vector (shared source of truth, no copy).
-            void SetHistoryRef(const QVector<double> &data, double maxVal = 100.0);
+            //! Pointer to a vector containing values to draw graph data from
+            void SetDataSource(const HistoryBuffer &data, double maxVal = 100.0);
 
-            //! Optional secondary (kernel-time) history drawn as a darker overlay.
-            //! Pass an empty vector to disable.
-            void SetSecondaryHistory(const QVector<double> &data2);
-            //! Bind secondary history to an external vector (no copy).
-            void SetSecondaryHistoryRef(const QVector<double> &data2);
+            //! Optional secondary graph drawn as a darker overlay.
+            void SetOverlayDataSource(const HistoryBuffer &data);
+
+            void SetMax(double maxVal = 100.0);
+
+            //! Push graph timeline on X axis into future
+            void Tick();
+
+            void ClearDataSource();
+            void ClearOverlayDataSource();
 
             //! Optional: change the line / fill colour pair from the default blue.
             void SetColor(QColor line, QColor fill, QColor fill2 = QColor());
@@ -88,10 +92,8 @@ namespace Perf
             void leaveEvent(QEvent *event) override;
 
         private:
-            QVector<double> m_data;
-            QVector<double> m_data2;            ///< kernel-time overlay (optional)
-            const QVector<double> *m_dataRef { nullptr };
-            const QVector<double> *m_data2Ref { nullptr };
+            const HistoryBuffer *m_data { nullptr };
+            const HistoryBuffer *m_overlayData { nullptr }; ///< overlay (optional)
             double          m_maxVal    { 100.0 };
 
             QColor          m_lineColor;
@@ -114,9 +116,8 @@ namespace Perf
             QString         m_percentTooltipAbsoluteUnit;
             int             m_percentTooltipAbsolutePrecision { 2 };
 
+            QRect hoverLineRect(int slot) const;
             static int sampleIndexForSlot(int size, int slot, int sampleCount);
-            const QVector<double> *primarySource() const;
-            const QVector<double> *secondarySource() const;
             QString formatValue(double v) const;
     };
 } // namespace Perf

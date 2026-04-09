@@ -19,6 +19,7 @@
 #ifndef PERF_NETWORKDETAILWIDGET_H
 #define PERF_NETWORKDETAILWIDGET_H
 
+#include "historybuffer.h"
 #include "perfdataprovider.h"
 
 #include <QWidget>
@@ -37,8 +38,7 @@ namespace Perf
             explicit NetworkDetailWidget(QWidget *parent = nullptr);
             ~NetworkDetailWidget();
 
-            void SetProvider(PerfDataProvider *provider);
-            void SetNetworkIndex(int index);
+            void SetNetwork(PerfDataProvider *provider, int index);
             void ApplyColorScheme();
 
         private slots:
@@ -48,6 +48,8 @@ namespace Perf
             Ui::NetworkDetailWidget *ui;
             PerfDataProvider        *m_provider { nullptr };
             int                      m_networkIndex { -1 };
+            const HistoryBuffer   *m_rxHistory { nullptr };
+            const HistoryBuffer   *m_txHistory { nullptr };
     };
 } // namespace Perf
 

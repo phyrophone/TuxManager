@@ -21,7 +21,6 @@
 #include "../misc.h"
 #include "../ui/widgetstyle.h"
 
-#include <algorithm>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -151,19 +150,18 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
 
 void SwapDetailWidget::SetProvider(PerfDataProvider *provider)
 {
-    if (this->m_provider)
-    {
-        disconnect(this->m_provider, &PerfDataProvider::updated,
-                   this, &SwapDetailWidget::onUpdated);
-    }
-
     this->m_provider = provider;
-    if (this->m_provider)
-    {
-        connect(this->m_provider, &PerfDataProvider::updated,
-                this, &SwapDetailWidget::onUpdated);
-        this->onUpdated();
-    }
+
+    this->m_usageHistory = &this->m_provider->SwapUsageHistory();
+    this->m_outHistory = &this->m_provider->SwapOutHistory();
+    this->m_inHistory = &this->m_provider->SwapInHistory();
+
+    this->m_usageGraph->SetDataSource(*this->m_usageHistory, 100.0);
+    this->m_activityGraph->SetDataSource(*this->m_inHistory, 1024.0);
+    this->m_activityGraph->SetOverlayDataSource(*this->m_outHistory);
+
+    connect(this->m_provider, &PerfDataProvider::updated, this, &SwapDetailWidget::onUpdated);
+    this->onUpdated();
 }
 
 void SwapDetailWidget::ApplyColorScheme()
@@ -190,9 +188,6 @@ void SwapDetailWidget::onUpdated()
     const qint64 freeKb = this->m_provider->SwapFreeKb();
     const double inBps = this->m_provider->SwapInBytesPerSec();
     const double outBps = this->m_provider->SwapOutBytesPerSec();
-    const QVector<double> &usageHistory = this->m_provider->SwapUsageHistory();
-    const QVector<double> &inHistory = this->m_provider->SwapInHistory();
-    const QVector<double> &outHistory = this->m_provider->SwapOutHistory();
 
     const double usedPct = (totalKb > 0)
                            ? static_cast<double>(usedKb) * 100.0 / static_cast<double>(totalKb)
@@ -207,15 +202,11 @@ void SwapDetailWidget::onUpdated()
     this->m_outRateValueLabel->setText(Misc::FormatBytesPerSecond(outBps));
 
     this->m_usageGraph->SetPercentTooltipAbsolute(static_cast<double>(totalKb) / (1024.0 * 1024.0), tr("GB"), 2);
-    this->m_usageGraph->SetHistoryRef(usageHistory, 100.0);
 
-    double maxRate = 1024.0;
-    for (double v : inHistory)
-        maxRate = std::max(maxRate, v);
-    for (double v : outHistory)
-        maxRate = std::max(maxRate, v);
+    const double maxRate = this->m_provider->SwapMaxActivityBytesPerSec();
+    this->m_activityGraph->SetMax(maxRate);
 
-    this->m_activityGraph->SetHistoryRef(inHistory, maxRate);
-    this->m_activityGraph->SetSecondaryHistoryRef(outHistory);
+    this->m_usageGraph->Tick();
+    this->m_activityGraph->Tick();
     this->m_activityMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
 }

@@ -43,6 +43,8 @@ using namespace Perf;
 
 namespace
 {
+    static constexpr double kMinThroughputGraphBps = 1024.0;
+
     using NvmlReturn = unsigned int;
     using NvmlDevice = void *;
 
@@ -227,17 +229,17 @@ double PerfDataProvider::CorePercent(int i) const
     return c.history.isEmpty() ? 0.0 : c.history.last();
 }
 
-const QVector<double> &PerfDataProvider::CoreHistory(int i) const
+const HistoryBuffer &PerfDataProvider::CoreHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_cores.size())
         return empty;
     return this->m_cores.at(i).history;
 }
 
-const QVector<double> &PerfDataProvider::CoreKernelHistory(int i) const
+const HistoryBuffer &PerfDataProvider::CoreKernelHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_cores.size())
         return empty;
     return this->m_cores.at(i).kernelHistory;
@@ -292,6 +294,13 @@ double PerfDataProvider::DiskWriteBytesPerSec(int i) const
     return this->m_disks.at(i).writeBps;
 }
 
+double PerfDataProvider::DiskMaxTransferBytesPerSec(int i) const
+{
+    if (i < 0 || i >= this->m_disks.size())
+        return kMinThroughputGraphBps;
+    return this->m_disks.at(i).maxTransferBps;
+}
+
 qint64 PerfDataProvider::DiskCapacityBytes(int i) const
 {
     if (i < 0 || i >= this->m_disks.size())
@@ -313,32 +322,32 @@ bool PerfDataProvider::DiskIsSystemDisk(int i) const
     return this->m_disks.at(i).isSystemDisk;
 }
 
-bool PerfDataProvider::DiskHasPageFile(int i) const
+bool PerfDataProvider::DiskHasSwapFile(int i) const
 {
     if (i < 0 || i >= this->m_disks.size())
         return false;
     return this->m_disks.at(i).hasPageFile;
 }
 
-const QVector<double> &PerfDataProvider::DiskActiveHistory(int i) const
+const HistoryBuffer &PerfDataProvider::DiskActiveHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_disks.size())
         return empty;
     return this->m_disks.at(i).activeHistory;
 }
 
-const QVector<double> &PerfDataProvider::DiskReadHistory(int i) const
+const HistoryBuffer &PerfDataProvider::DiskReadHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_disks.size())
         return empty;
     return this->m_disks.at(i).readHistory;
 }
 
-const QVector<double> &PerfDataProvider::DiskWriteHistory(int i) const
+const HistoryBuffer &PerfDataProvider::DiskWriteHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_disks.size())
         return empty;
     return this->m_disks.at(i).writeHistory;
@@ -393,17 +402,24 @@ double PerfDataProvider::NetworkTxBytesPerSec(int i) const
     return this->m_networks.at(i).txBps;
 }
 
-const QVector<double> &PerfDataProvider::NetworkRxHistory(int i) const
+double PerfDataProvider::NetworkMaxThroughputBytesPerSec(int i) const
 {
-    static const QVector<double> empty;
+    if (i < 0 || i >= this->m_networks.size())
+        return kMinThroughputGraphBps;
+    return this->m_networks.at(i).maxThroughputBps;
+}
+
+const HistoryBuffer &PerfDataProvider::NetworkRxHistory(int i) const
+{
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_networks.size())
         return empty;
     return this->m_networks.at(i).rxHistory;
 }
 
-const QVector<double> &PerfDataProvider::NetworkTxHistory(int i) const
+const HistoryBuffer &PerfDataProvider::NetworkTxHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_networks.size())
         return empty;
     return this->m_networks.at(i).txHistory;
@@ -458,36 +474,43 @@ qint64 PerfDataProvider::GpuMemTotalMiB(int i) const
     return this->m_gpus.at(i).memTotalMiB;
 }
 
-const QVector<double> &PerfDataProvider::GpuUtilHistory(int i) const
+const HistoryBuffer &PerfDataProvider::GpuUtilHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).utilHistory;
 }
 
-const QVector<double> &PerfDataProvider::GpuMemUsageHistory(int i) const
+const HistoryBuffer &PerfDataProvider::GpuMemUsageHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).memUsageHistory;
 }
 
-const QVector<double> &PerfDataProvider::GpuCopyTxHistory(int i) const
+const HistoryBuffer &PerfDataProvider::GpuCopyTxHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).copyTxHistory;
 }
 
-const QVector<double> &PerfDataProvider::GpuCopyRxHistory(int i) const
+const HistoryBuffer &PerfDataProvider::GpuCopyRxHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).copyRxHistory;
+}
+
+double PerfDataProvider::GpuMaxCopyBytesPerSec(int i) const
+{
+    if (i < 0 || i >= this->m_gpus.size())
+        return kMinThroughputGraphBps;
+    return this->m_gpus.at(i).maxCopyBps;
 }
 
 qint64 PerfDataProvider::GpuSharedMemUsedMiB(int i) const
@@ -504,9 +527,9 @@ qint64 PerfDataProvider::GpuSharedMemTotalMiB(int i) const
     return this->m_gpus.at(i).sharedMemTotalMiB;
 }
 
-const QVector<double> &PerfDataProvider::GpuSharedMemHistory(int i) const
+const HistoryBuffer &PerfDataProvider::GpuSharedMemHistory(int i) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (i < 0 || i >= this->m_gpus.size())
         return empty;
     return this->m_gpus.at(i).sharedMemHistory;
@@ -539,9 +562,9 @@ double PerfDataProvider::GpuEnginePercent(int gpuIndex, int engineIndex) const
     return engines.at(engineIndex).pct;
 }
 
-const QVector<double> &PerfDataProvider::GpuEngineHistory(int gpuIndex, int engineIndex) const
+const HistoryBuffer &PerfDataProvider::GpuEngineHistory(int gpuIndex, int engineIndex) const
 {
-    static const QVector<double> empty;
+    static const HistoryBuffer empty;
     if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
         return empty;
     const auto &engines = this->m_gpus.at(gpuIndex).engines;
@@ -780,8 +803,8 @@ bool PerfDataProvider::sampleMemory()
 
         this->m_prevSwapInPages = pswpin;
         this->m_prevSwapOutPages = pswpout;
-        appendHistory(this->m_swapInHistory, this->m_swapInBps);
-        appendHistory(this->m_swapOutHistory, this->m_swapOutBps);
+        appendHistoryAndUpdateMax(this->m_swapInHistory, this->m_swapInBps, this->m_swapMaxActivityBps, kMinThroughputGraphBps);
+        appendHistoryAndUpdateMax(this->m_swapOutHistory, this->m_swapOutBps, this->m_swapMaxActivityBps, kMinThroughputGraphBps);
     }
     return true;
 }
@@ -1075,8 +1098,8 @@ bool PerfDataProvider::sampleDisks()
             d.readBps = 0.0;
             d.writeBps = 0.0;
             appendHistory(d.activeHistory, 0.0);
-            appendHistory(d.readHistory, 0.0);
-            appendHistory(d.writeHistory, 0.0);
+            appendHistoryAndUpdateMax(d.readHistory, 0.0, d.maxTransferBps, kMinThroughputGraphBps);
+            appendHistoryAndUpdateMax(d.writeHistory, 0.0, d.maxTransferBps, kMinThroughputGraphBps);
             continue;
         }
 
@@ -1087,8 +1110,8 @@ bool PerfDataProvider::sampleDisks()
             d.prevWriteSecs = c.writeSectors;
             d.prevIoMs      = c.ioMs;
             appendHistory(d.activeHistory, 0.0);
-            appendHistory(d.readHistory, 0.0);
-            appendHistory(d.writeHistory, 0.0);
+            appendHistoryAndUpdateMax(d.readHistory, 0.0, d.maxTransferBps, kMinThroughputGraphBps);
+            appendHistoryAndUpdateMax(d.writeHistory, 0.0, d.maxTransferBps, kMinThroughputGraphBps);
             continue;
         }
 
@@ -1107,8 +1130,8 @@ bool PerfDataProvider::sampleDisks()
         d.writeBps = static_cast<double>(dWriteSecs) * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
 
         appendHistory(d.activeHistory, d.activePct);
-        appendHistory(d.readHistory, d.readBps);
-        appendHistory(d.writeHistory, d.writeBps);
+        appendHistoryAndUpdateMax(d.readHistory, d.readBps, d.maxTransferBps, kMinThroughputGraphBps);
+        appendHistoryAndUpdateMax(d.writeHistory, d.writeBps, d.maxTransferBps, kMinThroughputGraphBps);
     }
 
     return true;
@@ -1153,53 +1176,31 @@ int PerfDataProvider::readLinkSpeedMbps(const QString &name)
     return speed;
 }
 
-bool PerfDataProvider::sampleNetworks()
+void PerfDataProvider::refreshNetworkState(bool force)
 {
-    QFile f("/proc/net/dev");
-    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
-        return false;
-
-    struct NetCounters
+    if (!force)
     {
-        quint64 rxBytes { 0 };
-        quint64 txBytes { 0 };
-    };
-    QHash<QString, NetCounters> countersByName;
-    QStringList activeNames;
-
-    int lineNo = 0;
-    for (;;)
-    {
-        const QByteArray line = f.readLine();
-        if (line.isNull())
-            break;
-        ++lineNo;
-        if (lineNo <= 2)
-            continue; // headers
-
-        const int colon = line.indexOf(':');
-        if (colon < 0)
-            continue;
-
-        const QString ifName = QString::fromUtf8(line.left(colon)).trimmed();
-        if (!isActiveNetworkInterface(ifName))
-            continue;
-
-        const QList<QByteArray> fields = line.mid(colon + 1).simplified().split(' ');
-        if (fields.size() < 9)
-            continue;
-
-        NetCounters c;
-        c.rxBytes = fields.at(0).toULongLong();
-        c.txBytes = fields.at(8).toULongLong();
-        countersByName.insert(ifName, c);
-        activeNames.append(ifName);
+        ++this->m_networkStateRefreshCounter;
+        if (this->m_networkStateRefreshCounter < 10)
+            return;
     }
-    f.close();
 
-    std::sort(activeNames.begin(), activeNames.end());
+    this->m_networkStateRefreshCounter = 0;
+    for (NetworkSample &n : this->m_networks)
+        n.isActive = isActiveNetworkInterface(n.name);
+}
 
-    // Best-effort interface metadata (IP addresses + type) from getifaddrs.
+void PerfDataProvider::refreshNetworkMetadata(bool force)
+{
+    if (!force)
+    {
+        ++this->m_networkMetadataRefreshCounter;
+        if (this->m_networkMetadataRefreshCounter < 60)
+            return;
+    }
+
+    this->m_networkMetadataRefreshCounter = 0;
+
     struct IfAddrInfo
     {
         QString ipv4;
@@ -1214,8 +1215,6 @@ bool PerfDataProvider::sampleNetworks()
             if (!ifa->ifa_name || !ifa->ifa_addr)
                 continue;
             const QString name = QString::fromUtf8(ifa->ifa_name);
-            if (!countersByName.contains(name))
-                continue;
 
             char host[NI_MAXHOST] = {};
             const int fam = ifa->ifa_addr->sa_family;
@@ -1242,29 +1241,91 @@ bool PerfDataProvider::sampleNetworks()
         ::freeifaddrs(ifaddr);
     }
 
-    // Keep discovered NIC objects persistent so graph history refs stay valid.
-    if (this->m_networks.isEmpty())
+    for (NetworkSample &n : this->m_networks)
     {
-        this->m_networks.reserve(activeNames.size());
-        for (const QString &name : activeNames)
+        const int arpType = readSysTextFile(QString("/sys/class/net/%1/type").arg(n.name)).toInt();
+        n.type = networkTypeFromArpType(arpType);
+        n.linkSpeedMbps = readLinkSpeedMbps(n.name);
+        n.ipv4 = ifaddrByName.value(n.name).ipv4;
+        n.ipv6 = ifaddrByName.value(n.name).ipv6;
+    }
+}
+
+bool PerfDataProvider::sampleNetworks()
+{
+    QFile f("/proc/net/dev");
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+
+    struct NetCounters
+    {
+        quint64 rxBytes { 0 };
+        quint64 txBytes { 0 };
+    };
+    QHash<QString, NetCounters> countersByName;
+    QStringList seenNames;
+
+    int lineNo = 0;
+    for (;;)
+    {
+        const QByteArray line = f.readLine();
+        if (line.isNull())
+            break;
+        ++lineNo;
+        if (lineNo <= 2)
+            continue; // headers
+
+        const int colon = line.indexOf(':');
+        if (colon < 0)
+            continue;
+
+        const QString ifName = QString::fromUtf8(line.left(colon)).trimmed();
+        if (ifName.isEmpty() || ifName == QLatin1String("lo"))
+            continue;
+
+        const QList<QByteArray> fields = line.mid(colon + 1).simplified().split(' ');
+        if (fields.size() < 9)
+            continue;
+
+        NetCounters c;
+        c.rxBytes = fields.at(0).toULongLong();
+        c.txBytes = fields.at(8).toULongLong();
+        countersByName.insert(ifName, c);
+        seenNames.append(ifName);
+    }
+    f.close();
+
+    std::sort(seenNames.begin(), seenNames.end());
+
+    const bool initializingNetworks = this->m_networks.isEmpty();
+    if (initializingNetworks)
+    {
+        this->m_networks.reserve(seenNames.size());
+        for (const QString &name : seenNames)
         {
+            if (!isActiveNetworkInterface(name))
+                continue;
+
             NetworkSample n;
             n.name = name;
+            n.isActive = true;
             this->m_networks.append(n);
         }
     }
 
-    for (NetworkSample &n : this->m_networks)
+    bool topologyChanged = false;
+    QSet<QString> seenNameSet(seenNames.cbegin(), seenNames.cend());
+    for (const NetworkSample &n : std::as_const(this->m_networks))
     {
-        const QString &name = n.name;
-        if (name.isEmpty())
-            continue;
-        const int arpType = readSysTextFile(QString("/sys/class/net/%1/type").arg(name)).toInt();
-        n.type = networkTypeFromArpType(arpType);
-        n.linkSpeedMbps = readLinkSpeedMbps(name);
-        n.ipv4 = ifaddrByName.value(name).ipv4;
-        n.ipv6 = ifaddrByName.value(name).ipv6;
+        if (!seenNameSet.contains(n.name))
+        {
+            topologyChanged = true;
+            break;
+        }
     }
+
+    this->refreshNetworkState(initializingNetworks || topologyChanged);
+    this->refreshNetworkMetadata(initializingNetworks || topologyChanged);
 
     if (!this->m_netTimer.isValid())
         this->m_netTimer.start();
@@ -1276,12 +1337,12 @@ bool PerfDataProvider::sampleNetworks()
     for (NetworkSample &n : this->m_networks)
     {
         const auto it = countersByName.constFind(n.name);
-        if (it == countersByName.cend())
+        if (!n.isActive || it == countersByName.cend())
         {
             n.rxBps = 0.0;
             n.txBps = 0.0;
-            appendHistory(n.rxHistory, 0.0);
-            appendHistory(n.txHistory, 0.0);
+            appendHistoryAndUpdateMax(n.rxHistory, 0.0, n.maxThroughputBps, kMinThroughputGraphBps);
+            appendHistoryAndUpdateMax(n.txHistory, 0.0, n.maxThroughputBps, kMinThroughputGraphBps);
             continue;
         }
 
@@ -1290,8 +1351,8 @@ bool PerfDataProvider::sampleNetworks()
         {
             n.prevRxBytes = c.rxBytes;
             n.prevTxBytes = c.txBytes;
-            appendHistory(n.rxHistory, 0.0);
-            appendHistory(n.txHistory, 0.0);
+            appendHistoryAndUpdateMax(n.rxHistory, 0.0, n.maxThroughputBps, kMinThroughputGraphBps);
+            appendHistoryAndUpdateMax(n.txHistory, 0.0, n.maxThroughputBps, kMinThroughputGraphBps);
             continue;
         }
 
@@ -1302,8 +1363,8 @@ bool PerfDataProvider::sampleNetworks()
 
         n.rxBps = static_cast<double>(dRx) * 1000.0 / static_cast<double>(dtMs);
         n.txBps = static_cast<double>(dTx) * 1000.0 / static_cast<double>(dtMs);
-        appendHistory(n.rxHistory, n.rxBps);
-        appendHistory(n.txHistory, n.txBps);
+        appendHistoryAndUpdateMax(n.rxHistory, n.rxBps, n.maxThroughputBps, kMinThroughputGraphBps);
+        appendHistoryAndUpdateMax(n.txHistory, n.txBps, n.maxThroughputBps, kMinThroughputGraphBps);
     }
 
     return true;
@@ -1516,8 +1577,8 @@ bool PerfDataProvider::sampleNvml()
                               ? (static_cast<double>(g.memUsedMiB) / static_cast<double>(g.memTotalMiB)) * 100.0
                               : 0.0;
         appendHistory(g.memUsageHistory, memPct);
-        appendHistory(g.copyTxHistory, g.copyTxBps);
-        appendHistory(g.copyRxHistory, g.copyRxBps);
+        appendHistoryAndUpdateMax(g.copyTxHistory, g.copyTxBps, g.maxCopyBps, kMinThroughputGraphBps);
+        appendHistoryAndUpdateMax(g.copyRxHistory, g.copyRxBps, g.maxCopyBps, kMinThroughputGraphBps);
 
         QHash<QString, GpuEngineSample> oldEngines;
         for (const GpuEngineSample &e : std::as_const(g.engines))
@@ -1624,8 +1685,8 @@ bool PerfDataProvider::sampleNvml()
             g.copyRxBps = 0.0;
             appendHistory(g.utilHistory, 0.0);
             appendHistory(g.memUsageHistory, 0.0);
-            appendHistory(g.copyTxHistory, 0.0);
-            appendHistory(g.copyRxHistory, 0.0);
+            appendHistoryAndUpdateMax(g.copyTxHistory, 0.0, g.maxCopyBps, kMinThroughputGraphBps);
+            appendHistoryAndUpdateMax(g.copyRxHistory, 0.0, g.maxCopyBps, kMinThroughputGraphBps);
             for (GpuEngineSample &e : g.engines)
             {
                 e.pct = 0.0;
@@ -2128,38 +2189,81 @@ void PerfDataProvider::readCpuMetadata()
     this->readCurrentFreq();
 }
 
+void PerfDataProvider::detectCpuFreqSource()
+{
+    if (this->m_cpuFreqSourceDetected)
+        return;
+
+    this->m_cpuFreqSourceDetected = true;
+    this->m_cpuFreqUseSysfs = false;
+    this->m_cpuFreqPaths.clear();
+
+    for (int i = 0; i < this->m_cpuLogicalCount; ++i)
+    {
+        const QString base = QString("/sys/devices/system/cpu/cpu%1/cpufreq/").arg(i);
+        const QString scalingPath = base + "scaling_cur_freq";
+        const QString cpuinfoPath = base + "cpuinfo_cur_freq";
+
+        if (QFileInfo::exists(scalingPath))
+            this->m_cpuFreqPaths.append(scalingPath);
+        else if (QFileInfo::exists(cpuinfoPath))
+            this->m_cpuFreqPaths.append(cpuinfoPath);
+        else
+        {
+            this->m_cpuFreqPaths.clear();
+            return;
+        }
+    }
+
+    this->m_cpuFreqUseSysfs = !this->m_cpuFreqPaths.isEmpty();
+}
+
 void PerfDataProvider::readCurrentFreq()
 {
     const int coreCount = qMax(this->m_cores.size(), this->m_cpuLogicalCount);
     QVector<double> coreMhz(coreCount, 0.0);
 
-    // Parse per-core live frequencies from /proc/cpuinfo.
-    int currentProcessor = -1;
-    QFile f("/proc/cpuinfo");
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+    this->detectCpuFreqSource();
+
+    if (this->m_cpuFreqUseSysfs)
     {
-        for (;;)
+        for (int i = 0; i < this->m_cpuFreqPaths.size() && i < coreMhz.size(); ++i)
         {
-            const QByteArray line = f.readLine();
-            if (line.isNull())
-                break;
-
-            const int colon = line.indexOf(':');
-            if (colon < 0)
-                continue;
-
-            const QByteArray key = line.left(colon).trimmed();
-            const QByteArray val = line.mid(colon + 1).trimmed();
-            if (key == "processor")
-            {
-                currentProcessor = val.toInt();
-            }
-            else if (key == "cpu MHz" && currentProcessor >= 0 && currentProcessor < coreMhz.size())
-            {
-                coreMhz[currentProcessor] = val.toDouble();
-            }
+            bool ok = false;
+            const double kHz = readSysTextFile(this->m_cpuFreqPaths.at(i)).toDouble(&ok);
+            if (ok && kHz > 0.0)
+                coreMhz[i] = kHz / 1000.0;
         }
-        f.close();
+    } else
+    {
+        // Fallback: parse per-core live frequencies from /proc/cpuinfo.
+        int currentProcessor = -1;
+        QFile f("/proc/cpuinfo");
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+        {
+            for (;;)
+            {
+                const QByteArray line = f.readLine();
+                if (line.isNull())
+                    break;
+
+                const int colon = line.indexOf(':');
+                if (colon < 0)
+                    continue;
+
+                const QByteArray key = line.left(colon).trimmed();
+                const QByteArray val = line.mid(colon + 1).trimmed();
+                if (key == "processor")
+                {
+                    currentProcessor = val.toInt();
+                }
+                else if (key == "cpu MHz" && currentProcessor >= 0 && currentProcessor < coreMhz.size())
+                {
+                    coreMhz[currentProcessor] = val.toDouble();
+                }
+            }
+            f.close();
+        }
     }
 
     double sumMhz = 0.0;
@@ -2388,9 +2492,43 @@ quint32 PerfDataProvider::readLe32(const QByteArray &raw, int off)
 }
 
 // static
-void PerfDataProvider::appendHistory(QVector<double> &vec, double val)
+void PerfDataProvider::appendHistory(HistoryBuffer &vec, double val)
 {
-    vec.append(val);
-    while (vec.size() > HISTORY_SIZE)
-        vec.removeFirst();
+    vec.Push(val);
+}
+
+void PerfDataProvider::appendHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cachedMax, double minMax)
+{
+    double removed = 0.0;
+    bool removedWasCurrentMax = false;
+    if (vec.size() >= vec.capacity() && !vec.isEmpty())
+    {
+        removed = vec.first();
+        removedWasCurrentMax = (removed >= cachedMax);
+    }
+
+    appendHistory(vec, val);
+
+    if (vec.isEmpty())
+    {
+        cachedMax = minMax;
+        return;
+    }
+
+    if (val >= cachedMax)
+    {
+        cachedMax = qMax(minMax, val);
+        return;
+    }
+
+    if (removedWasCurrentMax)
+    {
+        double recomputedMax = minMax;
+        for (int i = 0; i < vec.size(); ++i)
+            recomputedMax = qMax(recomputedMax, vec.at(i));
+        cachedMax = recomputedMax;
+        return;
+    }
+
+    cachedMax = qMax(cachedMax, minMax);
 }

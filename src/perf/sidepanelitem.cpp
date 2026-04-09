@@ -46,11 +46,17 @@ SidePanelItem::SidePanelItem(const QString &title, QWidget *parent) : QWidget(pa
     this->setLayout(lay);
 }
 
-void SidePanelItem::Update(const QString &subtitle, const QVector<double> &history, double maxVal)
+void SidePanelItem::SetGraphSource(const HistoryBuffer &history, double maxVal)
+{
+    this->m_graph->SetDataSource(history, maxVal);
+}
+
+void SidePanelItem::Update(const QString &subtitle, double maxVal)
 {
     this->m_subtitle = subtitle;
-    this->m_graph->SetHistoryRef(history, maxVal);
-    this->repaint();  // repaint own text; graph repaints itself inside setHistory
+    this->m_graph->SetMax(maxVal);
+    this->m_graph->Tick();
+    this->update();
 }
 
 void SidePanelItem::SetSelected(bool selected)
@@ -58,7 +64,7 @@ void SidePanelItem::SetSelected(bool selected)
     if (this->m_selected == selected)
         return;
     this->m_selected = selected;
-    this->repaint();
+    this->update();
 }
 
 void SidePanelItem::SetGraphColor(QColor line, QColor fill)
@@ -163,12 +169,12 @@ void SidePanelItem::enterEvent(QEvent *event)
 {
     QWidget::enterEvent(event);
     this->m_hovered = true;
-    this->repaint();
+    this->update();
 }
 
 void SidePanelItem::leaveEvent(QEvent *event)
 {
     QWidget::leaveEvent(event);
     this->m_hovered = false;
-    this->repaint();
+    this->update();
 }

@@ -20,6 +20,7 @@
 #define PERF_GPUDETAILWIDGET_H
 
 #include "graphwidget.h"
+#include "historybuffer.h"
 #include "perfdataprovider.h"
 
 #include <QComboBox>
@@ -36,8 +37,7 @@ namespace Perf
         public:
             explicit GpuDetailWidget(QWidget *parent = nullptr);
 
-            void SetProvider(PerfDataProvider *provider);
-            void SetGpuIndex(int index);
+            void SetGpu(PerfDataProvider *provider, int index);
             void ApplyColorScheme();
 
         private slots:
@@ -45,6 +45,11 @@ namespace Perf
             void onEngineSelectionChanged(int slot, int comboIndex);
 
         private:
+            void rebuildEngineSelectors();
+            void bindGpuIdentity();
+            void bindEngineGraphSource(int slot);
+            void bindMemoryAndCopySources(bool hasSharedData);
+
             PerfDataProvider *m_provider { nullptr };
             int               m_gpuIndex { -1 };
 
@@ -70,9 +75,11 @@ namespace Perf
             GraphWidget *m_dedicatedMemGraph { nullptr };
             GraphWidget *m_sharedMemGraph { nullptr };
             GraphWidget *m_copyBwGraph { nullptr };
-            QVector<double> m_sharedMemHistory;
-
-            void rebuildEngineSelectors();
+            const HistoryBuffer *m_dedicatedMemHistory { nullptr };
+            const HistoryBuffer *m_sharedMemHistorySource { nullptr };
+            const HistoryBuffer *m_copyTxHistory { nullptr };
+            const HistoryBuffer *m_copyRxHistory { nullptr };
+            HistoryBuffer m_sharedMemHistory { HISTORY_SIZE };
     };
 } // namespace Perf
 

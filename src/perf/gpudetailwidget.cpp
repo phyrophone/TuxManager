@@ -32,7 +32,7 @@ using namespace Perf;
 
 namespace
 {
-    const QVector<double> kEmptyHistory;
+    const HistoryBuffer kEmptyHistory;
 }
 
 GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
@@ -168,6 +168,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     this->m_copyBwGraph->SetSeriesNames(tr("TX"), tr("RX"));
     this->m_copyBwGraph->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
     this->m_copyBwGraph->setMinimumHeight(70);
+    this->m_copyBwGraph->setToolTip(tr("Copy bandwidth: light trace = TX, dark trace = RX"));
     root->addWidget(this->m_copyBwGraph);
 
     auto *copyTimeAxis = new QHBoxLayout();
@@ -211,25 +212,32 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     root->addLayout(stats);
 }
 
-void GpuDetailWidget::SetProvider(PerfDataProvider *provider)
+void GpuDetailWidget::SetGpu(PerfDataProvider *provider, int index)
 {
     if (this->m_provider)
         disconnect(this->m_provider, &PerfDataProvider::updated, this, &GpuDetailWidget::onUpdated);
 
     this->m_provider = provider;
+    this->m_gpuIndex = index;
+    this->m_dedicatedMemHistory = nullptr;
+    this->m_sharedMemHistorySource = nullptr;
+    this->m_copyTxHistory = nullptr;
+    this->m_copyRxHistory = nullptr;
 
     if (this->m_provider)
     {
         connect(this->m_provider, &PerfDataProvider::updated, this, &GpuDetailWidget::onUpdated);
+        if (this->m_gpuIndex >= 0 && this->m_gpuIndex < this->m_provider->GpuCount())
+        {
+            this->bindGpuIdentity();
+            this->rebuildEngineSelectors();
+            const bool hasSharedData = (this->m_provider->GpuSharedMemTotalMiB(this->m_gpuIndex) > 0);
+            this->bindMemoryAndCopySources(hasSharedData);
+            for (int slot = 0; slot < this->m_engineGraphs.size(); ++slot)
+                this->bindEngineGraphSource(slot);
+        }
         this->onUpdated();
     }
-}
-
-void GpuDetailWidget::SetGpuIndex(int index)
-{
-    this->m_gpuIndex = index;
-    this->rebuildEngineSelectors();
-    this->onUpdated();
 }
 
 void GpuDetailWidget::ApplyColorScheme()
@@ -265,6 +273,7 @@ void GpuDetailWidget::onEngineSelectionChanged(int slot, int comboIndex)
 
     this->m_selectedEngineBySlot[slot] = combo->itemData(comboIndex).toInt();
     CFG->GpuEngineSelectorIndices = this->m_selectedEngineBySlot;
+    this->bindEngineGraphSource(slot);
     this->onUpdated();
 }
 
@@ -304,9 +313,6 @@ void GpuDetailWidget::onUpdated()
     if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
         return;
 
-    this->m_titleLabel->setText(tr("GPU %1").arg(this->m_gpuIndex));
-    this->m_modelLabel->setText(this->m_provider->GpuName(this->m_gpuIndex));
-
     const double util = this->m_provider->GpuUtilPercent(this->m_gpuIndex);
     const int tempC = this->m_provider->GpuTemperatureC(this->m_gpuIndex);
     const qint64 dedicatedUsedMiB = this->m_provider->GpuMemUsedMiB(this->m_gpuIndex);
@@ -319,10 +325,9 @@ void GpuDetailWidget::onUpdated()
     {
         sharedTotalMiB = qMax<qint64>(0, this->m_provider->MemTotalKb() / 1024 / 2);
         sharedUsedMiB  = 0;
-        this->m_sharedMemHistory.append(0.0);
-        while (this->m_sharedMemHistory.size() > HISTORY_SIZE)
-            this->m_sharedMemHistory.removeFirst();
+        this->m_sharedMemHistory.Push(0.0);
     }
+    this->bindMemoryAndCopySources(hasSharedData);
 
     const qint64 gpuUsedMiB = dedicatedUsedMiB + sharedUsedMiB;
     const qint64 gpuTotalMiB = dedicatedTotalMiB + sharedTotalMiB;
@@ -341,7 +346,8 @@ void GpuDetailWidget::onUpdated()
     this->m_driverValueLabel->setText(this->m_provider->GpuDriverVersion(this->m_gpuIndex));
     this->m_backendValueLabel->setText(this->m_provider->GpuBackendName(this->m_gpuIndex));
 
-    this->rebuildEngineSelectors();
+    // We assume that GPU engines don't change during runtime
+    //this->rebuildEngineSelectors();
 
     for (int slot = 0; slot < this->m_engineGraphs.size(); ++slot)
     {
@@ -353,37 +359,95 @@ void GpuDetailWidget::onUpdated()
 
         if (engineIndex >= 0)
         {
-            const QString engName = this->m_provider->GpuEngineName(this->m_gpuIndex, engineIndex);
-            graph->SetSeriesNames(engName);
-            graph->SetHistoryRef(this->m_provider->GpuEngineHistory(this->m_gpuIndex, engineIndex), 100.0);
             value->setText(QString::number(this->m_provider->GpuEnginePercent(this->m_gpuIndex, engineIndex), 'f', 0) + "%");
         } else
         {
-            graph->SetHistoryRef(kEmptyHistory, 100.0);
             value->setText("0%");
         }
+        graph->Tick();
     }
 
-    this->m_dedicatedMemGraph->SetHistoryRef(this->m_provider->GpuMemUsageHistory(this->m_gpuIndex), 100.0);
     this->m_dedicatedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(dedicatedTotalMiB) / 1024.0, tr("GB"), 2);
     this->m_dedicatedMemGraphMaxLabel->setText(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, dedicatedTotalMiB)), 1));
+    this->m_dedicatedMemGraph->Tick();
 
-    const QVector<double> &sharedHistory = hasSharedData
-        ? this->m_provider->GpuSharedMemHistory(this->m_gpuIndex)
-        : this->m_sharedMemHistory;
-    this->m_sharedMemGraph->SetHistoryRef(sharedHistory, 100.0);
     this->m_sharedMemGraph->SetPercentTooltipAbsolute(static_cast<double>(sharedTotalMiB) / 1024.0, tr("GB"), 2);
     this->m_sharedMemGraphMaxLabel->setText(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedTotalMiB)), 1));
+    this->m_sharedMemGraph->Tick();
 
-    const QVector<double> &txHistory = this->m_provider->GpuCopyTxHistory(this->m_gpuIndex);
-    const QVector<double> &rxHistory = this->m_provider->GpuCopyRxHistory(this->m_gpuIndex);
-    double maxCopyRate = 1024.0;
-    for (double v : txHistory)
-        maxCopyRate = std::max(maxCopyRate, v);
-    for (double v : rxHistory)
-        maxCopyRate = std::max(maxCopyRate, v);
-    this->m_copyBwGraph->SetHistoryRef(txHistory, maxCopyRate);
-    this->m_copyBwGraph->SetSecondaryHistoryRef(rxHistory);
+    const double maxCopyRate = this->m_provider->GpuMaxCopyBytesPerSec(this->m_gpuIndex);
+    this->m_copyBwGraph->SetMax(maxCopyRate);
     this->m_copyBwGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxCopyRate));
-    this->m_copyBwGraph->setToolTip(tr("Copy bandwidth: light trace = TX, dark trace = RX"));
+    this->m_copyBwGraph->Tick();
+}
+
+void GpuDetailWidget::bindGpuIdentity()
+{
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+        return;
+
+    this->m_titleLabel->setText(tr("GPU %1").arg(this->m_gpuIndex));
+    this->m_modelLabel->setText(this->m_provider->GpuName(this->m_gpuIndex));
+}
+
+void GpuDetailWidget::bindEngineGraphSource(int slot)
+{
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+        return;
+    if (slot < 0 || slot >= this->m_engineGraphs.size())
+        return;
+
+    GraphWidget *graph = this->m_engineGraphs.at(slot);
+    if (!graph)
+        return;
+
+    const int engineIndex = (slot < this->m_selectedEngineBySlot.size())
+                            ? this->m_selectedEngineBySlot.at(slot)
+                            : -1;
+    if (engineIndex >= 0)
+    {
+        graph->SetSeriesNames(this->m_provider->GpuEngineName(this->m_gpuIndex, engineIndex));
+        graph->SetDataSource(this->m_provider->GpuEngineHistory(this->m_gpuIndex, engineIndex), 100.0);
+    } else
+    {
+        graph->SetSeriesNames(tr("Value"));
+        graph->SetDataSource(kEmptyHistory, 100.0);
+    }
+}
+
+void GpuDetailWidget::bindMemoryAndCopySources(bool hasSharedData)
+{
+    if (!this->m_provider || this->m_gpuIndex < 0 || this->m_gpuIndex >= this->m_provider->GpuCount())
+        return;
+
+    const HistoryBuffer *dedicatedMemHistory = &this->m_provider->GpuMemUsageHistory(this->m_gpuIndex);
+    const HistoryBuffer *copyTxHistory = &this->m_provider->GpuCopyTxHistory(this->m_gpuIndex);
+    const HistoryBuffer *copyRxHistory = &this->m_provider->GpuCopyRxHistory(this->m_gpuIndex);
+
+    if (this->m_dedicatedMemHistory != dedicatedMemHistory)
+    {
+        this->m_dedicatedMemHistory = dedicatedMemHistory;
+        this->m_dedicatedMemGraph->SetDataSource(*this->m_dedicatedMemHistory, 100.0);
+    }
+
+    if (this->m_copyTxHistory != copyTxHistory)
+    {
+        this->m_copyTxHistory = copyTxHistory;
+        this->m_copyBwGraph->SetDataSource(*this->m_copyTxHistory, 1024.0);
+    }
+
+    if (this->m_copyRxHistory != copyRxHistory)
+    {
+        this->m_copyRxHistory = copyRxHistory;
+        this->m_copyBwGraph->SetOverlayDataSource(*this->m_copyRxHistory);
+    }
+
+    const HistoryBuffer *desiredSharedHistory = hasSharedData
+                                                  ? &this->m_provider->GpuSharedMemHistory(this->m_gpuIndex)
+                                                  : &this->m_sharedMemHistory;
+    if (this->m_sharedMemHistorySource != desiredSharedHistory)
+    {
+        this->m_sharedMemHistorySource = desiredSharedHistory;
+        this->m_sharedMemGraph->SetDataSource(*this->m_sharedMemHistorySource, 100.0);
+    }
 }

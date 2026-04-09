@@ -108,18 +108,21 @@ void PerformanceWidget::setupSidePanel()
     // ── CPU item ─────────────────────────────────────────────────────────────
     auto *cpuItem = new Perf::SidePanelItem(tr("CPU"), this);
     cpuItem->SetGraphColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
+    cpuItem->SetGraphSource(this->m_provider->CpuHistory());
     this->m_cpuPanelIndex = this->m_sidePanel->AddItem(cpuItem);
     this->m_stack->addWidget(this->m_cpuDetail);
 
     // ── Memory item ──────────────────────────────────────────────────────────
     auto *memItem = new Perf::SidePanelItem(tr("Memory"), this);
     memItem->SetGraphColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
+    memItem->SetGraphSource(this->m_provider->MemHistory());
     this->m_memoryPanelIndex = this->m_sidePanel->AddItem(memItem);
     this->m_stack->addWidget(this->m_memDetail);
 
     // ── Swap item ────────────────────────────────────────────────────────────
     auto *swapItem = new Perf::SidePanelItem(tr("Swap"), this);
     swapItem->SetGraphColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
+    swapItem->SetGraphSource(this->m_provider->SwapUsageHistory());
     this->m_swapPanelIndex = this->m_sidePanel->AddItem(swapItem);
     this->m_stack->addWidget(this->m_swapDetail);
 
@@ -143,12 +146,12 @@ void PerformanceWidget::setupDiskPanels()
 
         auto *item = new Perf::SidePanelItem(tr("Disk (%1)").arg(devName), this);
         item->SetGraphColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
+        item->SetGraphSource(this->m_provider->DiskActiveHistory(i));
         this->m_sidePanel->AddItem(item);
         this->m_diskItems.append(item);
 
         auto *detail = new Perf::DiskDetailWidget(this);
-        detail->SetProvider(this->m_provider);
-        detail->SetDiskIndex(i);
+        detail->SetDisk(this->m_provider, i);
         this->m_stack->addWidget(detail);
         this->m_diskDetails.append(detail);
     }
@@ -166,12 +169,12 @@ void PerformanceWidget::setupGpuPanels()
 
         auto *item = new Perf::SidePanelItem(tr("GPU %1").arg(i), this);
         item->SetGraphColor(scheme->GpuGraphLineColor, scheme->GpuGraphFillColor);
+        item->SetGraphSource(this->m_provider->GpuUtilHistory(i));
         this->m_sidePanel->AddItem(item);
         this->m_gpuItems.append(item);
 
         auto *detail = new Perf::GpuDetailWidget(this);
-        detail->SetProvider(this->m_provider);
-        detail->SetGpuIndex(i);
+        detail->SetGpu(this->m_provider, i);
         this->m_stack->addWidget(detail);
         this->m_gpuDetails.append(detail);
     }
@@ -189,12 +192,12 @@ void PerformanceWidget::setupNetworkPanels()
 
         auto *item = new Perf::SidePanelItem(tr("NIC (%1)").arg(ifName), this);
         item->SetGraphColor(scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor);
+        item->SetGraphSource(this->m_provider->NetworkRxHistory(i), 1024.0);
         this->m_sidePanel->AddItem(item);
         this->m_networkItems.append(item);
 
         auto *detail = new Perf::NetworkDetailWidget(this);
-        detail->SetProvider(this->m_provider);
-        detail->SetNetworkIndex(i);
+        detail->SetNetwork(this->m_provider, i);
         this->m_stack->addWidget(detail);
         this->m_networkDetails.append(detail);
     }
@@ -214,7 +217,7 @@ void PerformanceWidget::onProviderUpdated()
     if (CFG->PerfShowCpu)
     {
         if (auto *item = this->m_sidePanel->GetItemAt(this->m_cpuPanelIndex))
-            item->Update(cpuSub, this->m_provider->CpuHistory());
+            item->Update(cpuSub);
     }
 
     // Update Memory side panel item
@@ -230,7 +233,7 @@ void PerformanceWidget::onProviderUpdated()
     if (CFG->PerfShowMemory)
     {
         if (auto *item = this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex))
-            item->Update(memSub, this->m_provider->MemHistory());
+            item->Update(memSub);
     }
 
     // Update Swap side panel item
@@ -250,7 +253,7 @@ void PerformanceWidget::onProviderUpdated()
     if (CFG->PerfShowSwap)
     {
         if (auto *item = this->m_sidePanel->GetItemAt(this->m_swapPanelIndex))
-            item->Update(swapSub, this->m_provider->SwapUsageHistory());
+            item->Update(swapSub);
     }
 
     if (CFG->PerfShowDisks)
@@ -266,7 +269,7 @@ void PerformanceWidget::onProviderUpdated()
             const QString diskSub = tr("%1 %2", "%1=disk type %2=active percentage")
                                     .arg(this->m_provider->DiskType(i),
                                          QString::number(this->m_provider->DiskActivePercent(i), 'f', 0) + "%");
-            item->Update(diskSub, this->m_provider->DiskActiveHistory(i));
+            item->Update(diskSub);
         }
     }
 
@@ -287,7 +290,7 @@ void PerformanceWidget::onProviderUpdated()
                                 ? tr("%1 %2C", "%1=GPU utilization %2=temperature in Celsius")
                                       .arg(utilText, QString::number(tempC))
                                 : utilText;
-            item->Update(sub, this->m_provider->GpuUtilHistory(i));
+            item->Update(sub);
         }
     }
 
@@ -303,16 +306,10 @@ void PerformanceWidget::onProviderUpdated()
 
             const double tx = this->m_provider->NetworkTxBytesPerSec(i);
             const double rx = this->m_provider->NetworkRxBytesPerSec(i);
-            const QVector<double> &rxHistory = this->m_provider->NetworkRxHistory(i);
-            const QVector<double> &txHistory = this->m_provider->NetworkTxHistory(i);
             const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate")
                                    .arg(Misc::FormatBytesPerSecond(tx), Misc::FormatBytesPerSecond(rx));
-            double maxRate = 1024.0; // keep at least 1KB/s visual range
-            for (double v : rxHistory)
-                maxRate = qMax(maxRate, v);
-            for (double v : txHistory)
-                maxRate = qMax(maxRate, v);
-            item->Update(netSub, rxHistory, maxRate);
+            const double maxRate = this->m_provider->NetworkMaxThroughputBytesPerSec(i);
+            item->Update(netSub, maxRate);
         }
     }
 }
