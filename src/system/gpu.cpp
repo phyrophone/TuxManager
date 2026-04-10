@@ -291,9 +291,6 @@ bool GPU::sampleNvml()
         pNvmlSystemGetDriverVersion(driverVer, sizeof(driverVer));
     const QString driverVersion = QString::fromLatin1(driverVer).trimmed();
 
-    const bool allowAppend = this->m_gpus.empty();
-    if (allowAppend)
-        this->m_gpus.reserve(static_cast<int>(count));
     QSet<QString> seenIds;
 
     for (unsigned int i = 0; i < count; ++i)
@@ -341,8 +338,6 @@ bool GPU::sampleNvml()
         }
         if (gpuIdx < 0)
         {
-            if (!allowAppend)
-                continue;
             auto gNew = std::make_unique<GPUInfo>();
             gNew->ID = id;
             this->m_gpus.push_back(std::move(gNew));
