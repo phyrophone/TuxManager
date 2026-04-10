@@ -40,6 +40,9 @@
 
 PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new Ui::PerformanceWidget)
 {
+    // Ensure the metrics are initialized before we start enumerating devices
+    Metrics::Get();
+
     this->m_sidePanel = new Perf::SidePanel(this);
     this->m_stack = new QStackedWidget(this);
     this->m_cpuDetail = new Perf::CpuDetailWidget(this);
