@@ -31,7 +31,7 @@ class CPU
         bool Sample();
 
         // ── Aggregate CPU ─────────────────────────────────────────────────────
-        double CpuPercent()  const { return this->m_cpuHistory.isEmpty() ? 0.0 : this->m_cpuHistory.last(); }
+        double CpuPercent()  const { return this->m_cpuHistory.IsEmpty() ? 0.0 : this->m_cpuHistory.Back(); }
         const HistoryBuffer &CpuHistory()       const { return this->m_cpuHistory; }
         const HistoryBuffer &CpuKernelHistory() const { return this->m_cpuKernelHistory; }
 

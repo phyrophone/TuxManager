@@ -151,15 +151,15 @@ void Misc::PushHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cache
 {
     double removed = 0.0;
     bool removedWasCurrentMax = false;
-    if (vec.size() >= vec.capacity() && !vec.isEmpty())
+    if (vec.Size() >= vec.Capacity() && !vec.IsEmpty())
     {
-        removed = vec.first();
+        removed = vec.Front();
         removedWasCurrentMax = (removed >= cachedMax);
     }
 
     vec.Push(val);
 
-    if (vec.isEmpty())
+    if (vec.IsEmpty())
     {
         cachedMax = minMax;
         return;
@@ -174,8 +174,8 @@ void Misc::PushHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cache
     if (removedWasCurrentMax)
     {
         double recomputedMax = minMax;
-        for (int i = 0; i < vec.size(); ++i)
-            recomputedMax = qMax(recomputedMax, vec.at(i));
+        for (int i = 0; i < vec.Size(); ++i)
+            recomputedMax = qMax(recomputedMax, vec.At(i));
         cachedMax = recomputedMax;
         return;
     }

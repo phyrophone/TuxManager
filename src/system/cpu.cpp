@@ -38,7 +38,7 @@ double CPU::CorePercent(int i) const
     if (i < 0 || i >= this->m_cores.size())
         return 0.0;
     const auto &c = this->m_cores.at(i);
-    return c.History.isEmpty() ? 0.0 : c.History.last();
+    return c.History.IsEmpty() ? 0.0 : c.History.Back();
 }
 
 const HistoryBuffer &CPU::CoreHistory(int i) const

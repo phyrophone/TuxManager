@@ -164,10 +164,10 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     }
 
     // ── Data ──────────────────────────────────────────────────────────────────
-    if (!this->m_data || this->m_data->isEmpty())
+    if (!this->m_data || this->m_data->IsEmpty())
         return;
 
-    const int n = this->m_data->size();
+    const int n = this->m_data->Size();
 
     // Keep a fixed-width time axis:
     // - when history is short, right-align it (empty area on the left)
@@ -180,7 +180,7 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     QPainterPath path;
     for (int i = 0; i < visibleCount; ++i)
     {
-        const double val = qBound(0.0, this->m_data->at(visibleStart + i), this->m_maxVal);
+        const double val = qBound(0.0, this->m_data->At(visibleStart + i), this->m_maxVal);
         const double fx  = contentLeft + (slotOffset + i) * stepX;
         const double fy  = contentBottom - (val / this->m_maxVal) * contentHeight;
 
@@ -201,16 +201,16 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     p.drawPath(fillPath);
 
     // Kernel-time overlay (secondary data2) — drawn on top as a darker fill
-    if (this->m_overlayData && !this->m_overlayData->isEmpty())
+    if (this->m_overlayData && !this->m_overlayData->IsEmpty())
     {
-        const int n2 = this->m_overlayData->size();
+        const int n2 = this->m_overlayData->Size();
         const int visibleStart2 = qMax(0, n2 - sampleCount);
         const int visibleCount2 = n2 - visibleStart2;
         const int slotOffset2 = qMax(0, sampleCount - visibleCount2);
         QPainterPath kPath;
         for (int i = 0; i < visibleCount2; ++i)
         {
-            const double val = qBound(0.0, this->m_overlayData->at(visibleStart2 + i), this->m_maxVal);
+            const double val = qBound(0.0, this->m_overlayData->At(visibleStart2 + i), this->m_maxVal);
             const double fx  = contentLeft + (slotOffset2 + i) * stepX;
             const double fy  = contentBottom - (val / this->m_maxVal) * contentHeight;
             if (i == 0)
@@ -277,19 +277,19 @@ void GraphWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (this->m_hoverTooltipEnabled && slotChanged)
     {
-        const int idx1 = sampleIndexForSlot(this->m_data ? this->m_data->size() : 0, slot, sampleCount);
-        const int idx2 = sampleIndexForSlot(this->m_overlayData ? this->m_overlayData->size() : 0, slot, sampleCount);
+        const int idx1 = sampleIndexForSlot(this->m_data ? this->m_data->Size() : 0, slot, sampleCount);
+        const int idx2 = sampleIndexForSlot(this->m_overlayData ? this->m_overlayData->Size() : 0, slot, sampleCount);
 
         if (idx1 >= 0 || idx2 >= 0)
         {
             QString tip;
             if (idx1 >= 0)
-                tip += tr("%1: %2").arg(this->m_primaryName, this->formatValue(this->m_data->at(idx1)));
+                tip += tr("%1: %2").arg(this->m_primaryName, this->formatValue(this->m_data->At(idx1)));
             if (idx2 >= 0)
             {
                 if (!tip.isEmpty())
                     tip += "\n";
-                tip += tr("%1: %2").arg(this->m_secondaryName, this->formatValue(this->m_overlayData->at(idx2)));
+                tip += tr("%1: %2").arg(this->m_secondaryName, this->formatValue(this->m_overlayData->At(idx2)));
             }
             const int secAgo = sampleCount - 1 - slot;
             if (!tip.isEmpty())

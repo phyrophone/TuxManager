@@ -90,29 +90,14 @@ class HistoryBuffer
             return this->m_capacity;
         }
 
-        int capacity() const
-        {
-            return this->Capacity();
-        }
-
         int Size() const
         {
             return this->m_size;
         }
 
-        int size() const
-        {
-            return this->Size();
-        }
-
         bool IsEmpty() const
         {
             return this->m_size == 0;
-        }
-
-        bool isEmpty() const
-        {
-            return this->IsEmpty();
         }
 
         bool IsFull() const
@@ -143,19 +128,9 @@ class HistoryBuffer
             this->m_head = (this->m_head + 1) % this->m_capacity;
         }
 
-        void append(double value)
-        {
-            this->Push(value);
-        }
-
         double Front() const
         {
             return this->At(0);
-        }
-
-        double first() const
-        {
-            return this->Front();
         }
 
         double Back() const
@@ -163,21 +138,11 @@ class HistoryBuffer
             return this->At(this->m_size - 1);
         }
 
-        double last() const
-        {
-            return this->Back();
-        }
-
         double At(int index) const
         {
             Q_ASSERT(index >= 0);
             Q_ASSERT(index < this->m_size);
             return this->m_data[this->physicalIndex(index)];
-        }
-
-        double at(int index) const
-        {
-            return this->At(index);
         }
 
         double operator[](int index) const
