@@ -10,7 +10,7 @@
     <height>620</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,4,0,0,2">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0,0,0">
    <property name="spacing">
     <number>6</number>
    </property>
@@ -77,7 +77,17 @@
     </widget>
    </item>
    <item>
-    <widget class="Perf::GraphWidget" name="throughputGraphWidget" native="true"/>
+    <widget class="Perf::GraphWidget" name="throughputGraphWidget" native="true">
+     <property name="minimumHeight">
+      <number>220</number>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>1</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="timeAxisLayout">
@@ -247,19 +257,6 @@
       </widget>
      </item>
     </layout>
-   </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Orientation::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
    </item>
   </layout>
  </widget>
