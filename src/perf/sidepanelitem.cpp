@@ -37,7 +37,7 @@ SidePanelItem::SidePanelItem(const QString &title, QWidget *parent) : QWidget(pa
     // Layout: the graph fills most of the cell; title/subtitle are painted
     // directly in paintEvent to avoid font layout overhead.
     QVBoxLayout *lay = new QVBoxLayout(this);
-    lay->setContentsMargins(6, 22, 6, 4);   // leave room for title text
+    lay->setContentsMargins(2, 22, 2, 2);   // leave room for title text
     lay->setSpacing(0);
     this->m_graph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
     this->m_graph->SetHoverLineEnabled(false);
