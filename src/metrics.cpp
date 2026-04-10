@@ -41,25 +41,9 @@ Metrics::Metrics(QObject *parent) : QObject(parent)
     connect(this->m_timer, &QTimer::timeout, this, &Metrics::onTimer);
 
     // Prime baselines — first real sample will have valid deltas.
-    if (this->m_cpuSamplingEnabled)
-        Metrics::g_CPU.Sample();
-    if (this->m_memorySamplingEnabled)
-        Metrics::g_Memory.Sample();
-    if (this->m_diskSamplingEnabled)
-        Metrics::g_Storage.Sample();
-    if (this->m_networkSamplingEnabled)
-        Metrics::g_Network.Sample();
-    if (this->m_gpuSamplingEnabled)
-        Metrics::g_GPU.Sample();
-    if (this->m_processStatsEnabled)
-        Metrics::g_Kernel.Sample();
+    this->sampleNow();
 
     this->m_timer->start(1000);
-}
-
-Metrics::~Metrics()
-{
-
 }
 
 void Metrics::SetInterval(int ms)
@@ -100,6 +84,13 @@ void Metrics::sample()
     if (CFG->RefreshPaused)
         return;
 
+    this->sampleNow();
+
+    emit this->updated();
+}
+
+void Metrics::sampleNow()
+{
     if (this->m_cpuSamplingEnabled)
         Metrics::g_CPU.Sample();
     if (this->m_memorySamplingEnabled)
@@ -112,6 +103,4 @@ void Metrics::sample()
         Metrics::g_GPU.Sample();
     if (this->m_processStatsEnabled)
         Metrics::g_Kernel.Sample();
-
-    emit this->updated();
 }

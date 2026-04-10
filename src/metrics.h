@@ -46,7 +46,6 @@ class Metrics : public QObject
         static Metrics  *Get();
 
         Metrics(QObject *parent);
-        ~Metrics();
 
         void SetInterval(int ms);
         void SetActive(bool active);
@@ -72,8 +71,9 @@ class Metrics : public QObject
         static Storage  g_Storage;
         static Kernel   g_Kernel;
 
-        //! Run all samples that are enabled
+        //! Check if sampling is enabled and if yes, runs sampleNow() and emits a signal
         void sample();
+        void sampleNow();
 
         QTimer *m_timer;
         int     m_intervalMs { 1000 };
