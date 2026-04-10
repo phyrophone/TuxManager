@@ -283,7 +283,7 @@ void GpuDetailWidget::rebuildEngineSelectors()
         combo->clear();
 
         for (int i = 0; i < engineCount; ++i)
-            combo->addItem(gpu.Engines.at(i).Label, i);
+            combo->addItem(gpu.Engines.at(i)->Label, i);
 
         int engineIndex = this->m_selectedEngineBySlot[slot];
         if (engineIndex < 0 || engineIndex >= engineCount)
@@ -342,7 +342,7 @@ void GpuDetailWidget::onUpdated()
 
         if (engineIndex >= 0)
         {
-            value->setText(QString::number(gpu.Engines.at(engineIndex).Pct, 'f', 0) + "%");
+            value->setText(QString::number(gpu.Engines.at(engineIndex)->Pct, 'f', 0) + "%");
         } else
         {
             value->setText("0%");
@@ -389,9 +389,9 @@ void GpuDetailWidget::bindEngineGraphSource(int slot)
     const int engineIndex = (slot < this->m_selectedEngineBySlot.size())
                             ? this->m_selectedEngineBySlot.at(slot)
                             : -1;
-    if (engineIndex >= 0 && engineIndex < gpu.Engines.size())
+    if (engineIndex >= 0 && engineIndex < static_cast<int>(gpu.Engines.size()))
     {
-        const GPU::GPUEngineInfo &engine = gpu.Engines.at(engineIndex);
+        const GPU::GPUEngineInfo &engine = *gpu.Engines.at(engineIndex);
         graph->SetSeriesNames(engine.Label);
         graph->SetDataSource(engine.History, 100.0);
     } else

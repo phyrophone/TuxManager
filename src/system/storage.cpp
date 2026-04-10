@@ -30,9 +30,9 @@ Storage::Storage()
 
 const Storage::DiskInfo &Storage::FromIndex(int i) const
 {
-    if (i < 0 || i >= this->m_disks.size())
+    if (i < 0 || i >= static_cast<int>(this->m_disks.size()))
         return this->m_nullDisk;
-    return this->m_disks.at(i);
+    return *this->m_disks.at(i);
 }
 
 bool Storage::shouldIgnoreBlockDevice(const QString &baseName)
@@ -220,41 +220,41 @@ void Storage::refreshDisks(const QSet<QString> &measurableDevices)
 
     // Keep discovered disk objects persistent so their history vectors remain stable.
     QSet<QString> existingNames;
-    for (const DiskInfo &disk : std::as_const(this->m_disks))
-        existingNames.insert(disk.Name);
+    for (const auto &disk : std::as_const(this->m_disks))
+        existingNames.insert(disk->Name);
 
     for (const QString &name : trackedDevices)
     {
         if (existingNames.contains(name))
             continue;
 
-        DiskInfo d;
-        d.Name = name;
-        this->m_disks.append(d);
+        auto d = std::make_unique<DiskInfo>();
+        d->Name = name;
+        this->m_disks.push_back(std::move(d));
     }
 
-    for (DiskInfo &d : this->m_disks)
+    for (const auto &d : this->m_disks)
     {
-        const QString &name = d.Name;
+        const QString &name = d->Name;
         if (name.isEmpty())
             continue;
 
         const QString model = Misc::ReadFile(QString("/sys/class/block/%1/device/model").arg(name));
-        d.Model = model.isEmpty() ? QObject::tr("Unknown device") : model;
+        d->Model = model.isEmpty() ? QObject::tr("Unknown device") : model;
 
         const QString rotational = Misc::ReadFile(QString("/sys/class/block/%1/queue/rotational").arg(name));
         if (rotational == "1")
-            d.Type = "HDD";
+            d->Type = "HDD";
         else if (rotational == "0")
-            d.Type = "SSD";
+            d->Type = "SSD";
         else
-            d.Type = QObject::tr("Unknown");
+            d->Type = QObject::tr("Unknown");
 
         const qint64 sizeSecs = Misc::ReadFile(QString("/sys/class/block/%1/size").arg(name)).toLongLong();
-        d.CapacityBytes = qMax<qint64>(0, sizeSecs) * 512LL;
-        d.FormattedBytes = qMax<qint64>(0, formattedByBase.value(name, 0));
-        d.IsSystemDisk = systemByBase.value(name, false);
-        d.HasPageFile = pageFileByBase.value(name, false);
+        d->CapacityBytes = qMax<qint64>(0, sizeSecs) * 512LL;
+        d->FormattedBytes = qMax<qint64>(0, formattedByBase.value(name, 0));
+        d->IsSystemDisk = systemByBase.value(name, false);
+        d->HasPageFile = pageFileByBase.value(name, false);
     }
 }
 
@@ -303,47 +303,47 @@ bool Storage::Sample()
 
     static constexpr double kSectorBytes = 512.0;
 
-    for (DiskInfo &d : this->m_disks)
+    for (const auto &d : this->m_disks)
     {
-        const auto it = countersByName.constFind(d.Name);
+        const auto it = countersByName.constFind(d->Name);
         if (it == countersByName.cend())
         {
-            d.ActivePct = 0.0;
-            d.ReadBps = 0.0;
-            d.WriteBps = 0.0;
-            d.ActiveHistory.Push(0.0);
-            Misc::PushHistoryAndUpdateMax(d.ReadHistory, 0.0, d.MaxTransferBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(d.WriteHistory, 0.0, d.MaxTransferBps, TUX_MANAGER_MIN_RATE);
+            d->ActivePct = 0.0;
+            d->ReadBps = 0.0;
+            d->WriteBps = 0.0;
+            d->ActiveHistory.Push(0.0);
+            Misc::PushHistoryAndUpdateMax(d->ReadHistory, 0.0, d->MaxTransferBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(d->WriteHistory, 0.0, d->MaxTransferBps, TUX_MANAGER_MIN_RATE);
             continue;
         }
 
         const DiskCounters c = it.value();
         if (dtMs <= 0)
         {
-            d.PrevReadSecs  = c.readSectors;
-            d.PrevWriteSecs = c.writeSectors;
-            d.PrevIoMs      = c.ioMs;
-            d.ActiveHistory.Push(0.0);
-            Misc::PushHistoryAndUpdateMax(d.ReadHistory, 0.0, d.MaxTransferBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(d.WriteHistory, 0.0, d.MaxTransferBps, TUX_MANAGER_MIN_RATE);
+            d->PrevReadSecs  = c.readSectors;
+            d->PrevWriteSecs = c.writeSectors;
+            d->PrevIoMs      = c.ioMs;
+            d->ActiveHistory.Push(0.0);
+            Misc::PushHistoryAndUpdateMax(d->ReadHistory, 0.0, d->MaxTransferBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(d->WriteHistory, 0.0, d->MaxTransferBps, TUX_MANAGER_MIN_RATE);
             continue;
         }
 
-        const quint64 dReadSecs  = (c.readSectors  >= d.PrevReadSecs ) ? (c.readSectors  - d.PrevReadSecs ) : 0;
-        const quint64 dWriteSecs = (c.writeSectors >= d.PrevWriteSecs) ? (c.writeSectors - d.PrevWriteSecs) : 0;
-        const quint64 dIoMs      = (c.ioMs         >= d.PrevIoMs     ) ? (c.ioMs         - d.PrevIoMs     ) : 0;
+        const quint64 dReadSecs  = (c.readSectors  >= d->PrevReadSecs ) ? (c.readSectors  - d->PrevReadSecs ) : 0;
+        const quint64 dWriteSecs = (c.writeSectors >= d->PrevWriteSecs) ? (c.writeSectors - d->PrevWriteSecs) : 0;
+        const quint64 dIoMs      = (c.ioMs         >= d->PrevIoMs     ) ? (c.ioMs         - d->PrevIoMs     ) : 0;
 
-        d.PrevReadSecs  = c.readSectors;
-        d.PrevWriteSecs = c.writeSectors;
-        d.PrevIoMs      = c.ioMs;
+        d->PrevReadSecs  = c.readSectors;
+        d->PrevWriteSecs = c.writeSectors;
+        d->PrevIoMs      = c.ioMs;
 
-        d.ActivePct = qBound(0.0, static_cast<double>(dIoMs) * 100.0 / static_cast<double>(dtMs), 100.0);
-        d.ReadBps  = static_cast<double>(dReadSecs)  * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
-        d.WriteBps = static_cast<double>(dWriteSecs) * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
+        d->ActivePct = qBound(0.0, static_cast<double>(dIoMs) * 100.0 / static_cast<double>(dtMs), 100.0);
+        d->ReadBps  = static_cast<double>(dReadSecs)  * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
+        d->WriteBps = static_cast<double>(dWriteSecs) * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
 
-        d.ActiveHistory.Push(d.ActivePct);
-        Misc::PushHistoryAndUpdateMax(d.ReadHistory, d.ReadBps, d.MaxTransferBps, TUX_MANAGER_MIN_RATE);
-        Misc::PushHistoryAndUpdateMax(d.WriteHistory, d.WriteBps, d.MaxTransferBps, TUX_MANAGER_MIN_RATE);
+        d->ActiveHistory.Push(d->ActivePct);
+        Misc::PushHistoryAndUpdateMax(d->ReadHistory, d->ReadBps, d->MaxTransferBps, TUX_MANAGER_MIN_RATE);
+        Misc::PushHistoryAndUpdateMax(d->WriteHistory, d->WriteBps, d->MaxTransferBps, TUX_MANAGER_MIN_RATE);
     }
 
     return true;

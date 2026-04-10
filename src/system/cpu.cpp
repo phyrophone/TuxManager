@@ -35,26 +35,26 @@ CPU::CPU()
 
 double CPU::CorePercent(int i) const
 {
-    if (i < 0 || i >= this->m_cores.size())
+    if (i < 0 || i >= static_cast<int>(this->m_cores.size()))
         return 0.0;
     const auto &c = this->m_cores.at(i);
-    return c.History.IsEmpty() ? 0.0 : c.History.Back();
+    return c->History.IsEmpty() ? 0.0 : c->History.Back();
 }
 
 const HistoryBuffer &CPU::CoreHistory(int i) const
 {
     static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_cores.size())
+    if (i < 0 || i >= static_cast<int>(this->m_cores.size()))
         return empty;
-    return this->m_cores.at(i).History;
+    return this->m_cores.at(i)->History;
 }
 
 const HistoryBuffer &CPU::CoreKernelHistory(int i) const
 {
     static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_cores.size())
+    if (i < 0 || i >= static_cast<int>(this->m_cores.size()))
         return empty;
-    return this->m_cores.at(i).KernelHistory;
+    return this->m_cores.at(i)->KernelHistory;
 }
 
 double CPU::CoreCurrentMhz(int i) const
@@ -132,10 +132,10 @@ bool CPU::Sample()
         } else if (key.startsWith("cpu") && key.size() > 3)
         {
             // Per-core line: "cpu0", "cpu1", ...
-            if (coreIdx >= this->m_cores.size())
-                this->m_cores.resize(coreIdx + 1);
+            if (coreIdx >= static_cast<int>(this->m_cores.size()))
+                this->m_cores.push_back(std::make_unique<CoreSample>());
 
-            CoreSample &c = this->m_cores[coreIdx];
+            CoreSample &c = *this->m_cores[coreIdx];
             quint64 idleC = 0, kernelC = 0;
             const quint64 totalC = parseCpuLine(parts, idleC, kernelC);
 
@@ -246,7 +246,7 @@ void CPU::detectCpuFreqSource()
 
 void CPU::readCurrentFreq()
 {
-    const int coreCount = qMax(this->m_cores.size(), this->m_cpuLogicalCount);
+    const int coreCount = qMax(static_cast<int>(this->m_cores.size()), this->m_cpuLogicalCount);
     QVector<double> coreMhz(coreCount, 0.0);
 
     this->detectCpuFreqSource();

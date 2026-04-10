@@ -21,8 +21,11 @@
 
 #include "../globals.h"
 #include "../historybuffer.h"
+
+#include <memory>
 #include <QElapsedTimer>
 #include <QSet>
+#include <vector>
 
 class Storage
 {
@@ -53,7 +56,7 @@ class Storage
         /// Sample /proc/diskstats and compute per-device active time % and read/write throughput.
         bool Sample();
 
-        int DiskCount() const { return this->m_disks.size(); }
+        int DiskCount() const { return static_cast<int>(this->m_disks.size()); }
         const DiskInfo &FromIndex(int i) const;
 
 
@@ -64,7 +67,7 @@ class Storage
 
         void refreshDisks(const QSet<QString> &measurableDevices);
 
-        QVector<DiskInfo> m_disks;
+        std::vector<std::unique_ptr<DiskInfo>> m_disks;
         DiskInfo            m_nullDisk;
         QElapsedTimer       m_diskTimer;
         qint64              m_prevDiskSampleMs { 0 };

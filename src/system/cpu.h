@@ -22,6 +22,9 @@
 #include "../globals.h"
 #include "../historybuffer.h"
 
+#include <memory>
+#include <vector>
+
 class CPU
 {
     public:
@@ -36,7 +39,7 @@ class CPU
         const HistoryBuffer &CpuKernelHistory() const { return this->m_cpuKernelHistory; }
 
         // ── Per-core CPU ──────────────────────────────────────────────────────
-        int    CoreCount()                          const { return this->m_cores.size(); }
+        int    CoreCount()                          const { return static_cast<int>(this->m_cores.size()); }
         double CorePercent(int i)                   const;
         const  HistoryBuffer &CoreHistory(int i)       const;
         const  HistoryBuffer &CoreKernelHistory(int i) const;
@@ -79,7 +82,7 @@ class CPU
         HistoryBuffer    m_cpuKernelHistory { TUX_MANAGER_HISTORY_SIZE };
 
         // Per-core state
-        QVector<CoreSample> m_cores;
+        std::vector<std::unique_ptr<CoreSample>> m_cores;
 
         // CPU metadata
         QString  m_cpuModelName;

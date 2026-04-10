@@ -32,9 +32,9 @@ Network::Network() {}
 
 const Network::NetworkInfo &Network::FromIndex(int i) const
 {
-    if (i < 0 || i >= this->m_networks.size())
+    if (i < 0 || i >= static_cast<int>(this->m_networks.size()))
         return this->m_nullNetwork;
-    return this->m_networks.at(i);
+    return *this->m_networks.at(i);
 }
 
 bool Network::isActiveNetworkInterface(const QString &name)
@@ -84,8 +84,8 @@ void Network::refreshNetworkState(bool force)
     }
 
     this->m_networkStateRefreshCounter = 0;
-    for (NetworkInfo &n : this->m_networks)
-        n.IsActive = isActiveNetworkInterface(n.Name);
+    for (const auto &n : this->m_networks)
+        n->IsActive = isActiveNetworkInterface(n->Name);
 }
 
 void Network::refreshNetworkMetadata(bool force)
@@ -139,13 +139,13 @@ void Network::refreshNetworkMetadata(bool force)
         ::freeifaddrs(ifaddr);
     }
 
-    for (NetworkInfo &n : this->m_networks)
+    for (const auto &n : this->m_networks)
     {
-        const int arpType = Misc::ReadFile(QString("/sys/class/net/%1/type").arg(n.Name)).toInt();
-        n.Type = networkTypeFromArpType(arpType);
-        n.LinkSpeedMbps = readLinkSpeedMbps(n.Name);
-        n.IPv4 = ifaddrByName.value(n.Name).ipv4;
-        n.IPv6 = ifaddrByName.value(n.Name).ipv6;
+        const int arpType = Misc::ReadFile(QString("/sys/class/net/%1/type").arg(n->Name)).toInt();
+        n->Type = networkTypeFromArpType(arpType);
+        n->LinkSpeedMbps = readLinkSpeedMbps(n->Name);
+        n->IPv4 = ifaddrByName.value(n->Name).ipv4;
+        n->IPv6 = ifaddrByName.value(n->Name).ipv6;
     }
 }
 
@@ -195,7 +195,7 @@ bool Network::Sample()
 
     std::sort(seenNames.begin(), seenNames.end());
 
-    const bool initializingNetworks = this->m_networks.isEmpty();
+    const bool initializingNetworks = this->m_networks.empty();
     if (initializingNetworks)
     {
         this->m_networks.reserve(seenNames.size());
@@ -204,18 +204,18 @@ bool Network::Sample()
             if (!isActiveNetworkInterface(name))
                 continue;
 
-            NetworkInfo n;
-            n.Name = name;
-            n.IsActive = true;
-            this->m_networks.append(n);
+            auto n = std::make_unique<NetworkInfo>();
+            n->Name = name;
+            n->IsActive = true;
+            this->m_networks.push_back(std::move(n));
         }
     }
 
     bool topologyChanged = false;
     QSet<QString> seenNameSet(seenNames.cbegin(), seenNames.cend());
-    for (const NetworkInfo &n : std::as_const(this->m_networks))
+    for (const auto &n : std::as_const(this->m_networks))
     {
-        if (!seenNameSet.contains(n.Name))
+        if (!seenNameSet.contains(n->Name))
         {
             topologyChanged = true;
             break;
@@ -232,37 +232,37 @@ bool Network::Sample()
     const qint64 dtMs = (this->m_prevNetSampleMs > 0) ? (nowMs - this->m_prevNetSampleMs) : 0;
     this->m_prevNetSampleMs = nowMs;
 
-    for (NetworkInfo &n : this->m_networks)
+    for (const auto &n : this->m_networks)
     {
-        const auto it = countersByName.constFind(n.Name);
-        if (!n.IsActive || it == countersByName.cend())
+        const auto it = countersByName.constFind(n->Name);
+        if (!n->IsActive || it == countersByName.cend())
         {
-            n.RxBps = 0.0;
-            n.TxBps = 0.0;
-            Misc::PushHistoryAndUpdateMax(n.RxHistory, 0.0, n.MaxThroughputBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(n.TxHistory, 0.0, n.MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+            n->RxBps = 0.0;
+            n->TxBps = 0.0;
+            Misc::PushHistoryAndUpdateMax(n->RxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(n->TxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
             continue;
         }
 
         const NetCounters c = it.value();
         if (dtMs <= 0)
         {
-            n.PrevRxBytes = c.rxBytes;
-            n.PrevTxBytes = c.txBytes;
-            Misc::PushHistoryAndUpdateMax(n.RxHistory, 0.0, n.MaxThroughputBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(n.TxHistory, 0.0, n.MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+            n->PrevRxBytes = c.rxBytes;
+            n->PrevTxBytes = c.txBytes;
+            Misc::PushHistoryAndUpdateMax(n->RxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(n->TxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
             continue;
         }
 
-        const quint64 dRx = (c.rxBytes >= n.PrevRxBytes) ? (c.rxBytes - n.PrevRxBytes) : 0;
-        const quint64 dTx = (c.txBytes >= n.PrevTxBytes) ? (c.txBytes - n.PrevTxBytes) : 0;
-        n.PrevRxBytes = c.rxBytes;
-        n.PrevTxBytes = c.txBytes;
+        const quint64 dRx = (c.rxBytes >= n->PrevRxBytes) ? (c.rxBytes - n->PrevRxBytes) : 0;
+        const quint64 dTx = (c.txBytes >= n->PrevTxBytes) ? (c.txBytes - n->PrevTxBytes) : 0;
+        n->PrevRxBytes = c.rxBytes;
+        n->PrevTxBytes = c.txBytes;
 
-        n.RxBps = static_cast<double>(dRx) * 1000.0 / static_cast<double>(dtMs);
-        n.TxBps = static_cast<double>(dTx) * 1000.0 / static_cast<double>(dtMs);
-        Misc::PushHistoryAndUpdateMax(n.RxHistory, n.RxBps, n.MaxThroughputBps, TUX_MANAGER_MIN_RATE);
-        Misc::PushHistoryAndUpdateMax(n.TxHistory, n.TxBps, n.MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+        n->RxBps = static_cast<double>(dRx) * 1000.0 / static_cast<double>(dtMs);
+        n->TxBps = static_cast<double>(dTx) * 1000.0 / static_cast<double>(dtMs);
+        Misc::PushHistoryAndUpdateMax(n->RxHistory, n->RxBps, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+        Misc::PushHistoryAndUpdateMax(n->TxHistory, n->TxBps, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
     }
 
     return true;

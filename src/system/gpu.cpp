@@ -132,9 +132,32 @@ GPU::~GPU()
 
 const GPU::GPUInfo &GPU::FromIndex(int gpuIndex) const
 {
-    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
+    if (gpuIndex < 0 || gpuIndex >= static_cast<int>(this->m_gpus.size()))
         return this->m_nullGPU;
-    return this->m_gpus.at(gpuIndex);
+    return *this->m_gpus.at(gpuIndex);
+}
+
+GPU::GPUEngineInfo *GPU::GPUInfo::FindEngine(const QString &key)
+{
+    for (const auto &engine : this->Engines)
+    {
+        if (engine->Key == key)
+            return engine.get();
+    }
+
+    return nullptr;
+}
+
+void GPU::zeroMissingEngines(GPUInfo &gpu, const QSet<QString> &seenEngineKeys)
+{
+    for (const auto &engine : gpu.Engines)
+    {
+        if (seenEngineKeys.contains(engine->Key))
+            continue;
+
+        engine->Pct = 0.0;
+        engine->History.Push(0.0);
+    }
 }
 
 void GPU::detectGpuBackends()
@@ -268,7 +291,7 @@ bool GPU::sampleNvml()
         pNvmlSystemGetDriverVersion(driverVer, sizeof(driverVer));
     const QString driverVersion = QString::fromLatin1(driverVer).trimmed();
 
-    const bool allowAppend = this->m_gpus.isEmpty();
+    const bool allowAppend = this->m_gpus.empty();
     if (allowAppend)
         this->m_gpus.reserve(static_cast<int>(count));
     QSet<QString> seenIds;
@@ -308,9 +331,9 @@ bool GPU::sampleNvml()
                              && (pNvmlDeviceGetTemperature(dev, kNvmlTemperatureGpu, &tempC) == NVML_SUCCESS);
 
         int gpuIdx = -1;
-        for (int j = 0; j < this->m_gpus.size(); ++j)
+        for (int j = 0; j < static_cast<int>(this->m_gpus.size()); ++j)
         {
-            if (this->m_gpus.at(j).ID == id)
+            if (this->m_gpus.at(j)->ID == id)
             {
                 gpuIdx = j;
                 break;
@@ -320,13 +343,13 @@ bool GPU::sampleNvml()
         {
             if (!allowAppend)
                 continue;
-            GPUInfo gNew;
-            gNew.ID = id;
-            this->m_gpus.append(gNew);
+            auto gNew = std::make_unique<GPUInfo>();
+            gNew->ID = id;
+            this->m_gpus.push_back(std::move(gNew));
             gpuIdx = this->m_gpus.size() - 1;
         }
 
-        GPUInfo &g = this->m_gpus[gpuIdx];
+        GPUInfo &g = *this->m_gpus[gpuIdx];
         g.ID = id;
         g.Name = name;
         g.DriverVersion = driverVersion;
@@ -348,19 +371,21 @@ bool GPU::sampleNvml()
         Misc::PushHistoryAndUpdateMax(g.CopyTxHistory, g.CopyTxBps, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
         Misc::PushHistoryAndUpdateMax(g.CopyRxHistory, g.CopyRxBps, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
 
-        QHash<QString, GPUEngineInfo> oldEngines;
-        for (const GPUEngineInfo &e : std::as_const(g.Engines))
-            oldEngines.insert(e.Key, e);
-
-        QVector<GPUEngineInfo> engines;
+        QSet<QString> seenEngineKeys;
         auto addEngine = [&](const QString &key, const QString &label, double pct)
         {
-            GPUEngineInfo eng = oldEngines.value(key);
-            eng.Key = key;
-            eng.Label = label;
-            eng.Pct = qBound(0.0, pct, 100.0);
-            eng.History.Push(eng.Pct);
-            engines.append(eng);
+            GPUEngineInfo *eng = g.FindEngine(key);
+            if (!eng)
+            {
+                auto newEngine = std::make_unique<GPUEngineInfo>();
+                newEngine->Key = key;
+                newEngine->Label = label;
+                g.Engines.push_back(std::move(newEngine));
+                eng = g.Engines.back().get();
+            }
+            eng->Pct = qBound(0.0, pct, 100.0);
+            eng->History.Push(eng->Pct);
+            seenEngineKeys.insert(key);
         };
 
         if (hasUtil)
@@ -434,34 +459,34 @@ bool GPU::sampleNvml()
                 addEngine("video-decode", "Video Decode", dec);
         }
 
-        g.Engines = engines;
+        this->zeroMissingEngines(g, seenEngineKeys);
         seenIds.insert(id);
     }
     // Zero-out stale NVML GPUs that disappeared between ticks (e.g. hot-unplug).
     // Only touch entries that were previously produced by NVML (backend == "nvml").
-    for (GPUInfo &g : this->m_gpus)
+    for (const auto &g : this->m_gpus)
     {
-        if (g.Backend != QLatin1String("NVML"))
+        if (g->Backend != QLatin1String("NVML"))
             continue;
-        if (!seenIds.contains(g.ID))
+        if (!seenIds.contains(g->ID))
         {
-            g.UtilPct = 0.0;
-            g.TemperatureC = -1;
-            g.MemUsedMiB = 0;
-            g.MemTotalMiB = 0;
-            g.SharedMemUsedMiB = 0;
-            g.SharedMemTotalMiB = 0;
-            g.CopyTxBps = 0.0;
-            g.CopyRxBps = 0.0;
-            g.UtilHistory.Push(0.0);
-            g.MemUsageHistory.Push(0.0);
-            g.SharedMemHistory.Push(0.0);
-            Misc::PushHistoryAndUpdateMax(g.CopyTxHistory, 0.0, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(g.CopyRxHistory, 0.0, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
-            for (GPUEngineInfo &e : g.Engines)
+            g->UtilPct = 0.0;
+            g->TemperatureC = -1;
+            g->MemUsedMiB = 0;
+            g->MemTotalMiB = 0;
+            g->SharedMemUsedMiB = 0;
+            g->SharedMemTotalMiB = 0;
+            g->CopyTxBps = 0.0;
+            g->CopyRxBps = 0.0;
+            g->UtilHistory.Push(0.0);
+            g->MemUsageHistory.Push(0.0);
+            g->SharedMemHistory.Push(0.0);
+            Misc::PushHistoryAndUpdateMax(g->CopyTxHistory, 0.0, g->MaxCopyBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(g->CopyRxHistory, 0.0, g->MaxCopyBps, TUX_MANAGER_MIN_RATE);
+            for (const auto &e : g->Engines)
             {
-                e.Pct = 0.0;
-                e.History.Push(0.0);
+                e->Pct = 0.0;
+                e->History.Push(0.0);
             }
         }
     }
@@ -582,9 +607,9 @@ bool GPU::sampleDrm()
     for (DRMCard &card : this->m_drmCards)
     {
         int gpuIdx = -1;
-        for (int j = 0; j < this->m_gpus.size(); ++j)
+        for (int j = 0; j < static_cast<int>(this->m_gpus.size()); ++j)
         {
-            if (this->m_gpus.at(j).ID == card.ID)
+            if (this->m_gpus.at(j)->ID == card.ID)
             {
                 gpuIdx = j;
                 break;
@@ -593,24 +618,24 @@ bool GPU::sampleDrm()
 
         if (gpuIdx < 0)
         {
-            GPUInfo g;
-            g.ID            = card.ID;
-            g.DriverVersion = card.DriverVersion;
-            g.Backend       = card.DriverName.isEmpty()
+            auto g = std::make_unique<GPUInfo>();
+            g->ID            = card.ID;
+            g->DriverVersion = card.DriverVersion;
+            g->Backend       = card.DriverName.isEmpty()
                             ? QStringLiteral("drm") : card.DriverName;
 
             if (card.Vendor == QLatin1String("0x1002"))
-                g.Name = QStringLiteral("AMD Radeon");
+                g->Name = QStringLiteral("AMD Radeon");
             else if (card.Vendor == QLatin1String("0x8086"))
-                g.Name = QStringLiteral("Intel Graphics");
+                g->Name = QStringLiteral("Intel Graphics");
             else
-                g.Name = QStringLiteral("GPU");
+                g->Name = QStringLiteral("GPU");
 
-            this->m_gpus.append(g);
+            this->m_gpus.push_back(std::move(g));
             gpuIdx = this->m_gpus.size() - 1;
         }
 
-        GPUInfo &g = this->m_gpus[gpuIdx];
+        GPUInfo &g = *this->m_gpus[gpuIdx];
         g.TemperatureC = -1;
 
         if (!card.BusyPath.isEmpty())
@@ -665,19 +690,21 @@ bool GPU::sampleDrm()
         g.CopyRxHistory.Push(0.0);
 
         // ── Engine data ──────────────────────────────────────────────────────
-        QHash<QString, GPUEngineInfo> oldEngines;
-        for (const GPUEngineInfo &e : std::as_const(g.Engines))
-            oldEngines.insert(e.Key, e);
-
-        QVector<GPUEngineInfo> engines;
+        QSet<QString> seenEngineKeys;
         auto addEngine = [&](const QString &key, const QString &label, double pct)
         {
-            GPUEngineInfo eng = oldEngines.value(key);
-            eng.Key   = key;
-            eng.Label = label;
-            eng.Pct   = qBound(0.0, pct, 100.0);
-            eng.History.Push(eng.Pct);
-            engines.append(eng);
+            GPUEngineInfo *eng = g.FindEngine(key);
+            if (!eng)
+            {
+                auto newEngine = std::make_unique<GPUEngineInfo>();
+                newEngine->Key = key;
+                newEngine->Label = label;
+                g.Engines.push_back(std::move(newEngine));
+                eng = g.Engines.back().get();
+            }
+            eng->Pct = qBound(0.0, pct, 100.0);
+            eng->History.Push(eng->Pct);
+            seenEngineKeys.insert(key);
         };
 
         if (!card.BusyPath.isEmpty())
@@ -720,8 +747,7 @@ bool GPU::sampleDrm()
             }
             g.PrevFDInfoEngineNs = curNs;
         }
-
-        g.Engines = engines;
+        this->zeroMissingEngines(g, seenEngineKeys);
     }
 
     // Restart the fdinfo timer after all DRM cards are sampled.

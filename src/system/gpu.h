@@ -21,8 +21,11 @@
 
 #include "../globals.h"
 #include "../historybuffer.h"
+
+#include <memory>
 #include <QSet>
 #include <QElapsedTimer>
+#include <vector>
 
 class GPU
 {
@@ -37,6 +40,8 @@ class GPU
 
         struct GPUInfo
         {
+            GPUEngineInfo  *FindEngine(const QString &key);
+
             QString         ID;
             QString         Name;
             QString         DriverVersion;
@@ -55,7 +60,7 @@ class GPU
             HistoryBuffer   SharedMemHistory { TUX_MANAGER_HISTORY_SIZE };
             HistoryBuffer   CopyTxHistory { TUX_MANAGER_HISTORY_SIZE };
             HistoryBuffer   CopyRxHistory { TUX_MANAGER_HISTORY_SIZE };
-            QVector<GPUEngineInfo>    Engines;
+            std::vector<std::unique_ptr<GPUEngineInfo>>    Engines;
             QHash<QString, qint64>      PrevFDInfoEngineNs;
         };
 
@@ -89,7 +94,7 @@ class GPU
         /// Sample GPU backends (NVML when available) and update utilization/memory/engine histories.
         bool Sample();
 
-        int GpuCount() const { return this->m_gpus.size(); }
+        int GpuCount() const { return static_cast<int>(this->m_gpus.size()); }
         const GPUInfo &FromIndex(int gpuIndex) const;
 
     private:
@@ -97,12 +102,16 @@ class GPU
         void detectDrmCards();
         bool sampleNvml();
         bool sampleDrm();
+        /// Pushes a zero sample for engines that were known before but were not
+        /// reported on the current tick, so the UI falls back to zero instead of
+        /// showing a frozen stale graph/value.
+        void zeroMissingEngines(GPUInfo &gpu, const QSet<QString> &seenEngineKeys);
         QHash<QString, qint64> scanDrmFdInfoEngines(DRMCard &card);
         void unloadGpuBackends();
         //! Returned if index of requested GPU doesn't exist
         GPUInfo m_nullGPU;
 
-        QVector<GPUInfo>    m_gpus;
+        std::vector<std::unique_ptr<GPUInfo>>    m_gpus;
         bool                m_hasNvml { false };
         void               *m_nvmlLibHandle { nullptr };
         QVector<DRMCard>    m_drmCards;

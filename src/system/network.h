@@ -21,8 +21,10 @@
 
 #include "../globals.h"
 #include "../historybuffer.h"
+#include <memory>
 #include <QElapsedTimer>
 #include <QVector>
+#include <vector>
 
 class Network
 {
@@ -49,7 +51,7 @@ class Network
         /// Sample /proc/net/dev counters and compute per-interface RX/TX throughput histories.
         bool Sample();
 
-        int NetworkCount() const { return this->m_networks.size(); }
+        int NetworkCount() const { return static_cast<int>(this->m_networks.size()); }
         const NetworkInfo &FromIndex(int i) const;
 
     private:
@@ -60,7 +62,7 @@ class Network
         void refreshNetworkState(bool force = false);
         void refreshNetworkMetadata(bool force = false);
 
-        QVector<NetworkInfo>   m_networks;
+        std::vector<std::unique_ptr<NetworkInfo>>   m_networks;
         NetworkInfo            m_nullNetwork;
         QElapsedTimer          m_netTimer;
         qint64                 m_prevNetSampleMs { 0 };
