@@ -24,8 +24,6 @@
 #include <QMenu>
 #include <QWidget>
 
-class Metrics;
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class CpuDetailWidget; }
 QT_END_NAMESPACE
@@ -40,7 +38,7 @@ namespace Perf
             explicit CpuDetailWidget(QWidget *parent = nullptr);
             ~CpuDetailWidget();
 
-            void SetProvider(Metrics *provider);
+            void Init();
             void ApplyColorScheme();
 
         private slots:
@@ -49,7 +47,6 @@ namespace Perf
 
         private:
             Ui::CpuDetailWidget  *ui;
-            Metrics              *m_provider   { nullptr };
             CpuGraphArea         *m_graphArea  { nullptr };
     };
 } // namespace Perf

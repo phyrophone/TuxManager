@@ -23,7 +23,6 @@
 
 class QGridLayout;
 class QStackedWidget;
-class Metrics;
 
 namespace Perf
 {
@@ -45,7 +44,7 @@ namespace Perf
             enum class GraphMode { Overall, PerCore };
 
             explicit CpuGraphArea(QWidget *parent = nullptr);
-            void SetProvider(const Metrics *provider);
+            void Init();
 
             void SetMode(GraphMode mode);
             GraphMode GetMode() const { return this->m_mode; }
@@ -73,7 +72,6 @@ namespace Perf
             QWidget               *m_perCoreContainer { nullptr };
             QGridLayout           *m_perCoreGrid      { nullptr };
             QVector<GraphWidget *> m_coreGraphs;
-            const Metrics         *m_provider        { nullptr };
 
             GraphMode              m_mode            { GraphMode::Overall };
             bool                   m_showKernelTime  { false };

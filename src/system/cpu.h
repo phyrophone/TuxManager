@@ -55,11 +55,11 @@ class CPU
         /// Per-core rolling sample state.
         struct CoreSample
         {
-            quint64        PrevIdle     { 0 };
-            quint64        PrevTotal    { 0 };
-            quint64        PrevKernel   { 0 };
-            HistoryBuffer History       { TUX_MANAGER_HISTORY_SIZE };
-            HistoryBuffer KernelHistory { TUX_MANAGER_HISTORY_SIZE };
+            quint64         PrevIdle     { 0 };
+            quint64         PrevTotal    { 0 };
+            quint64         PrevKernel   { 0 };
+            HistoryBuffer   History       { TUX_MANAGER_HISTORY_SIZE };
+            HistoryBuffer   KernelHistory { TUX_MANAGER_HISTORY_SIZE };
         };
 
         static quint64 parseCpuLine(const QList<QByteArray> &parts,  quint64 &outIdle, quint64 &outKernel);

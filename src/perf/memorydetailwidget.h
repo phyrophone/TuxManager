@@ -23,8 +23,6 @@
 
 #include <QWidget>
 
-class Metrics;
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class MemoryDetailWidget; }
 QT_END_NAMESPACE
@@ -39,7 +37,7 @@ namespace Perf
             explicit MemoryDetailWidget(QWidget *parent = nullptr);
             ~MemoryDetailWidget();
 
-            void setProvider(Metrics *provider);
+            void Init();
             void ApplyColorScheme();
 
         private slots:
@@ -47,7 +45,6 @@ namespace Perf
 
         private:
             Ui::MemoryDetailWidget *ui;
-            Metrics                *m_provider { nullptr };
             const HistoryBuffer  *m_memHistory { nullptr };
     };
 } // namespace Perf

@@ -75,6 +75,7 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     this->ui->transferGraphWidget->SetGridRows(4);
     this->ui->transferGraphWidget->SetSeriesNames(tr("Read"), tr("Write"));
     this->ui->transferGraphWidget->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
+    this->ui->activeGraphMaxLabel->setText(tr("100%"));
 }
 
 DiskDetailWidget::~DiskDetailWidget()
@@ -116,71 +117,45 @@ void DiskDetailWidget::ApplyColorScheme()
     this->update();
 }
 
-void DiskDetailWidget::SetDisk(Metrics *provider, int index)
+void DiskDetailWidget::SetDisk(int index)
 {
-    if (this->m_provider)
-        disconnect(this->m_provider, &Metrics::updated, this, &DiskDetailWidget::onUpdated);
-
-    this->m_provider = provider;
     this->m_diskIndex = index;
-    this->m_activeHistory = nullptr;
-    this->m_readHistory = nullptr;
-    this->m_writeHistory = nullptr;
 
-    if (this->m_provider)
+    if (this->m_diskIndex >= 0 && this->m_diskIndex < Metrics::GetStorage()->DiskCount())
     {
-        if (this->m_diskIndex >= 0 && this->m_diskIndex < Metrics::GetStorage()->DiskCount())
-        {
-            const QString name = Metrics::GetStorage()->DiskName(this->m_diskIndex);
-            const QString model = Metrics::GetStorage()->DiskModel(this->m_diskIndex);
-            const QString type = Metrics::GetStorage()->DiskType(this->m_diskIndex);
+        const Storage::DiskInfo &disk = Metrics::GetStorage()->FromIndex(this->m_diskIndex);
 
-            this->m_activeHistory = &Metrics::GetStorage()->DiskActiveHistory(this->m_diskIndex);
-            this->m_readHistory = &Metrics::GetStorage()->DiskReadHistory(this->m_diskIndex);
-            this->m_writeHistory = &Metrics::GetStorage()->DiskWriteHistory(this->m_diskIndex);
+        this->ui->titleLabel->setText(tr("Disk (%1)").arg(disk.Name));
+        this->ui->modelLabel->setText(disk.Model);
+        this->ui->typeValueLabel->setText(disk.Type);
+        this->ui->deviceValueLabel->setText("/dev/" + disk.Name);
 
-            this->ui->titleLabel->setText(tr("Disk (%1)").arg(name));
-            this->ui->modelLabel->setText(model);
-            this->ui->typeValueLabel->setText(type);
-            this->ui->deviceValueLabel->setText("/dev/" + name);
-
-            this->ui->activeGraphWidget->SetDataSource(*this->m_activeHistory, 100.0);
-            this->ui->transferGraphWidget->SetDataSource(*this->m_readHistory, 1024.0);
-            this->ui->transferGraphWidget->SetOverlayDataSource(*this->m_writeHistory);
-        }
-        connect(this->m_provider, &Metrics::updated, this, &DiskDetailWidget::onUpdated);
+        this->ui->activeGraphWidget->SetDataSource(disk.ActiveHistory, 100.0);
+        this->ui->transferGraphWidget->SetDataSource(disk.ReadHistory, 1024.0);
+        this->ui->transferGraphWidget->SetOverlayDataSource(disk.WriteHistory);
     }
+    connect(Metrics::Get(), &Metrics::updated, this, &DiskDetailWidget::onUpdated);
     this->onUpdated();
 }
 
 void DiskDetailWidget::onUpdated()
 {
-    if (!this->m_provider || !this->m_activeHistory || !this->m_readHistory || !this->m_writeHistory
-            || this->m_diskIndex < 0 || this->m_diskIndex >= Metrics::GetStorage()->DiskCount())
+    if (this->m_diskIndex < 0 || this->m_diskIndex >= Metrics::GetStorage()->DiskCount())
         return;
 
-    const double active = Metrics::GetStorage()->DiskActivePercent(this->m_diskIndex);
-    const double readBps = Metrics::GetStorage()->DiskReadBytesPerSec(this->m_diskIndex);
-    const double writeBps = Metrics::GetStorage()->DiskWriteBytesPerSec(this->m_diskIndex);
-    const qint64 capacityBytes = Metrics::GetStorage()->DiskCapacityBytes(this->m_diskIndex);
-    const qint64 formattedBytes = Metrics::GetStorage()->DiskFormattedBytes(this->m_diskIndex);
-    const bool isSystemDisk = Metrics::GetStorage()->DiskIsSystemDisk(this->m_diskIndex);
-    const bool hasSwapFile = Metrics::GetStorage()->DiskHasSwapFile(this->m_diskIndex);
-    this->ui->activeValueLabel->setText(QString::number(active, 'f', 0) + "%");
-    this->ui->readValueLabel->setText(Misc::FormatBytesPerSecond(readBps));
-    this->ui->writeValueLabel->setText(Misc::FormatBytesPerSecond(writeBps));
-    this->ui->capacityValueLabel->setText(Misc::FormatBytes(static_cast<quint64>(qMax<qint64>(0, capacityBytes)), 1));
-    this->ui->formattedValueLabel->setText(formattedBytes > 0
-                                           ? Misc::FormatBytes(static_cast<quint64>(qMax<qint64>(0, formattedBytes)), 1)
+    const Storage::DiskInfo &disk = Metrics::GetStorage()->FromIndex(this->m_diskIndex);
+    this->ui->activeValueLabel->setText(QString::number(disk.ActivePct, 'f', 0) + "%");
+    this->ui->readValueLabel->setText(Misc::FormatBytesPerSecond(disk.ReadBps));
+    this->ui->writeValueLabel->setText(Misc::FormatBytesPerSecond(disk.WriteBps));
+    this->ui->capacityValueLabel->setText(Misc::FormatBytes(static_cast<quint64>(qMax<qint64>(0, disk.CapacityBytes)), 1));
+    this->ui->formattedValueLabel->setText(disk.FormattedBytes > 0
+                                           ? Misc::FormatBytes(static_cast<quint64>(qMax<qint64>(0, disk.FormattedBytes)), 1)
                                            : tr("-"));
-    this->ui->systemDiskValueLabel->setText(isSystemDisk ? tr("Yes") : tr("No"));
-    this->ui->pageFileValueLabel->setText(hasSwapFile ? tr("Yes") : tr("No"));
+    this->ui->systemDiskValueLabel->setText(disk.IsSystemDisk ? tr("Yes") : tr("No"));
+    this->ui->pageFileValueLabel->setText(disk.HasPageFile ? tr("Yes") : tr("No"));
 
-    this->ui->activeGraphMaxLabel->setText(tr("100%"));
-
-    const double maxRate = Metrics::GetStorage()->DiskMaxTransferBytesPerSec(this->m_diskIndex);
-    this->ui->transferGraphWidget->SetMax(maxRate);
+    this->ui->transferGraphWidget->SetMax(disk.MaxTransferBps);
     this->ui->activeGraphWidget->Tick();
     this->ui->transferGraphWidget->Tick();
-    this->ui->transferGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
+    this->ui->transferGraphMaxLabel->setText(Misc::FormatBytesPerSecond(disk.MaxTransferBps));
 }

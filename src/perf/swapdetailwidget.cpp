@@ -151,10 +151,8 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     root->addLayout(stats);
 }
 
-void SwapDetailWidget::SetProvider(Metrics *provider)
+void SwapDetailWidget::Init()
 {
-    this->m_provider = provider;
-
     this->m_usageHistory = &Metrics::GetMemory()->SwapUsageHistory();
     this->m_outHistory = &Metrics::GetMemory()->SwapOutHistory();
     this->m_inHistory = &Metrics::GetMemory()->SwapInHistory();
@@ -163,7 +161,7 @@ void SwapDetailWidget::SetProvider(Metrics *provider)
     this->m_activityGraph->SetDataSource(*this->m_inHistory, 1024.0);
     this->m_activityGraph->SetOverlayDataSource(*this->m_outHistory);
 
-    connect(this->m_provider, &Metrics::updated, this, &SwapDetailWidget::onUpdated);
+    connect(Metrics::Get(), &Metrics::updated, this, &SwapDetailWidget::onUpdated);
     this->onUpdated();
 }
 
@@ -183,9 +181,6 @@ void SwapDetailWidget::ApplyColorScheme()
 
 void SwapDetailWidget::onUpdated()
 {
-    if (!this->m_provider)
-        return;
-
     const qint64 totalKb = Metrics::GetMemory()->SwapTotalKb();
     const qint64 usedKb = Metrics::GetMemory()->SwapUsedKb();
     const qint64 freeKb = Metrics::GetMemory()->SwapFreeKb();

@@ -81,23 +81,15 @@ CpuDetailWidget::~CpuDetailWidget()
     delete this->ui;
 }
 
-void CpuDetailWidget::SetProvider(Metrics *provider)
+void CpuDetailWidget::Init()
 {
-    if (this->m_provider)
-        disconnect(this->m_provider, &Metrics::updated, this, &CpuDetailWidget::onUpdated);
+    // Populate one-time static labels from metadata
+    this->ui->modelNameLabel->setText(Metrics::GetCPU()->CpuModelName());
+    this->ui->statLogicalCpusValue->setText(QString::number(Metrics::GetCPU()->CpuLogicalCount()));
+    this->m_graphArea->Init();
 
-    this->m_provider = provider;
-
-    if (this->m_provider)
-    {
-        // Populate one-time static labels from metadata
-        this->ui->modelNameLabel->setText(Metrics::GetCPU()->CpuModelName());
-        this->ui->statLogicalCpusValue->setText(QString::number(Metrics::GetCPU()->CpuLogicalCount()));
-        this->m_graphArea->SetProvider(this->m_provider);
-
-        connect(this->m_provider, &Metrics::updated, this, &CpuDetailWidget::onUpdated);
-        this->onUpdated();
-    }
+    connect(Metrics::Get(), &Metrics::updated, this, &CpuDetailWidget::onUpdated);
+    this->onUpdated();
 }
 
 void CpuDetailWidget::ApplyColorScheme()
@@ -132,9 +124,6 @@ void CpuDetailWidget::ApplyColorScheme()
 
 void CpuDetailWidget::onUpdated()
 {
-    if (!this->m_provider)
-        return;
-
     const double pct = Metrics::GetCPU()->CpuPercent();
 
     // Header utilisation

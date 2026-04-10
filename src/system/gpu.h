@@ -27,43 +27,15 @@
 class GPU
 {
     public:
-        GPU();
-        ~GPU();
-
-        /// Sample GPU backends (NVML when available) and update utilization/memory/engine histories.
-        bool Sample();
-
-        int GpuCount() const { return this->m_gpus.size(); }
-        QString GpuName(int i) const;
-        QString GpuDriverVersion(int i) const;
-        QString GpuBackendName(int i) const;
-        double GpuUtilPercent(int i) const;
-        int GpuTemperatureC(int i) const;
-        qint64 GpuMemUsedMiB(int i) const;
-        qint64 GpuMemTotalMiB(int i) const;
-        const HistoryBuffer &GpuUtilHistory(int i) const;
-        const HistoryBuffer &GpuMemUsageHistory(int i) const;
-        const HistoryBuffer &GpuCopyTxHistory(int i) const;
-        const HistoryBuffer &GpuCopyRxHistory(int i) const;
-        double GpuMaxCopyBytesPerSec(int i) const;
-        qint64 GpuSharedMemUsedMiB(int i) const;
-        qint64 GpuSharedMemTotalMiB(int i) const;
-        const HistoryBuffer &GpuSharedMemHistory(int i) const;
-        int GpuEngineCount(int gpuIndex) const;
-        QString GpuEngineName(int gpuIndex, int engineIndex) const;
-        double GpuEnginePercent(int gpuIndex, int engineIndex) const;
-        const HistoryBuffer &GpuEngineHistory(int gpuIndex, int engineIndex) const;
-
-    private:
-        struct GpuEngineSample
+        struct GPUEngineInfo
         {
             QString         Key;
             QString         Label;
             double          Pct { 0.0 };
-            HistoryBuffer History { TUX_MANAGER_HISTORY_SIZE };
+            HistoryBuffer   History { TUX_MANAGER_HISTORY_SIZE };
         };
 
-        struct GpuSample
+        struct GPUInfo
         {
             QString         ID;
             QString         Name;
@@ -78,18 +50,18 @@ class GPU
             double          CopyTxBps { 0.0 };
             double          CopyRxBps { 0.0 };
             double          MaxCopyBps { 0.0 };
-            HistoryBuffer UtilHistory { TUX_MANAGER_HISTORY_SIZE };
-            HistoryBuffer MemUsageHistory { TUX_MANAGER_HISTORY_SIZE };
-            HistoryBuffer SharedMemHistory { TUX_MANAGER_HISTORY_SIZE };
-            HistoryBuffer CopyTxHistory { TUX_MANAGER_HISTORY_SIZE };
-            HistoryBuffer CopyRxHistory { TUX_MANAGER_HISTORY_SIZE };
-            QVector<GpuEngineSample> Engines;
-            QHash<QString, qint64> PrevFDInfoEngineNs;
+            HistoryBuffer   UtilHistory { TUX_MANAGER_HISTORY_SIZE };
+            HistoryBuffer   MemUsageHistory { TUX_MANAGER_HISTORY_SIZE };
+            HistoryBuffer   SharedMemHistory { TUX_MANAGER_HISTORY_SIZE };
+            HistoryBuffer   CopyTxHistory { TUX_MANAGER_HISTORY_SIZE };
+            HistoryBuffer   CopyRxHistory { TUX_MANAGER_HISTORY_SIZE };
+            QVector<GPUEngineInfo>    Engines;
+            QHash<QString, qint64>      PrevFDInfoEngineNs;
         };
 
         // Cached sysfs paths for a kernel DRM-managed GPU.
         // Populated once at startup; used every sampling tick.
-        struct DrmCard
+        struct DRMCard
         {
             QString   ID;             // PCI address, e.g. 0000:05:00.0
             QString   Vendor;         // PCI vendor, e.g. "0x1002"
@@ -111,17 +83,29 @@ class GPU
             QStringList     CachedFDInfoPaths;
         };
 
+        GPU();
+        ~GPU();
+
+        /// Sample GPU backends (NVML when available) and update utilization/memory/engine histories.
+        bool Sample();
+
+        int GpuCount() const { return this->m_gpus.size(); }
+        const GPUInfo &FromIndex(int gpuIndex) const;
+
+    private:
         void detectGpuBackends();
         void detectDrmCards();
         bool sampleNvml();
         bool sampleDrm();
-        QHash<QString, qint64> scanDrmFdInfoEngines(DrmCard &card);
+        QHash<QString, qint64> scanDrmFdInfoEngines(DRMCard &card);
         void unloadGpuBackends();
+        //! Returned if index of requested GPU doesn't exist
+        GPUInfo m_nullGPU;
 
-        QVector<GpuSample>  m_gpus;
+        QVector<GPUInfo>    m_gpus;
         bool                m_hasNvml { false };
         void               *m_nvmlLibHandle { nullptr };
-        QVector<DrmCard>    m_drmCards;
+        QVector<DRMCard>    m_drmCards;
         QElapsedTimer       m_gpuFdInfoTimer;
         bool                m_gpuFdInfoTimerStarted { false };
         int                 m_gpuFdInfoRescanCounter { 0 };

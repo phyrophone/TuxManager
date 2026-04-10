@@ -30,76 +30,11 @@
 
 Network::Network() {}
 
-QString Network::NetworkName(int i) const
+const Network::NetworkInfo &Network::FromIndex(int i) const
 {
     if (i < 0 || i >= this->m_networks.size())
-        return {};
-    return this->m_networks.at(i).Name;
-}
-
-QString Network::NetworkType(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return {};
-    return this->m_networks.at(i).Type;
-}
-
-int Network::NetworkLinkSpeedMbps(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return 0;
-    return this->m_networks.at(i).LinkSpeedMbps;
-}
-
-QString Network::NetworkIpv4(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return {};
-    return this->m_networks.at(i).IPv4;
-}
-
-QString Network::NetworkIpv6(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return {};
-    return this->m_networks.at(i).IPv6;
-}
-
-double Network::NetworkRxBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return 0.0;
-    return this->m_networks.at(i).RxBps;
-}
-
-double Network::NetworkTxBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return 0.0;
-    return this->m_networks.at(i).TxBps;
-}
-
-double Network::NetworkMaxThroughputBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_networks.size())
-        return TUX_MANAGER_MIN_RATE;
-    return this->m_networks.at(i).MaxThroughputBps;
-}
-
-const HistoryBuffer &Network::NetworkRxHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_networks.size())
-        return empty;
-    return this->m_networks.at(i).RxHistory;
-}
-
-const HistoryBuffer &Network::NetworkTxHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_networks.size())
-        return empty;
-    return this->m_networks.at(i).TxHistory;
+        return this->m_nullNetwork;
+    return this->m_networks.at(i);
 }
 
 bool Network::isActiveNetworkInterface(const QString &name)
@@ -149,7 +84,7 @@ void Network::refreshNetworkState(bool force)
     }
 
     this->m_networkStateRefreshCounter = 0;
-    for (NetworkSample &n : this->m_networks)
+    for (NetworkInfo &n : this->m_networks)
         n.IsActive = isActiveNetworkInterface(n.Name);
 }
 
@@ -204,7 +139,7 @@ void Network::refreshNetworkMetadata(bool force)
         ::freeifaddrs(ifaddr);
     }
 
-    for (NetworkSample &n : this->m_networks)
+    for (NetworkInfo &n : this->m_networks)
     {
         const int arpType = Misc::ReadFile(QString("/sys/class/net/%1/type").arg(n.Name)).toInt();
         n.Type = networkTypeFromArpType(arpType);
@@ -269,7 +204,7 @@ bool Network::Sample()
             if (!isActiveNetworkInterface(name))
                 continue;
 
-            NetworkSample n;
+            NetworkInfo n;
             n.Name = name;
             n.IsActive = true;
             this->m_networks.append(n);
@@ -278,7 +213,7 @@ bool Network::Sample()
 
     bool topologyChanged = false;
     QSet<QString> seenNameSet(seenNames.cbegin(), seenNames.cend());
-    for (const NetworkSample &n : std::as_const(this->m_networks))
+    for (const NetworkInfo &n : std::as_const(this->m_networks))
     {
         if (!seenNameSet.contains(n.Name))
         {
@@ -297,7 +232,7 @@ bool Network::Sample()
     const qint64 dtMs = (this->m_prevNetSampleMs > 0) ? (nowMs - this->m_prevNetSampleMs) : 0;
     this->m_prevNetSampleMs = nowMs;
 
-    for (NetworkSample &n : this->m_networks)
+    for (NetworkInfo &n : this->m_networks)
     {
         const auto it = countersByName.constFind(n.Name);
         if (!n.IsActive || it == countersByName.cend())

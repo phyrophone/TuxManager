@@ -38,33 +38,31 @@
 
 // ── Construction ──────────────────────────────────────────────────────────────
 
-PerformanceWidget::PerformanceWidget(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::PerformanceWidget)
-    , m_provider(new Metrics(this))
-    , m_sidePanel(new Perf::SidePanel(this))
-    , m_stack(new QStackedWidget(this))
-    , m_cpuDetail(new Perf::CpuDetailWidget(this))
-    , m_memDetail(new Perf::MemoryDetailWidget(this))
-    , m_swapDetail(new Perf::SwapDetailWidget(this))
+PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new Ui::PerformanceWidget)
 {
+    this->m_sidePanel = new Perf::SidePanel(this);
+    this->m_stack = new QStackedWidget(this);
+    this->m_cpuDetail = new Perf::CpuDetailWidget(this);
+    this->m_memDetail = new Perf::MemoryDetailWidget(this);
+    this->m_swapDetail = new Perf::SwapDetailWidget(this);
+
     this->ui->setupUi(this);
 
     this->setupLayout();
     this->setupSidePanel();
 
     // Wire detail widgets to the data provider
-    this->m_cpuDetail->SetProvider(this->m_provider);
-    this->m_memDetail->setProvider(this->m_provider);
-    this->m_swapDetail->SetProvider(this->m_provider);
+    this->m_cpuDetail->Init();
+    this->m_memDetail->Init();
+    this->m_swapDetail->Init();
 
     // Update side panel thumbnails on every sample
-    connect(this->m_provider, &Metrics::updated, this, &PerformanceWidget::onProviderUpdated);
+    connect(Metrics::Get(), &Metrics::updated, this, &PerformanceWidget::onProviderUpdated);
 
     // Expensive process/thread counting is only needed for CPU detail page.
     connect(this->m_sidePanel, &Perf::SidePanel::currentChanged, this, [this](int index)
     {
-        this->m_provider->SetProcessStatsEnabled(index == this->m_cpuPanelIndex && CFG->PerfShowCpu);
+        Metrics::Get()->SetProcessStatsEnabled(index == this->m_cpuPanelIndex && CFG->PerfShowCpu);
     });
     connect(this->m_sidePanel, &Perf::SidePanel::itemContextMenuRequested, this, &PerformanceWidget::onSidePanelContextMenu);
 
@@ -72,7 +70,7 @@ PerformanceWidget::PerformanceWidget(QWidget *parent)
     this->applyGraphWindowSeconds();
     this->applyPanelVisibility();
     this->updateSamplingPolicy();
-    this->m_provider->SetProcessStatsEnabled(this->m_sidePanel->GetCurrentIndex() == this->m_cpuPanelIndex && CFG->PerfShowCpu);
+    Metrics::Get()->SetProcessStatsEnabled(this->m_sidePanel->GetCurrentIndex() == this->m_cpuPanelIndex && CFG->PerfShowCpu);
 
     this->SetActive(false);
 
@@ -142,17 +140,17 @@ void PerformanceWidget::setupDiskPanels()
     const int count = Metrics::GetStorage()->DiskCount();
     for (int i = 0; i < count; ++i)
     {
-        const QString devName = Metrics::GetStorage()->DiskName(i);
-        this->m_diskNames.append(devName);
+        const Storage::DiskInfo &disk = Metrics::GetStorage()->FromIndex(i);
+        this->m_diskNames.append(disk.Name);
 
-        auto *item = new Perf::SidePanelItem(tr("Disk (%1)").arg(devName), this);
+        auto *item = new Perf::SidePanelItem(tr("Disk (%1)").arg(disk.Name), this);
         item->SetGraphColor(scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
-        item->SetGraphSource(Metrics::GetStorage()->DiskActiveHistory(i));
+        item->SetGraphSource(disk.ActiveHistory);
         this->m_sidePanel->AddItem(item);
         this->m_diskItems.append(item);
 
         auto *detail = new Perf::DiskDetailWidget(this);
-        detail->SetDisk(this->m_provider, i);
+        detail->SetDisk(i);
         this->m_stack->addWidget(detail);
         this->m_diskDetails.append(detail);
     }
@@ -165,17 +163,17 @@ void PerformanceWidget::setupGpuPanels()
     const int count = Metrics::GetGPU()->GpuCount();
     for (int i = 0; i < count; ++i)
     {
-        const QString GpuName = Metrics::GetGPU()->GpuName(i);
-        this->m_gpuNames.append(GpuName);
+        const GPU::GPUInfo &gpu = Metrics::GetGPU()->FromIndex(i);
+        this->m_gpuNames.append(gpu.Name);
 
         auto *item = new Perf::SidePanelItem(tr("GPU %1").arg(i), this);
         item->SetGraphColor(scheme->GpuGraphLineColor, scheme->GpuGraphFillColor);
-        item->SetGraphSource(Metrics::GetGPU()->GpuUtilHistory(i));
+        item->SetGraphSource(gpu.UtilHistory);
         this->m_sidePanel->AddItem(item);
         this->m_gpuItems.append(item);
 
         auto *detail = new Perf::GpuDetailWidget(this);
-        detail->SetGpu(this->m_provider, i);
+        detail->SetGpu(i);
         this->m_stack->addWidget(detail);
         this->m_gpuDetails.append(detail);
     }
@@ -188,17 +186,17 @@ void PerformanceWidget::setupNetworkPanels()
     const int count = Metrics::GetNetwork()->NetworkCount();
     for (int i = 0; i < count; ++i)
     {
-        const QString ifName = Metrics::GetNetwork()->NetworkName(i);
-        this->m_networkNames.append(ifName);
+        const Network::NetworkInfo &network = Metrics::GetNetwork()->FromIndex(i);
+        this->m_networkNames.append(network.Name);
 
-        auto *item = new Perf::SidePanelItem(tr("NIC (%1)").arg(ifName), this);
+        auto *item = new Perf::SidePanelItem(tr("NIC (%1)").arg(network.Name), this);
         item->SetGraphColor(scheme->NetworkGraphLineColor, scheme->NetworkGraphFillColor);
-        item->SetGraphSource(Metrics::GetNetwork()->NetworkRxHistory(i), 1024.0);
+        item->SetGraphSource(network.RxHistory, 1024.0);
         this->m_sidePanel->AddItem(item);
         this->m_networkItems.append(item);
 
         auto *detail = new Perf::NetworkDetailWidget(this);
-        detail->SetNetwork(this->m_provider, i);
+        detail->SetNetwork(i);
         this->m_stack->addWidget(detail);
         this->m_networkDetails.append(detail);
     }
@@ -267,9 +265,10 @@ void PerformanceWidget::onProviderUpdated()
             if (!item)
                 continue;
 
+            const Storage::DiskInfo &disk = Metrics::GetStorage()->FromIndex(i);
             const QString diskSub = tr("%1 %2", "%1=disk type %2=active percentage")
-                                    .arg(Metrics::GetStorage()->DiskType(i),
-                                         QString::number(Metrics::GetStorage()->DiskActivePercent(i), 'f', 0) + "%");
+                                    .arg(disk.Type,
+                                         QString::number(disk.ActivePct, 'f', 0) + "%");
             item->Update(diskSub);
         }
     }
@@ -284,9 +283,10 @@ void PerformanceWidget::onProviderUpdated()
             if (!item)
                 continue;
 
+            const GPU::GPUInfo &gpu = Metrics::GetGPU()->FromIndex(i);
             const QString utilText = tr("%1%2", "%1=GPU utilization value %2=percent sign")
-                                     .arg(QString::number(Metrics::GetGPU()->GpuUtilPercent(i), 'f', 0), "%");
-            const int tempC = Metrics::GetGPU()->GpuTemperatureC(i);
+                                     .arg(QString::number(gpu.UtilPct, 'f', 0), "%");
+            const int tempC = gpu.TemperatureC;
             const QString sub = (tempC >= 0)
                                 ? tr("%1 %2C", "%1=GPU utilization %2=temperature in Celsius")
                                       .arg(utilText, QString::number(tempC))
@@ -305,12 +305,10 @@ void PerformanceWidget::onProviderUpdated()
             if (!item)
                 continue;
 
-            const double tx = Metrics::GetNetwork()->NetworkTxBytesPerSec(i);
-            const double rx = Metrics::GetNetwork()->NetworkRxBytesPerSec(i);
+            const Network::NetworkInfo &network = Metrics::GetNetwork()->FromIndex(i);
             const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate")
-                                   .arg(Misc::FormatBytesPerSecond(tx), Misc::FormatBytesPerSecond(rx));
-            const double maxRate = Metrics::GetNetwork()->NetworkMaxThroughputBytesPerSec(i);
-            item->Update(netSub, maxRate);
+                                   .arg(Misc::FormatBytesPerSecond(network.TxBps), Misc::FormatBytesPerSecond(network.RxBps));
+            item->Update(netSub, network.MaxThroughputBps);
         }
     }
 }
@@ -321,7 +319,7 @@ void PerformanceWidget::SetActive(bool active)
         return;
 
     this->m_active = active;
-    this->m_provider->SetActive(active);
+    Metrics::Get()->SetActive(active);
     if (active)
         this->onProviderUpdated();
 }
@@ -391,7 +389,7 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
         return;
     }
 
-    if (UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_provider))
+    if (UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction))
         return;
 
     if (picked == customizeColors)
@@ -516,13 +514,13 @@ void PerformanceWidget::applyPanelVisibility()
 
 void PerformanceWidget::updateSamplingPolicy()
 {
-    this->m_provider->SetCpuSamplingEnabled(CFG->PerfShowCpu);
-    this->m_provider->SetMemorySamplingEnabled(CFG->PerfShowMemory || CFG->PerfShowSwap);
+    Metrics::Get()->SetCpuSamplingEnabled(CFG->PerfShowCpu);
+    Metrics::Get()->SetMemorySamplingEnabled(CFG->PerfShowMemory || CFG->PerfShowSwap);
     Metrics::GetMemory()->SetSwapSamplingEnabled(CFG->PerfShowSwap);
-    this->m_provider->SetDiskSamplingEnabled(CFG->PerfShowDisks);
-    this->m_provider->SetNetworkSamplingEnabled(CFG->PerfShowNetwork);
-    this->m_provider->SetGpuSamplingEnabled(CFG->PerfShowGpu);
-    this->m_provider->SetProcessStatsEnabled(CFG->PerfShowCpu && this->m_sidePanel->GetCurrentIndex() == this->m_cpuPanelIndex);
+    Metrics::Get()->SetDiskSamplingEnabled(CFG->PerfShowDisks);
+    Metrics::Get()->SetNetworkSamplingEnabled(CFG->PerfShowNetwork);
+    Metrics::Get()->SetGpuSamplingEnabled(CFG->PerfShowGpu);
+    Metrics::Get()->SetProcessStatsEnabled(CFG->PerfShowCpu && this->m_sidePanel->GetCurrentIndex() == this->m_cpuPanelIndex);
 }
 
 void PerformanceWidget::tagTimeAxisLabels()

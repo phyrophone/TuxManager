@@ -32,8 +32,6 @@
 #include <QVector>
 #include <QWidget>
 
-class Metrics;
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class PerformanceWidget; }
 QT_END_NAMESPACE
@@ -55,8 +53,6 @@ class PerformanceWidget : public QWidget
 
     private:
         Ui::PerformanceWidget      *ui;
-
-        Metrics                    *m_provider;
         Perf::SidePanel            *m_sidePanel;
         QStackedWidget             *m_stack;
         Perf::CpuDetailWidget      *m_cpuDetail;

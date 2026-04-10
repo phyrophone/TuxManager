@@ -23,8 +23,6 @@
 
 #include <QWidget>
 
-class Metrics;
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class DiskDetailWidget; }
 QT_END_NAMESPACE
@@ -39,7 +37,7 @@ namespace Perf
             explicit DiskDetailWidget(QWidget *parent = nullptr);
             ~DiskDetailWidget();
 
-            void SetDisk(Metrics *provider, int index);
+            void SetDisk(int index);
             void ApplyColorScheme();
 
         private slots:
@@ -47,11 +45,7 @@ namespace Perf
 
         private:
             Ui::DiskDetailWidget *ui;
-            Metrics              *m_provider { nullptr };
             int                   m_diskIndex { -1 };
-            const HistoryBuffer *m_activeHistory { nullptr };
-            const HistoryBuffer *m_readHistory { nullptr };
-            const HistoryBuffer *m_writeHistory { nullptr };
     };
 } // namespace Perf
 

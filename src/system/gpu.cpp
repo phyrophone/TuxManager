@@ -130,152 +130,11 @@ GPU::~GPU()
     this->unloadGpuBackends();
 }
 
-QString GPU::GpuName(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return {};
-    return this->m_gpus.at(i).Name;
-}
-
-QString GPU::GpuDriverVersion(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return {};
-    return this->m_gpus.at(i).DriverVersion;
-}
-
-QString GPU::GpuBackendName(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return {};
-    return this->m_gpus.at(i).Backend;
-}
-
-double GPU::GpuUtilPercent(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return 0.0;
-    return this->m_gpus.at(i).UtilPct;
-}
-
-int GPU::GpuTemperatureC(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return -1;
-    return this->m_gpus.at(i).TemperatureC;
-}
-
-qint64 GPU::GpuMemUsedMiB(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return 0;
-    return this->m_gpus.at(i).MemUsedMiB;
-}
-
-qint64 GPU::GpuMemTotalMiB(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return 0;
-    return this->m_gpus.at(i).MemTotalMiB;
-}
-
-const HistoryBuffer &GPU::GpuUtilHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_gpus.size())
-        return empty;
-    return this->m_gpus.at(i).UtilHistory;
-}
-
-const HistoryBuffer &GPU::GpuMemUsageHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_gpus.size())
-        return empty;
-    return this->m_gpus.at(i).MemUsageHistory;
-}
-
-const HistoryBuffer &GPU::GpuCopyTxHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_gpus.size())
-        return empty;
-    return this->m_gpus.at(i).CopyTxHistory;
-}
-
-const HistoryBuffer &GPU::GpuCopyRxHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_gpus.size())
-        return empty;
-    return this->m_gpus.at(i).CopyRxHistory;
-}
-
-double GPU::GpuMaxCopyBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return TUX_MANAGER_MIN_RATE;
-    return this->m_gpus.at(i).MaxCopyBps;
-}
-
-qint64 GPU::GpuSharedMemUsedMiB(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return 0;
-    return this->m_gpus.at(i).SharedMemUsedMiB;
-}
-
-qint64 GPU::GpuSharedMemTotalMiB(int i) const
-{
-    if (i < 0 || i >= this->m_gpus.size())
-        return 0;
-    return this->m_gpus.at(i).SharedMemTotalMiB;
-}
-
-const HistoryBuffer &GPU::GpuSharedMemHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_gpus.size())
-        return empty;
-    return this->m_gpus.at(i).SharedMemHistory;
-}
-
-int GPU::GpuEngineCount(int gpuIndex) const
+const GPU::GPUInfo &GPU::FromIndex(int gpuIndex) const
 {
     if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
-        return 0;
-    return this->m_gpus.at(gpuIndex).Engines.size();
-}
-
-QString GPU::GpuEngineName(int gpuIndex, int engineIndex) const
-{
-    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
-        return {};
-    const auto &engines = this->m_gpus.at(gpuIndex).Engines;
-    if (engineIndex < 0 || engineIndex >= engines.size())
-        return {};
-    return engines.at(engineIndex).Label;
-}
-
-double GPU::GpuEnginePercent(int gpuIndex, int engineIndex) const
-{
-    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
-        return 0.0;
-    const auto &engines = this->m_gpus.at(gpuIndex).Engines;
-    if (engineIndex < 0 || engineIndex >= engines.size())
-        return 0.0;
-    return engines.at(engineIndex).Pct;
-}
-
-const HistoryBuffer &GPU::GpuEngineHistory(int gpuIndex, int engineIndex) const
-{
-    static const HistoryBuffer empty;
-    if (gpuIndex < 0 || gpuIndex >= this->m_gpus.size())
-        return empty;
-    const auto &engines = this->m_gpus.at(gpuIndex).Engines;
-    if (engineIndex < 0 || engineIndex >= engines.size())
-        return empty;
-    return engines.at(engineIndex).History;
+        return this->m_nullGPU;
+    return this->m_gpus.at(gpuIndex);
 }
 
 void GPU::detectGpuBackends()
@@ -461,13 +320,13 @@ bool GPU::sampleNvml()
         {
             if (!allowAppend)
                 continue;
-            GpuSample gNew;
+            GPUInfo gNew;
             gNew.ID = id;
             this->m_gpus.append(gNew);
             gpuIdx = this->m_gpus.size() - 1;
         }
 
-        GpuSample &g = this->m_gpus[gpuIdx];
+        GPUInfo &g = this->m_gpus[gpuIdx];
         g.ID = id;
         g.Name = name;
         g.DriverVersion = driverVersion;
@@ -476,6 +335,8 @@ bool GPU::sampleNvml()
         g.TemperatureC = hasTemp ? static_cast<int>(tempC) : -1;
         g.MemUsedMiB = hasMem ? static_cast<qint64>(mem.used / (1024ULL * 1024ULL)) : 0;
         g.MemTotalMiB = hasMem ? static_cast<qint64>(mem.total / (1024ULL * 1024ULL)) : 0;
+        g.SharedMemUsedMiB = 0;
+        g.SharedMemTotalMiB = 0;
         g.CopyTxBps = hasTx ? static_cast<double>(txKBps) * 1024.0 : 0.0;
         g.CopyRxBps = hasRx ? static_cast<double>(rxKBps) * 1024.0 : 0.0;
         g.UtilHistory.Push(g.UtilPct);
@@ -483,17 +344,18 @@ bool GPU::sampleNvml()
                                   ? (static_cast<double>(g.MemUsedMiB) / static_cast<double>(g.MemTotalMiB)) * 100.0
                                   : 0.0;
         g.MemUsageHistory.Push(memPct);
+        g.SharedMemHistory.Push(0.0);
         Misc::PushHistoryAndUpdateMax(g.CopyTxHistory, g.CopyTxBps, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
         Misc::PushHistoryAndUpdateMax(g.CopyRxHistory, g.CopyRxBps, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
 
-        QHash<QString, GpuEngineSample> oldEngines;
-        for (const GpuEngineSample &e : std::as_const(g.Engines))
+        QHash<QString, GPUEngineInfo> oldEngines;
+        for (const GPUEngineInfo &e : std::as_const(g.Engines))
             oldEngines.insert(e.Key, e);
 
-        QVector<GpuEngineSample> engines;
+        QVector<GPUEngineInfo> engines;
         auto addEngine = [&](const QString &key, const QString &label, double pct)
         {
-            GpuEngineSample eng = oldEngines.value(key);
+            GPUEngineInfo eng = oldEngines.value(key);
             eng.Key = key;
             eng.Label = label;
             eng.Pct = qBound(0.0, pct, 100.0);
@@ -577,7 +439,7 @@ bool GPU::sampleNvml()
     }
     // Zero-out stale NVML GPUs that disappeared between ticks (e.g. hot-unplug).
     // Only touch entries that were previously produced by NVML (backend == "nvml").
-    for (GpuSample &g : this->m_gpus)
+    for (GPUInfo &g : this->m_gpus)
     {
         if (g.Backend != QLatin1String("NVML"))
             continue;
@@ -587,13 +449,16 @@ bool GPU::sampleNvml()
             g.TemperatureC = -1;
             g.MemUsedMiB = 0;
             g.MemTotalMiB = 0;
+            g.SharedMemUsedMiB = 0;
+            g.SharedMemTotalMiB = 0;
             g.CopyTxBps = 0.0;
             g.CopyRxBps = 0.0;
             g.UtilHistory.Push(0.0);
             g.MemUsageHistory.Push(0.0);
+            g.SharedMemHistory.Push(0.0);
             Misc::PushHistoryAndUpdateMax(g.CopyTxHistory, 0.0, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
             Misc::PushHistoryAndUpdateMax(g.CopyRxHistory, 0.0, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
-            for (GpuEngineSample &e : g.Engines)
+            for (GPUEngineInfo &e : g.Engines)
             {
                 e.Pct = 0.0;
                 e.History.Push(0.0);
@@ -625,7 +490,7 @@ void GPU::detectDrmCards()
         if (this->m_hasNvml && vendorStr == QLatin1String("0x10de"))
             continue;
 
-        DrmCard card;
+        DRMCard card;
         card.Vendor = vendorStr;
         card.CardNodePath = QStringLiteral("/dev/dri/") + entry;
 
@@ -714,7 +579,7 @@ bool GPU::sampleDrm()
 
     ++this->m_gpuFdInfoRescanCounter;
 
-    for (DrmCard &card : this->m_drmCards)
+    for (DRMCard &card : this->m_drmCards)
     {
         int gpuIdx = -1;
         for (int j = 0; j < this->m_gpus.size(); ++j)
@@ -728,7 +593,7 @@ bool GPU::sampleDrm()
 
         if (gpuIdx < 0)
         {
-            GpuSample g;
+            GPUInfo g;
             g.ID            = card.ID;
             g.DriverVersion = card.DriverVersion;
             g.Backend       = card.DriverName.isEmpty()
@@ -745,7 +610,7 @@ bool GPU::sampleDrm()
             gpuIdx = this->m_gpus.size() - 1;
         }
 
-        GpuSample &g = this->m_gpus[gpuIdx];
+        GPUInfo &g = this->m_gpus[gpuIdx];
         g.TemperatureC = -1;
 
         if (!card.BusyPath.isEmpty())
@@ -800,14 +665,14 @@ bool GPU::sampleDrm()
         g.CopyRxHistory.Push(0.0);
 
         // ── Engine data ──────────────────────────────────────────────────────
-        QHash<QString, GpuEngineSample> oldEngines;
-        for (const GpuEngineSample &e : std::as_const(g.Engines))
+        QHash<QString, GPUEngineInfo> oldEngines;
+        for (const GPUEngineInfo &e : std::as_const(g.Engines))
             oldEngines.insert(e.Key, e);
 
-        QVector<GpuEngineSample> engines;
+        QVector<GPUEngineInfo> engines;
         auto addEngine = [&](const QString &key, const QString &label, double pct)
         {
-            GpuEngineSample eng = oldEngines.value(key);
+            GPUEngineInfo eng = oldEngines.value(key);
             eng.Key   = key;
             eng.Label = label;
             eng.Pct   = qBound(0.0, pct, 100.0);
@@ -871,7 +736,7 @@ bool GPU::sampleDrm()
 // Caches discovered fdinfo paths and only does a full /proc rescan every few ticks.
 // De-duplicates by drm-client-id.
 
-QHash<QString, qint64> GPU::scanDrmFdInfoEngines(DrmCard &card)
+QHash<QString, qint64> GPU::scanDrmFdInfoEngines(DRMCard &card)
 {
     QHash<QString, qint64> totals;
     QSet<int> seenClients;
@@ -957,8 +822,7 @@ QHash<QString, qint64> GPU::scanDrmFdInfoEngines(DrmCard &card)
         {
             const QString linkPath = fdDirPath + QChar('/') + fdNum;
             char buf[PATH_MAX];
-            const ssize_t len = ::readlink(linkPath.toLocal8Bit().constData(),
-                                           buf, sizeof(buf) - 1);
+            const ssize_t len = ::readlink(linkPath.toLocal8Bit().constData(), buf, sizeof(buf) - 1);
             if (len <= 0)
                 continue;
             buf[len] = '\0';

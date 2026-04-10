@@ -29,7 +29,6 @@ class QModelIndex;
 class QMenu;
 class QAction;
 class QTimer;
-class Metrics;
 
 namespace UIHelper
 {
@@ -60,7 +59,6 @@ namespace UIHelper
     bool ApplyRefreshIntervalAction(QAction *picked,
                                     const QHash<QAction *, int> &intervalActions,
                                     QAction *pausedAction,
-                                    Metrics *provider = nullptr,
                                     QTimer *timer = nullptr,
                                     bool timerOwnerActive = true);
 }

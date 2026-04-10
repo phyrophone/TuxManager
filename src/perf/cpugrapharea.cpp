@@ -57,12 +57,8 @@ CpuGraphArea::CpuGraphArea(QWidget *parent) : QWidget(parent), m_stack(new QStac
 
 // ── Public interface ──────────────────────────────────────────────────────────
 
-void CpuGraphArea::SetProvider(const Metrics *provider)
+void CpuGraphArea::Init()
 {
-    this->m_provider = provider;
-    if (!this->m_provider)
-        return;
-
     this->bindOverallGraphSources();
 
     const int cores = Metrics::GetCPU()->CoreCount();
@@ -102,9 +98,6 @@ void CpuGraphArea::SetShowKernelTime(bool show)
 
 void CpuGraphArea::UpdateData()
 {
-    if (!this->m_provider)
-        return;
-
     // ── Aggregate graph ───────────────────────────────────────────────────────
     this->m_overallGraph->Tick();
 
@@ -198,9 +191,6 @@ void CpuGraphArea::ensureCoreGraphs(int count)
 
 void CpuGraphArea::bindOverallGraphSources()
 {
-    if (!this->m_provider)
-        return;
-
     this->m_overallGraph->SetDataSource(Metrics::GetCPU()->CpuHistory());
     if (this->m_showKernelTime)
         this->m_overallGraph->SetOverlayDataSource(Metrics::GetCPU()->CpuKernelHistory());
@@ -210,9 +200,6 @@ void CpuGraphArea::bindOverallGraphSources()
 
 void CpuGraphArea::bindCoreGraphSources(int count)
 {
-    if (!this->m_provider)
-        return;
-
     const int boundCount = qMin(count, this->m_coreGraphs.size());
     for (int i = 0; i < boundCount; ++i)
     {

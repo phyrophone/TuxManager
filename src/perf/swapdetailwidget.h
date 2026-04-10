@@ -26,8 +26,6 @@
 #include <QVector>
 #include <QWidget>
 
-class Metrics;
-
 namespace Perf
 {
     class SwapDetailWidget : public QWidget
@@ -37,15 +35,13 @@ namespace Perf
         public:
             explicit SwapDetailWidget(QWidget *parent = nullptr);
 
-            void SetProvider(Metrics *provider);
+            void Init();
             void ApplyColorScheme();
 
         private slots:
             void onUpdated();
 
         private:
-            Metrics *m_provider { nullptr };
-
             QLabel *m_titleLabel { nullptr };
             QLabel *m_totalLabel { nullptr };
             GraphWidget *m_usageGraph { nullptr };

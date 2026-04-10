@@ -43,6 +43,7 @@ class Metrics : public QObject
         static Memory   *GetMemory()    { return &Metrics::g_Memory; }
         static Storage  *GetStorage()   { return &Metrics::g_Storage; }
         static Kernel   *GetKernel()    { return &Metrics::g_Kernel; }
+        static Metrics  *Get()          { return &Metrics::g_instance; };
 
         Metrics(QObject *parent);
         ~Metrics();
@@ -64,12 +65,13 @@ class Metrics : public QObject
         void onTimer();
 
     private:
-        static CPU     g_CPU;
-        static GPU     g_GPU;
-        static Memory  g_Memory;
-        static Network g_Network;
-        static Storage g_Storage;
-        static Kernel  g_Kernel;
+        static CPU      g_CPU;
+        static GPU      g_GPU;
+        static Memory   g_Memory;
+        static Network  g_Network;
+        static Storage  g_Storage;
+        static Kernel   g_Kernel;
+        static Metrics  g_instance;
 
         //! Run all samples that are enabled
         void sample();

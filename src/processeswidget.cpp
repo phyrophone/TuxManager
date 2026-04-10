@@ -543,7 +543,7 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
 
     QAction *picked = menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
-    UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, nullptr, this->m_refreshTimer, this->m_active);
+    UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_refreshTimer, this->m_active);
 
     this->m_contextMenuTargetIndex = QModelIndex();
     this->m_tableContextMenuOpen = false;
@@ -599,7 +599,7 @@ void ProcessesWidget::onTreeContextMenu(const QPoint &pos)
     UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
 
     QAction *picked = menu.exec(this->m_treeView->viewport()->mapToGlobal(pos));
-    UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, nullptr, this->m_refreshTimer, this->m_active);
+    UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_refreshTimer, this->m_active);
 
     this->m_tableContextMenuOpen = false;
 }

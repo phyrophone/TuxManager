@@ -24,7 +24,6 @@
 #include "../misc.h"
 #include "../ui/widgetstyle.h"
 
-#include <algorithm>
 #include <QGridLayout>
 #include <QLabel>
 
@@ -97,54 +96,38 @@ void NetworkDetailWidget::ApplyColorScheme()
     this->update();
 }
 
-void NetworkDetailWidget::SetNetwork(Metrics *provider, int index)
+void NetworkDetailWidget::SetNetwork(int index)
 {
-    if (this->m_provider)
-        disconnect(this->m_provider, &Metrics::updated, this, &NetworkDetailWidget::onUpdated);
-
-    this->m_provider = provider;
     this->m_networkIndex = index;
 
-    if (this->m_provider)
+    if (this->m_networkIndex >= 0 && this->m_networkIndex < Metrics::GetNetwork()->NetworkCount())
     {
-        if (this->m_networkIndex >= 0 && this->m_networkIndex < Metrics::GetNetwork()->NetworkCount())
-        {
-            const QString name = Metrics::GetNetwork()->NetworkName(this->m_networkIndex);
-            const QString type = Metrics::GetNetwork()->NetworkType(this->m_networkIndex);
-            const int speedMbps = Metrics::GetNetwork()->NetworkLinkSpeedMbps(this->m_networkIndex);
-            const QString ipv4 = Metrics::GetNetwork()->NetworkIpv4(this->m_networkIndex);
-            const QString ipv6 = Metrics::GetNetwork()->NetworkIpv6(this->m_networkIndex);
+        const Network::NetworkInfo &network = Metrics::GetNetwork()->FromIndex(this->m_networkIndex);
 
-            this->m_rxHistory = &Metrics::GetNetwork()->NetworkRxHistory(this->m_networkIndex);
-            this->m_txHistory = &Metrics::GetNetwork()->NetworkTxHistory(this->m_networkIndex);
+        this->ui->titleLabel->setText(tr("NIC (%1)").arg(network.Name));
+        this->ui->adapterValueLabel->setText(network.Name);
+        this->ui->typeValueLabel->setText(network.Type);
+        this->ui->speedValueLabel->setText(network.LinkSpeedMbps > 0 ? QString::number(network.LinkSpeedMbps) + tr(" Mbps") : tr("Unknown"));
+        this->ui->ipv4ValueLabel->setText(network.IPv4.isEmpty() ? tr("—") : network.IPv4);
+        this->ui->ipv6ValueLabel->setText(network.IPv6.isEmpty() ? tr("—") : network.IPv6);
 
-            this->ui->titleLabel->setText(tr("NIC (%1)").arg(name));
-            this->ui->adapterValueLabel->setText(name);
-            this->ui->typeValueLabel->setText(type);
-            this->ui->speedValueLabel->setText(speedMbps > 0 ? QString::number(speedMbps) + tr(" Mbps") : tr("Unknown"));
-            this->ui->ipv4ValueLabel->setText(ipv4.isEmpty() ? tr("—") : ipv4);
-            this->ui->ipv6ValueLabel->setText(ipv6.isEmpty() ? tr("—") : ipv6);
-
-            this->ui->throughputGraphWidget->SetDataSource(*this->m_rxHistory, 1024.0);
-            this->ui->throughputGraphWidget->SetOverlayDataSource(*this->m_txHistory);
-        }
-        connect(this->m_provider, &Metrics::updated, this, &NetworkDetailWidget::onUpdated);
-        this->onUpdated();
+        this->ui->throughputGraphWidget->SetDataSource(network.RxHistory, 1024.0);
+        this->ui->throughputGraphWidget->SetOverlayDataSource(network.TxHistory);
     }
+    connect(Metrics::Get(), &Metrics::updated, this, &NetworkDetailWidget::onUpdated);
+    this->onUpdated();
 }
 
 void NetworkDetailWidget::onUpdated()
 {
-    if (!this->m_rxHistory || !this->m_txHistory || !this->m_provider || this->m_networkIndex < 0 || this->m_networkIndex >= Metrics::GetNetwork()->NetworkCount())
+    if (this->m_networkIndex < 0 || this->m_networkIndex >= Metrics::GetNetwork()->NetworkCount())
         return;
 
-    const double rxBps = Metrics::GetNetwork()->NetworkRxBytesPerSec(this->m_networkIndex);
-    const double txBps = Metrics::GetNetwork()->NetworkTxBytesPerSec(this->m_networkIndex);
-    this->ui->sendValueLabel->setText(Misc::FormatBytesPerSecond(txBps));
-    this->ui->receiveValueLabel->setText(Misc::FormatBytesPerSecond(rxBps));
+    const Network::NetworkInfo &network = Metrics::GetNetwork()->FromIndex(this->m_networkIndex);
+    this->ui->sendValueLabel->setText(Misc::FormatBytesPerSecond(network.TxBps));
+    this->ui->receiveValueLabel->setText(Misc::FormatBytesPerSecond(network.RxBps));
 
-    const double maxRate = Metrics::GetNetwork()->NetworkMaxThroughputBytesPerSec(this->m_networkIndex);
-    this->ui->throughputGraphWidget->SetMax(maxRate);
+    this->ui->throughputGraphWidget->SetMax(network.MaxThroughputBps);
     this->ui->throughputGraphWidget->Tick();
-    this->ui->throughputGraphMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
+    this->ui->throughputGraphMaxLabel->setText(Misc::FormatBytesPerSecond(network.MaxThroughputBps));
 }

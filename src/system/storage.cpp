@@ -28,111 +28,17 @@ Storage::Storage()
 
 }
 
-QString Storage::DiskName(int i) const
+const Storage::DiskInfo &Storage::FromIndex(int i) const
 {
     if (i < 0 || i >= this->m_disks.size())
-        return {};
-    return this->m_disks.at(i).Name;
-}
-
-QString Storage::DiskModel(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return {};
-    return this->m_disks.at(i).Model;
-}
-
-QString Storage::DiskType(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return {};
-    return this->m_disks.at(i).Type;
-}
-
-double Storage::DiskActivePercent(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return 0.0;
-    return this->m_disks.at(i).ActivePct;
-}
-
-double Storage::DiskReadBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return 0.0;
-    return this->m_disks.at(i).ReadBps;
-}
-
-double Storage::DiskWriteBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return 0.0;
-    return this->m_disks.at(i).WriteBps;
-}
-
-double Storage::DiskMaxTransferBytesPerSec(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return TUX_MANAGER_MIN_RATE;
-    return this->m_disks.at(i).MaxTransferBps;
-}
-
-qint64 Storage::DiskCapacityBytes(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return 0;
-    return this->m_disks.at(i).CapacityBytes;
-}
-
-qint64 Storage::DiskFormattedBytes(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return 0;
-    return this->m_disks.at(i).FormattedBytes;
-}
-
-bool Storage::DiskIsSystemDisk(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return false;
-    return this->m_disks.at(i).IsSystemDisk;
-}
-
-bool Storage::DiskHasSwapFile(int i) const
-{
-    if (i < 0 || i >= this->m_disks.size())
-        return false;
-    return this->m_disks.at(i).HasPageFile;
-}
-
-const HistoryBuffer &Storage::DiskActiveHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_disks.size())
-        return empty;
-    return this->m_disks.at(i).ActiveHistory;
-}
-
-const HistoryBuffer &Storage::DiskReadHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_disks.size())
-        return empty;
-    return this->m_disks.at(i).ReadHistory;
-}
-
-const HistoryBuffer &Storage::DiskWriteHistory(int i) const
-{
-    static const HistoryBuffer empty;
-    if (i < 0 || i >= this->m_disks.size())
-        return empty;
-    return this->m_disks.at(i).WriteHistory;
+        return this->m_nullDisk;
+    return this->m_disks.at(i);
 }
 
 bool Storage::shouldIgnoreBlockDevice(const QString &baseName)
 {
     return baseName.startsWith("loop")
-    || baseName.startsWith("sr")
+        || baseName.startsWith("sr")
         || baseName.startsWith("dm-")
         || baseName.startsWith("ram")
         || baseName.startsWith("zram");
@@ -314,7 +220,7 @@ void Storage::refreshDisks(const QSet<QString> &measurableDevices)
 
     // Keep discovered disk objects persistent so their history vectors remain stable.
     QSet<QString> existingNames;
-    for (const DiskSample &disk : std::as_const(this->m_disks))
+    for (const DiskInfo &disk : std::as_const(this->m_disks))
         existingNames.insert(disk.Name);
 
     for (const QString &name : trackedDevices)
@@ -322,12 +228,12 @@ void Storage::refreshDisks(const QSet<QString> &measurableDevices)
         if (existingNames.contains(name))
             continue;
 
-        DiskSample d;
+        DiskInfo d;
         d.Name = name;
         this->m_disks.append(d);
     }
 
-    for (DiskSample &d : this->m_disks)
+    for (DiskInfo &d : this->m_disks)
     {
         const QString &name = d.Name;
         if (name.isEmpty())
@@ -397,7 +303,7 @@ bool Storage::Sample()
 
     static constexpr double kSectorBytes = 512.0;
 
-    for (DiskSample &d : this->m_disks)
+    for (DiskInfo &d : this->m_disks)
     {
         const auto it = countersByName.constFind(d.Name);
         if (it == countersByName.cend())
@@ -431,9 +337,7 @@ bool Storage::Sample()
         d.PrevWriteSecs = c.writeSectors;
         d.PrevIoMs      = c.ioMs;
 
-        d.ActivePct = qBound(0.0,
-                             static_cast<double>(dIoMs) * 100.0 / static_cast<double>(dtMs),
-                             100.0);
+        d.ActivePct = qBound(0.0, static_cast<double>(dIoMs) * 100.0 / static_cast<double>(dtMs), 100.0);
         d.ReadBps  = static_cast<double>(dReadSecs)  * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
         d.WriteBps = static_cast<double>(dWriteSecs) * kSectorBytes * 1000.0 / static_cast<double>(dtMs);
 

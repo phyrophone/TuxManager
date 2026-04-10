@@ -27,30 +27,7 @@
 class Storage
 {
     public:
-        Storage();
-
-        /// Sample /proc/diskstats and compute per-device active time % and read/write throughput.
-        bool Sample();
-
-        int DiskCount() const { return this->m_disks.size(); }
-        QString DiskName(int i) const;
-        QString DiskModel(int i) const;
-        QString DiskType(int i) const;
-        double DiskActivePercent(int i) const;
-        double DiskReadBytesPerSec(int i) const;
-        double DiskWriteBytesPerSec(int i) const;
-        double DiskMaxTransferBytesPerSec(int i) const;
-        qint64 DiskCapacityBytes(int i) const;
-        qint64 DiskFormattedBytes(int i) const;
-        bool DiskIsSystemDisk(int i) const;
-        bool DiskHasSwapFile(int i) const;
-        const HistoryBuffer &DiskActiveHistory(int i) const;
-        const HistoryBuffer &DiskReadHistory(int i) const;
-        const HistoryBuffer &DiskWriteHistory(int i) const;
-
-
-    private:
-        struct DiskSample
+        struct DiskInfo
         {
             QString        Name;          ///< base device name (e.g. sda, nvme0n1)
             QString        Model;         ///< best-effort model string
@@ -71,13 +48,24 @@ class Storage
             HistoryBuffer WriteHistory { TUX_MANAGER_HISTORY_SIZE };
         };
 
+        Storage();
+
+        /// Sample /proc/diskstats and compute per-device active time % and read/write throughput.
+        bool Sample();
+
+        int DiskCount() const { return this->m_disks.size(); }
+        const DiskInfo &FromIndex(int i) const;
+
+
+    private:
         static QStringList listTrackedBlockDevices(const QSet<QString> &measurableDevices);
         static QSet<QString> resolveBaseBlockDevices(const QString &devName);
         static bool shouldIgnoreBlockDevice(const QString &baseName);
 
         void refreshDisks(const QSet<QString> &measurableDevices);
 
-        QVector<DiskSample> m_disks;
+        QVector<DiskInfo> m_disks;
+        DiskInfo            m_nullDisk;
         QElapsedTimer       m_diskTimer;
         qint64              m_prevDiskSampleMs { 0 };
 };

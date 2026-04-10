@@ -28,8 +28,6 @@
 #include <QVector>
 #include <QWidget>
 
-class Metrics;
-
 namespace Perf
 {
     class GpuDetailWidget : public QWidget
@@ -39,7 +37,7 @@ namespace Perf
         public:
             explicit GpuDetailWidget(QWidget *parent = nullptr);
 
-            void SetGpu(Metrics *provider, int index);
+            void SetGpu(int index);
             void ApplyColorScheme();
 
         private slots:
@@ -50,10 +48,9 @@ namespace Perf
             void rebuildEngineSelectors();
             void bindGpuIdentity();
             void bindEngineGraphSource(int slot);
-            void bindMemoryAndCopySources(bool hasSharedData);
+            void bindMemoryAndCopySources();
 
-            Metrics *m_provider { nullptr };
-            int               m_gpuIndex { -1 };
+            int m_gpuIndex { -1 };
 
             QLabel *m_titleLabel { nullptr };
             QLabel *m_modelLabel { nullptr };
@@ -77,11 +74,6 @@ namespace Perf
             GraphWidget *m_dedicatedMemGraph { nullptr };
             GraphWidget *m_sharedMemGraph { nullptr };
             GraphWidget *m_copyBwGraph { nullptr };
-            const HistoryBuffer *m_dedicatedMemHistory { nullptr };
-            const HistoryBuffer *m_sharedMemHistorySource { nullptr };
-            const HistoryBuffer *m_copyTxHistory { nullptr };
-            const HistoryBuffer *m_copyRxHistory { nullptr };
-            HistoryBuffer m_sharedMemHistory { TUX_MANAGER_HISTORY_SIZE };
     };
 } // namespace Perf
 

@@ -27,25 +27,7 @@
 class Network
 {
     public:
-        Network();
-
-        /// Sample /proc/net/dev counters and compute per-interface RX/TX throughput histories.
-        bool Sample();
-
-        int NetworkCount() const { return this->m_networks.size(); }
-        QString NetworkName(int i) const;
-        QString NetworkType(int i) const;
-        int NetworkLinkSpeedMbps(int i) const;
-        QString NetworkIpv4(int i) const;
-        QString NetworkIpv6(int i) const;
-        double NetworkRxBytesPerSec(int i) const;
-        double NetworkTxBytesPerSec(int i) const;
-        double NetworkMaxThroughputBytesPerSec(int i) const;
-        const HistoryBuffer &NetworkRxHistory(int i) const;
-        const HistoryBuffer &NetworkTxHistory(int i) const;
-
-    private:
-        struct NetworkSample
+        struct NetworkInfo
         {
             QString         Name;      ///< Interface name, e.g. enp5s0
             QString         Type;      ///< Ethernet/Wi-Fi/Other
@@ -62,6 +44,15 @@ class Network
             HistoryBuffer   TxHistory { TUX_MANAGER_HISTORY_SIZE };
         };
 
+        Network();
+
+        /// Sample /proc/net/dev counters and compute per-interface RX/TX throughput histories.
+        bool Sample();
+
+        int NetworkCount() const { return this->m_networks.size(); }
+        const NetworkInfo &FromIndex(int i) const;
+
+    private:
         static bool isActiveNetworkInterface(const QString &name);
         static QString networkTypeFromArpType(int arpType);
         static int readLinkSpeedMbps(const QString &name);
@@ -69,7 +60,8 @@ class Network
         void refreshNetworkState(bool force = false);
         void refreshNetworkMetadata(bool force = false);
 
-        QVector<NetworkSample> m_networks;
+        QVector<NetworkInfo>   m_networks;
+        NetworkInfo            m_nullNetwork;
         QElapsedTimer          m_netTimer;
         qint64                 m_prevNetSampleMs { 0 };
         int                    m_networkStateRefreshCounter { 0 };

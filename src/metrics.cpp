@@ -17,7 +17,6 @@
  */
 
 #include "metrics.h"
-#include "misc.h"
 #include "configuration.h"
 
 #include <QObject>
@@ -29,6 +28,7 @@ Memory  Metrics::g_Memory;
 Network Metrics::g_Network;
 Storage Metrics::g_Storage;
 Kernel  Metrics::g_Kernel;
+Metrics Metrics::g_instance(nullptr);
 
 Metrics::Metrics(QObject *parent) : QObject(parent)
 {

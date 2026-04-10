@@ -22,8 +22,6 @@
 #include "historybuffer.h"
 #include <QWidget>
 
-class Metrics;
-
 QT_BEGIN_NAMESPACE
 namespace Ui { class NetworkDetailWidget; }
 QT_END_NAMESPACE
@@ -38,7 +36,7 @@ namespace Perf
             explicit NetworkDetailWidget(QWidget *parent = nullptr);
             ~NetworkDetailWidget();
 
-            void SetNetwork(Metrics *provider, int index);
+            void SetNetwork(int index);
             void ApplyColorScheme();
 
         private slots:
@@ -46,10 +44,7 @@ namespace Perf
 
         private:
             Ui::NetworkDetailWidget *ui;
-            Metrics                 *m_provider { nullptr };
             int                      m_networkIndex { -1 };
-            const HistoryBuffer     *m_rxHistory { nullptr };
-            const HistoryBuffer     *m_txHistory { nullptr };
     };
 } // namespace Perf
 
