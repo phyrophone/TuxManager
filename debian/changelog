@@ -1,3 +1,11 @@
+tux-manager (1.0.3) unstable; urgency=medium
+
+  * Performance improvements (app uses less RAM and CPU now)
+  * Fixed various visual glitches (graphs now look better)
+  * Fixed disk enumeration logic
+
+ -- Petr Bena <petr@bena.rocks>  Fri, 10 Apr 2026 21:00:00 +0100
+
 tux-manager (1.0.2) unstable; urgency=medium
 
   * Improved context menu (copy, confirmations)

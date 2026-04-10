@@ -1,3 +1,8 @@
+# 1.0.3
+  * Performance improvements (app uses less RAM and CPU now)
+  * Fixed various visual glitches (graphs now look better)
+  * Fixed disk enumeration logic
+
 # 1.0.2
   * Improved context menu (copy, confirmations)
   * Show if running as root in title

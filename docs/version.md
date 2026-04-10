@@ -2,7 +2,7 @@
 
 Canonical/manual version definitions:
 
-1. `src/main.cpp` (`kVersion`)  
+1. `src/globals.h`
    Application/CLI version shown by `--version` and used by `QApplication::setApplicationVersion`.
 2. `packaging/config` (`APP_VERSION`)  
    Source version used by all packaging scripts (`package-deb.sh`, `package-rpm.sh`, `package-flatpak.sh`).
