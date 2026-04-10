@@ -466,6 +466,16 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     copyCellAct->setEnabled(hasTargetCell && !multipleRowsSelected);
     connect(copyCellAct, &QAction::triggered, this, &ProcessesWidget::copyCellSelectionToClipboard);
 
+    QString copyPIDLabel;
+    if (multipleRowsSelected)
+        copyPIDLabel = tr("PIDs");
+    else
+        copyPIDLabel = tr("PID");
+
+    QAction *copyPidAct = copyMenu->addAction(copyPIDLabel);
+    copyPidAct->setEnabled(hasSelection);
+    connect(copyPidAct, &QAction::triggered, this, &ProcessesWidget::copySelectedPidsToClipboard);
+
     menu.addSeparator();
 
     // ── View submenu — always visible ────────────────────────────────────────
@@ -669,6 +679,20 @@ void ProcessesWidget::copyCellSelectionToClipboard()
         return;
 
     QGuiApplication::clipboard()->setText(this->ui->tableView->model()->data(targetIndex, Qt::DisplayRole).toString());
+}
+
+void ProcessesWidget::copySelectedPidsToClipboard()
+{
+    const QList<pid_t> pids = this->selectedPids();
+    if (pids.isEmpty())
+        return;
+
+    QStringList pidStrings;
+    pidStrings.reserve(pids.size());
+    for (pid_t pid : pids)
+        pidStrings << QString::number(pid);
+
+    QGuiApplication::clipboard()->setText(pidStrings.join(' '));
 }
 
 void ProcessesWidget::terminateSelectedProcesses()

@@ -89,6 +89,7 @@ class ProcessesWidget : public QWidget
         QVariant tableSelectionKeyFromProxy(const QModelIndex &proxyKeyIndex) const;
         void copyRowSelectionToClipboard();
         void copyCellSelectionToClipboard();
+        void copySelectedPidsToClipboard();
         void terminateSelectedProcesses();
         void killSelectedProcesses();
         void promptAndSendCustomSignal();
