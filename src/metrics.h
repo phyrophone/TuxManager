@@ -43,7 +43,7 @@ class Metrics : public QObject
         static Memory   *GetMemory()    { return &Metrics::g_Memory; }
         static Storage  *GetStorage()   { return &Metrics::g_Storage; }
         static Kernel   *GetKernel()    { return &Metrics::g_Kernel; }
-        static Metrics  *Get()          { return &Metrics::g_instance; };
+        static Metrics  *Get();
 
         Metrics(QObject *parent);
         ~Metrics();
@@ -71,7 +71,6 @@ class Metrics : public QObject
         static Network  g_Network;
         static Storage  g_Storage;
         static Kernel   g_Kernel;
-        static Metrics  g_instance;
 
         //! Run all samples that are enabled
         void sample();

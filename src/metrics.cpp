@@ -28,7 +28,12 @@ Memory  Metrics::g_Memory;
 Network Metrics::g_Network;
 Storage Metrics::g_Storage;
 Kernel  Metrics::g_Kernel;
-Metrics Metrics::g_instance(nullptr);
+
+Metrics *Metrics::Get()
+{
+    static Metrics instance(nullptr);
+    return &instance;
+}
 
 Metrics::Metrics(QObject *parent) : QObject(parent)
 {
