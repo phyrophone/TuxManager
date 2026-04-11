@@ -24,12 +24,13 @@
 #include "system/memory.h"
 #include "system/network.h"
 #include "system/storage.h"
+#include "system/swap.h"
 #include "system/kernel.h"
 #include <QObject>
 
 class QTimer;
 
-/// Periodically samples /proc/stat (CPU) and /proc/meminfo (memory).
+/// Periodically samples system performance subsystems.
 /// All widgets that display performance data connect to the updated() signal
 /// and read values through the const accessors.
 class Metrics : public QObject
@@ -41,6 +42,7 @@ class Metrics : public QObject
         static GPU      *GetGPU()       { return &Metrics::g_GPU; }
         static Network  *GetNetwork()   { return &Metrics::g_Network; }
         static Memory   *GetMemory()    { return &Metrics::g_Memory; }
+        static Swap     *GetSwap()      { return &Metrics::g_Swap; }
         static Storage  *GetStorage()   { return &Metrics::g_Storage; }
         static Kernel   *GetKernel()    { return &Metrics::g_Kernel; }
         static Metrics  *Get();
@@ -53,12 +55,14 @@ class Metrics : public QObject
         void SetProcessStatsEnabled(bool enabled) { this->m_processStatsEnabled = enabled; }
         void SetCpuSamplingEnabled(bool enabled) { this->m_cpuSamplingEnabled = enabled; }
         void SetMemorySamplingEnabled(bool enabled) { this->m_memorySamplingEnabled = enabled; }
+        void SetSwapSamplingEnabled(bool enabled) { this->m_swapSamplingEnabled = enabled; }
         void SetDiskSamplingEnabled(bool enabled) { this->m_diskSamplingEnabled = enabled; }
         void SetNetworkSamplingEnabled(bool enabled) { this->m_networkSamplingEnabled = enabled; }
         void SetGpuSamplingEnabled(bool enabled) { this->m_gpuSamplingEnabled = enabled; }
 
     signals:
         void updated();
+        void swapDevicesChanged();
 
     private slots:
         void onTimer();
@@ -67,13 +71,14 @@ class Metrics : public QObject
         static CPU      g_CPU;
         static GPU      g_GPU;
         static Memory   g_Memory;
+        static Swap     g_Swap;
         static Network  g_Network;
         static Storage  g_Storage;
         static Kernel   g_Kernel;
 
         //! Check if sampling is enabled and if yes, runs sampleNow() and emits a signal
         void sample();
-        void sampleNow();
+        bool sampleNow();
 
         QTimer *m_timer;
         int     m_intervalMs { 1000 };
@@ -81,6 +86,7 @@ class Metrics : public QObject
         bool    m_processStatsEnabled { false };
         bool    m_cpuSamplingEnabled { true };
         bool    m_memorySamplingEnabled { true };
+        bool    m_swapSamplingEnabled { true };
         bool    m_diskSamplingEnabled { true };
         bool    m_networkSamplingEnabled { true };
         bool    m_gpuSamplingEnabled { true };

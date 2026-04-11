@@ -20,11 +20,16 @@
 #include "../colorscheme.h"
 #include "../misc.h"
 #include "../ui/widgetstyle.h"
+#include "configuration.h"
 #include "globals.h"
 #include "metrics.h"
 
+#include <QAction>
+#include <QApplication>
+#include <QClipboard>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QMenu>
 #include <QVBoxLayout>
 #include <utility>
 
@@ -65,15 +70,9 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     usageHeader->addWidget(this->m_usageValueLabel);
     root->addLayout(usageHeader);
 
-    this->m_usageGraph = new GraphWidget(this);
-    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
-    this->m_usageGraph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
-    this->m_usageGraph->SetGridColumns(6);
-    this->m_usageGraph->SetGridRows(4);
-    this->m_usageGraph->SetSeriesNames(tr("Swap usage"));
-    this->m_usageGraph->SetValueFormat(GraphWidget::ValueFormat::Percent);
-    this->m_usageGraph->setMinimumHeight(220);
-    root->addWidget(this->m_usageGraph, 1);
+    this->m_usageGraphArea = new SwapGraphArea(this);
+    this->m_usageGraphArea->setMinimumHeight(220);
+    root->addWidget(this->m_usageGraphArea, 1);
 
     auto *usageTimeAxis = new QHBoxLayout();
     QLabel *usageTimeLeft = new QLabel(tr("60 seconds"), this);
@@ -153,14 +152,20 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
 
 void SwapDetailWidget::Init()
 {
-    this->m_usageHistory = &Metrics::GetMemory()->SwapUsageHistory();
-    this->m_outHistory = &Metrics::GetMemory()->SwapOutHistory();
-    this->m_inHistory = &Metrics::GetMemory()->SwapInHistory();
+    this->m_outHistory = &Metrics::GetSwap()->SwapOutHistory();
+    this->m_inHistory = &Metrics::GetSwap()->SwapInHistory();
 
-    this->m_usageGraph->SetDataSource(*this->m_usageHistory, 100.0);
+    connect(this->m_usageGraphArea, &SwapGraphArea::contextMenuRequested, this, &SwapDetailWidget::onContextMenuRequested);
+
+    this->m_usageGraphArea->SetMode(
+                CFG->SwapGraphMode == 1
+                ? SwapGraphArea::GraphMode::PerDevice
+                : SwapGraphArea::GraphMode::Overall);
+    this->m_usageGraphArea->Init();
     this->m_activityGraph->SetDataSource(*this->m_inHistory, 1024.0);
     this->m_activityGraph->SetOverlayDataSource(*this->m_outHistory);
 
+    connect(Metrics::Get(), &Metrics::swapDevicesChanged, this, &SwapDetailWidget::onSwapDevicesChanged);
     connect(Metrics::Get(), &Metrics::updated, this, &SwapDetailWidget::onUpdated);
     this->onUpdated();
 }
@@ -174,18 +179,18 @@ void SwapDetailWidget::ApplyColorScheme()
         WidgetStyle::ApplyTextStyle(label, scheme->StatLabelColor);
     for (QLabel *label : std::as_const(this->m_axisLabels))
         WidgetStyle::ApplyTextStyle(label, scheme->AxisLabelColor);
-    this->m_usageGraph->SetColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
+    this->m_usageGraphArea->ApplyColorScheme();
     this->m_activityGraph->SetColor(scheme->SwapActivityGraphLineColor, scheme->SwapActivityGraphFillColor, scheme->SwapActivityGraphSecondaryFillColor);
     this->update();
 }
 
 void SwapDetailWidget::onUpdated()
 {
-    const qint64 totalKb = Metrics::GetMemory()->SwapTotalKb();
-    const qint64 usedKb = Metrics::GetMemory()->SwapUsedKb();
-    const qint64 freeKb = Metrics::GetMemory()->SwapFreeKb();
-    const double inBps = Metrics::GetMemory()->SwapInBytesPerSec();
-    const double outBps = Metrics::GetMemory()->SwapOutBytesPerSec();
+    const qint64 totalKb = Metrics::GetSwap()->SwapTotalKb();
+    const qint64 usedKb = Metrics::GetSwap()->SwapUsedKb();
+    const qint64 freeKb = Metrics::GetSwap()->SwapFreeKb();
+    const double inBps = Metrics::GetSwap()->SwapInBytesPerSec();
+    const double outBps = Metrics::GetSwap()->SwapOutBytesPerSec();
 
     const double usedPct = (totalKb > 0)
                            ? static_cast<double>(usedKb) * 100.0 / static_cast<double>(totalKb)
@@ -199,12 +204,53 @@ void SwapDetailWidget::onUpdated()
     this->m_inRateValueLabel->setText(Misc::FormatBytesPerSecond(inBps));
     this->m_outRateValueLabel->setText(Misc::FormatBytesPerSecond(outBps));
 
-    this->m_usageGraph->SetPercentTooltipAbsolute(static_cast<double>(totalKb) / (1024.0 * 1024.0), tr("GB"), 2);
-
-    const double maxRate = Metrics::GetMemory()->SwapMaxActivityBytesPerSec();
+    const double maxRate = Metrics::GetSwap()->SwapMaxActivityBytesPerSec();
     this->m_activityGraph->SetMax(maxRate);
 
-    this->m_usageGraph->Tick();
+    this->m_usageGraphArea->UpdateData();
     this->m_activityGraph->Tick();
     this->m_activityMaxLabel->setText(Misc::FormatBytesPerSecond(maxRate));
+}
+
+void SwapDetailWidget::onContextMenuRequested(const QPoint &globalPos)
+{
+    QMenu menu(this);
+    menu.setTitle(tr("Swap graph options"));
+
+    QMenu *graphMenu = menu.addMenu(tr("Change graph to"));
+
+    QAction *actOverall = graphMenu->addAction(tr("Overall usage"));
+    QAction *actPerDevice = graphMenu->addAction(tr("Swap devices"));
+    actOverall->setCheckable(true);
+    actPerDevice->setCheckable(true);
+
+    const bool isOverall = (this->m_usageGraphArea->GetMode() == SwapGraphArea::GraphMode::Overall);
+    actOverall->setChecked(isOverall);
+    actPerDevice->setChecked(!isOverall);
+
+    connect(actOverall, &QAction::triggered, this, [this]()
+    {
+        this->m_usageGraphArea->SetMode(SwapGraphArea::GraphMode::Overall);
+        CFG->SwapGraphMode = 0;
+    });
+    connect(actPerDevice, &QAction::triggered, this, [this]()
+    {
+        this->m_usageGraphArea->SetMode(SwapGraphArea::GraphMode::PerDevice);
+        CFG->SwapGraphMode = 1;
+    });
+
+    menu.addSeparator();
+
+    QAction *actCopy = menu.addAction(tr("Copy\tCtrl+C"));
+    connect(actCopy, &QAction::triggered, this, [this]()
+    {
+        QApplication::clipboard()->setPixmap(this->m_usageGraphArea->grab());
+    });
+
+    menu.exec(globalPos);
+}
+
+void SwapDetailWidget::onSwapDevicesChanged()
+{
+    this->m_usageGraphArea->RebindDevices();
 }

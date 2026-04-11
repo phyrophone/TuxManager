@@ -19,6 +19,7 @@
 #ifndef PERF_SWAPDETAILWIDGET_H
 #define PERF_SWAPDETAILWIDGET_H
 
+#include "swapgrapharea.h"
 #include "historybuffer.h"
 #include "graphwidget.h"
 
@@ -40,11 +41,13 @@ namespace Perf
 
         private slots:
             void onUpdated();
+            void onContextMenuRequested(const QPoint &globalPos);
+            void onSwapDevicesChanged();
 
         private:
             QLabel *m_titleLabel { nullptr };
             QLabel *m_totalLabel { nullptr };
-            GraphWidget *m_usageGraph { nullptr };
+            SwapGraphArea *m_usageGraphArea { nullptr };
             QLabel *m_usageValueLabel { nullptr };
 
             GraphWidget *m_activityGraph { nullptr };
@@ -57,7 +60,6 @@ namespace Perf
             QVector<QLabel *> m_statLabels;
             QVector<QLabel *> m_axisLabels;
 
-            const HistoryBuffer *m_usageHistory { nullptr };
             const HistoryBuffer *m_inHistory { nullptr };
             const HistoryBuffer *m_outHistory { nullptr };
     };

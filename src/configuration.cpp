@@ -83,6 +83,9 @@ void Configuration::Load()
     this->CpuGraphMode = s.value("Performance/CpuGraphMode", this->CpuGraphMode).toInt();
     if (this->CpuGraphMode != 0 && this->CpuGraphMode != 1)
         this->CpuGraphMode = 0;
+    this->SwapGraphMode = s.value("Performance/SwapGraphMode", this->SwapGraphMode).toInt();
+    if (this->SwapGraphMode != 0 && this->SwapGraphMode != 1)
+        this->SwapGraphMode = 0;
     this->CpuShowKernelTimes = s.value("Performance/CpuShowKernelTimes", this->CpuShowKernelTimes).toBool();
     this->PerfShowCpu =         s.value("Performance/ShowCpu",           this->PerfShowCpu).toBool();
     this->PerfShowMemory =      s.value("Performance/ShowMemory",        this->PerfShowMemory).toBool();
@@ -148,6 +151,7 @@ void Configuration::Save()
 
     s.setValue("Performance/GpuEngineSelectorIndices",  gpuSel);
     s.setValue("Performance/CpuGraphMode",              this->CpuGraphMode);
+    s.setValue("Performance/SwapGraphMode",             this->SwapGraphMode);
     s.setValue("Performance/CpuShowKernelTimes",        this->CpuShowKernelTimes);
     s.setValue("Performance/ShowCpu",                   this->PerfShowCpu);
     s.setValue("Performance/ShowMemory",                this->PerfShowMemory);

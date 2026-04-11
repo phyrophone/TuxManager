@@ -22,6 +22,7 @@ SOURCES += \
     system/memory.cpp \
     system/network.cpp \
     system/storage.cpp \
+    system/swap.cpp \
     ui/widgetstyle.cpp \
     ui/uihelper.cpp \
     configuration.cpp \
@@ -48,6 +49,7 @@ SOURCES += \
     perf/diskdetailwidget.cpp \
     perf/networkdetailwidget.cpp \
     perf/gpudetailwidget.cpp \
+    perf/swapgrapharea.cpp \
     perf/swapdetailwidget.cpp \
     perf/memorybar.cpp \
     perf/memorydetailwidget.cpp
@@ -65,6 +67,7 @@ HEADERS += \
     system/memory.h \
     system/network.h \
     system/storage.h \
+    system/swap.h \
     ui/widgetstyle.h \
     ui/uihelper.h \
     configuration.h \
@@ -92,6 +95,7 @@ HEADERS += \
     perf/diskdetailwidget.h \
     perf/networkdetailwidget.h \
     perf/gpudetailwidget.h \
+    perf/swapgrapharea.h \
     perf/swapdetailwidget.h \
     perf/memorybar.h \
     perf/memorydetailwidget.h

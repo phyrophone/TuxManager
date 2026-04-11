@@ -20,11 +20,10 @@
 #include "../misc.h"
 #include <QDir>
 #include <QFile>
-#include <unistd.h>
 
 Memory::Memory()
 {
-
+    this->readHardwareMetadata();
 }
 
 bool Memory::Sample()
@@ -36,7 +35,6 @@ bool Memory::Sample()
     qint64 memTotal = 0, memAvail = 0, memFree = 0;
     qint64 buffers  = 0, cached   = 0, sReclaimable = 0, shmem = 0;
     qint64 dirty    = 0, writeback = 0;
-    qint64 swapTotal = 0, swapFree = 0;
 
     for (;;)
     {
@@ -67,8 +65,6 @@ bool Memory::Sample()
         else if (key == "Shmem")        shmem        = val;
         else if (key == "Dirty")        dirty        = val;
         else if (key == "Writeback")    writeback    = val;
-        else if (key == "SwapTotal")    swapTotal    = val;
-        else if (key == "SwapFree")     swapFree     = val;
     }
     f.close();
 
@@ -85,65 +81,10 @@ bool Memory::Sample()
     this->m_memCachedKb  = buffers + pageCache;
     // htop's "used" (processes' non-reclaimable footprint)
     this->m_memUsedKb    = qMax(0LL, memTotal - memFree - buffers - pageCache);
-    this->m_swapTotalKb  = swapTotal;
-    this->m_swapFreeKb   = swapFree;
-    this->m_swapUsedKb   = qMax<qint64>(0, swapTotal - swapFree);
 
     // Graph tracks used / total (htop formula matches the green bar)
     const double frac = (memTotal > 0) ? static_cast<double>(this->m_memUsedKb) / static_cast<double>(memTotal) : 0.0;
     this->m_memHistory.Push(frac * 100.0);
-
-    if (this->m_swapSamplingEnabled)
-    {
-        const double swapFrac = (swapTotal > 0) ? static_cast<double>(this->m_swapUsedKb) / static_cast<double>(swapTotal) : 0.0;
-        this->m_swapUsageHistory.Push(swapFrac * 100.0);
-
-        quint64 pswpin = 0;
-        quint64 pswpout = 0;
-        QFile vmf("/proc/vmstat");
-        if (vmf.open(QIODevice::ReadOnly | QIODevice::Text))
-        {
-            for (;;)
-            {
-                const QByteArray line = vmf.readLine();
-                if (line.isNull())
-                    break;
-                const QList<QByteArray> parts = line.simplified().split(' ');
-                if (parts.size() < 2)
-                    continue;
-                if (parts.at(0) == "pswpin")
-                    pswpin = parts.at(1).toULongLong();
-                else if (parts.at(0) == "pswpout")
-                    pswpout = parts.at(1).toULongLong();
-            }
-            vmf.close();
-        }
-
-        if (!this->m_swapTimer.isValid())
-            this->m_swapTimer.start();
-        const qint64 nowMs = this->m_swapTimer.elapsed();
-        const qint64 dtMs = (this->m_prevSwapSampleMs > 0) ? (nowMs - this->m_prevSwapSampleMs) : 0;
-        this->m_prevSwapSampleMs = nowMs;
-
-        if (dtMs > 0)
-        {
-            const quint64 dInPages = (pswpin >= this->m_prevSwapInPages) ? (pswpin - this->m_prevSwapInPages) : 0;
-            const quint64 dOutPages = (pswpout >= this->m_prevSwapOutPages) ? (pswpout - this->m_prevSwapOutPages) : 0;
-            const long pageSize = ::sysconf(_SC_PAGESIZE);
-            const double bytesPerPage = (pageSize > 0) ? static_cast<double>(pageSize) : 4096.0;
-            this->m_swapInBps = static_cast<double>(dInPages) * bytesPerPage * 1000.0 / static_cast<double>(dtMs);
-            this->m_swapOutBps = static_cast<double>(dOutPages) * bytesPerPage * 1000.0 / static_cast<double>(dtMs);
-        } else
-        {
-            this->m_swapInBps = 0.0;
-            this->m_swapOutBps = 0.0;
-        }
-
-        this->m_prevSwapInPages = pswpin;
-        this->m_prevSwapOutPages = pswpout;
-        Misc::PushHistoryAndUpdateMax(this->m_swapInHistory, this->m_swapInBps, this->m_swapMaxActivityBps, TUX_MANAGER_MIN_RATE);
-        Misc::PushHistoryAndUpdateMax(this->m_swapOutHistory, this->m_swapOutBps, this->m_swapMaxActivityBps, TUX_MANAGER_MIN_RATE);
-    }
     return true;
 }
 

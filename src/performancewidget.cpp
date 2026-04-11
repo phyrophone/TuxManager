@@ -124,7 +124,7 @@ void PerformanceWidget::setupSidePanel()
     // ── Swap item ────────────────────────────────────────────────────────────
     auto *swapItem = new Perf::SidePanelItem(tr("Swap"), this);
     swapItem->SetGraphColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
-    swapItem->SetGraphSource(Metrics::GetMemory()->SwapUsageHistory());
+    swapItem->SetGraphSource(Metrics::GetSwap()->SwapUsageHistory());
     this->m_swapPanelIndex = this->m_sidePanel->AddItem(swapItem);
     this->m_stack->addWidget(this->m_swapDetail);
 
@@ -239,8 +239,8 @@ void PerformanceWidget::onProviderUpdated()
     }
 
     // Update Swap side panel item
-    const qint64 swapUsed = Metrics::GetMemory()->SwapUsedKb();
-    const qint64 swapTotal = Metrics::GetMemory()->SwapTotalKb();
+    const qint64 swapUsed = Metrics::GetSwap()->SwapUsedKb();
+    const qint64 swapTotal = Metrics::GetSwap()->SwapTotalKb();
     const int swapPct = (swapTotal > 0)
                         ? static_cast<int>(static_cast<double>(swapUsed) / static_cast<double>(swapTotal) * 100.0)
                         : 0;
@@ -518,8 +518,8 @@ void PerformanceWidget::applyPanelVisibility()
 void PerformanceWidget::updateSamplingPolicy()
 {
     Metrics::Get()->SetCpuSamplingEnabled(CFG->PerfShowCpu);
-    Metrics::Get()->SetMemorySamplingEnabled(CFG->PerfShowMemory || CFG->PerfShowSwap);
-    Metrics::GetMemory()->SetSwapSamplingEnabled(CFG->PerfShowSwap);
+    Metrics::Get()->SetMemorySamplingEnabled(CFG->PerfShowMemory);
+    Metrics::Get()->SetSwapSamplingEnabled(CFG->PerfShowSwap);
     Metrics::Get()->SetDiskSamplingEnabled(CFG->PerfShowDisks);
     Metrics::Get()->SetNetworkSamplingEnabled(CFG->PerfShowNetwork);
     Metrics::Get()->SetGpuSamplingEnabled(CFG->PerfShowGpu);

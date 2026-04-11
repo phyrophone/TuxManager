@@ -21,15 +21,13 @@
 
 #include "../globals.h"
 #include "../historybuffer.h"
-#include <QElapsedTimer>
-#include <QString>
 
 class Memory
 {
     public:
         Memory();
 
-        /// Sample /proc/meminfo (+ /proc/vmstat for swap activity) and append memory/swap histories.
+        /// Sample /proc/meminfo and append memory history.
         bool Sample();
 
         qint64 MemTotalKb()   const { return this->m_memTotalKb;   }
@@ -48,22 +46,10 @@ class Memory
         int MemSpeedMtps()      const { return this->m_memSpeedMtps;      }
         double MemFraction()  const;
         const HistoryBuffer &MemHistory() const { return this->m_memHistory; }
-        void SetSwapSamplingEnabled(bool enabled) { this->m_swapSamplingEnabled = enabled; }
-
-        qint64 SwapTotalKb() const { return this->m_swapTotalKb; }
-        qint64 SwapUsedKb()  const { return this->m_swapUsedKb;  }
-        qint64 SwapFreeKb()  const { return this->m_swapFreeKb;  }
-        double SwapInBytesPerSec()  const { return this->m_swapInBps;  }
-        double SwapOutBytesPerSec() const { return this->m_swapOutBps; }
-        double SwapMaxActivityBytesPerSec() const { return this->m_swapMaxActivityBps; }
-        const HistoryBuffer &SwapUsageHistory() const { return this->m_swapUsageHistory; }
-        const HistoryBuffer &SwapInHistory()    const { return this->m_swapInHistory;    }
-        const HistoryBuffer &SwapOutHistory()   const { return this->m_swapOutHistory;   }
 
     private:
         void readHardwareMetadata();
 
-        bool             m_swapSamplingEnabled { true };
         qint64           m_memTotalKb   { 0 };
         qint64           m_memUsedKb    { 0 };
         qint64           m_memAvailKb   { 0 };
@@ -75,20 +61,6 @@ class Memory
         int              m_memDimmSlotsUsed  { 0 };
         int              m_memSpeedMtps      { 0 };
         HistoryBuffer    m_memHistory { TUX_MANAGER_HISTORY_SIZE };
-
-        qint64           m_swapTotalKb   { 0 };
-        qint64           m_swapUsedKb    { 0 };
-        qint64           m_swapFreeKb    { 0 };
-        quint64          m_prevSwapInPages  { 0 };
-        quint64          m_prevSwapOutPages { 0 };
-        double           m_swapInBps  { 0.0 };
-        double           m_swapOutBps { 0.0 };
-        double           m_swapMaxActivityBps { 0.0 };
-        HistoryBuffer    m_swapUsageHistory { TUX_MANAGER_HISTORY_SIZE };
-        HistoryBuffer    m_swapInHistory { TUX_MANAGER_HISTORY_SIZE };
-        HistoryBuffer    m_swapOutHistory { TUX_MANAGER_HISTORY_SIZE };
-        QElapsedTimer    m_swapTimer;
-        qint64           m_prevSwapSampleMs { 0 };
 };
 
 #endif // MEMORY_H

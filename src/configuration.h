@@ -74,6 +74,8 @@ class Configuration : public QObject
         QVector<int> GpuEngineSelectorIndices { 0, 1, 2, 3 };
         /// CPU graph mode: 0 = overall, 1 = logical processors.
         int CpuGraphMode { 0 };
+        /// Swap graph mode: 0 = overall, 1 = swap devices.
+        int SwapGraphMode { 0 };
         /// CPU overlay toggle in Performance -> CPU.
         bool CpuShowKernelTimes { false };
         /// Performance selector visibility toggles.

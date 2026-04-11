@@ -25,6 +25,7 @@
 CPU     Metrics::g_CPU;
 GPU     Metrics::g_GPU;
 Memory  Metrics::g_Memory;
+Swap    Metrics::g_Swap;
 Network Metrics::g_Network;
 Storage Metrics::g_Storage;
 Kernel  Metrics::g_Kernel;
@@ -84,17 +85,24 @@ void Metrics::sample()
     if (CFG->RefreshPaused)
         return;
 
-    this->sampleNow();
+    const bool swapDevicesChanged = this->sampleNow();
+
+    if (swapDevicesChanged)
+        emit this->swapDevicesChanged();
 
     emit this->updated();
 }
 
-void Metrics::sampleNow()
+bool Metrics::sampleNow()
 {
+    bool swapDevicesChanged = false;
+
     if (this->m_cpuSamplingEnabled)
         Metrics::g_CPU.Sample();
     if (this->m_memorySamplingEnabled)
         Metrics::g_Memory.Sample();
+    if (this->m_swapSamplingEnabled)
+        Metrics::g_Swap.Sample(swapDevicesChanged);
     if (this->m_diskSamplingEnabled)
         Metrics::g_Storage.Sample();
     if (this->m_networkSamplingEnabled)
@@ -103,4 +111,6 @@ void Metrics::sampleNow()
         Metrics::g_GPU.Sample();
     if (this->m_processStatsEnabled)
         Metrics::g_Kernel.Sample();
+
+    return swapDevicesChanged;
 }
