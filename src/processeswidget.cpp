@@ -29,9 +29,12 @@
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
+#include <QProcess>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QStackedWidget>
+#include <QStandardPaths>
 #include <QStyle>
 #include <QTreeView>
 #include <QVBoxLayout>
@@ -58,6 +61,8 @@ ProcessesWidget::ProcessesWidget(QWidget *parent)
         this->m_proxy->setFilterFixedString(text);
         this->m_treeProxy->setFilterFixedString(text);
     });
+    connect(this->ui->runNewTaskButton, &QPushButton::clicked, this, &ProcessesWidget::runNewTask);
+    connect(this->ui->openTerminalButton, &QPushButton::clicked, this, &ProcessesWidget::openTerminal);
     connect(this->m_refreshTimer, &QTimer::timeout, this, &ProcessesWidget::onTimerTick);
 
     // Update status bar whenever the proxy's visible row count changes
@@ -717,6 +722,47 @@ void ProcessesWidget::promptAndSendCustomSignal()
         this->sendSignalToSelected(sig);
 }
 
+void ProcessesWidget::runNewTask()
+{
+    bool ok = false;
+    const QString command = QInputDialog::getText(
+                this,
+                tr("Run new task"),
+                tr("Open:"),
+                QLineEdit::Normal,
+                QString(),
+                &ok).trimmed();
+    if (!ok || command.isEmpty())
+        return;
+
+    QString error;
+    if (!this->startDetachedCommand(command, &error))
+    {
+        QMessageBox::warning(this, tr("Run new task failed"), tr("Failed to start command.\n\n%1").arg(error));
+        return;
+    }
+
+    LOG_INFO(QString("Started detached task: %1").arg(command));
+}
+
+void ProcessesWidget::openTerminal()
+{
+    const QString terminal = findTerminalExecutable();
+    if (terminal.isEmpty())
+    {
+        QMessageBox::warning(this, tr("Open terminal failed"), tr("No supported terminal emulator was found on this system."));
+        return;
+    }
+
+    if (!QProcess::startDetached(terminal, {}))
+    {
+        QMessageBox::warning(this, tr("Open terminal failed"), tr("Failed to start terminal: %1").arg(terminal));
+        return;
+    }
+
+    LOG_INFO(QString("Opened terminal via detached process: %1").arg(terminal));
+}
+
 void ProcessesWidget::setShowKernelTasks(bool checked)
 {
     this->m_proxy->ShowKernelTasks = checked;
@@ -966,4 +1012,53 @@ void ProcessesWidget::reniceSelected()
     {
         QMessageBox::warning(this, tr("Renice failed"), errors.join('\n'));
     }
+}
+
+bool ProcessesWidget::startDetachedCommand(const QString &command, QString *error) const
+{
+    if (error)
+        error->clear();
+
+    if (command.trimmed().isEmpty())
+    {
+        if (error)
+            *error = tr("Command is empty");
+        return false;
+    }
+
+    if (QProcess::startDetached("/bin/sh", { "-c", command }))
+        return true;
+
+    if (error)
+        *error = tr("Unable to start /bin/sh -c %1").arg(command);
+    return false;
+}
+
+QString ProcessesWidget::findTerminalExecutable()
+{
+    static const QStringList terminalCandidates {
+        "xdg-terminal-exec",
+        "x-terminal-emulator",
+        "kgx",
+        "gnome-terminal",
+        "konsole",
+        "xfce4-terminal",
+        "mate-terminal",
+        "lxterminal",
+        "tilix",
+        "kitty",
+        "alacritty",
+        "urxvt",
+        "terminator",
+        "xterm"
+    };
+
+    for (const QString &candidate : terminalCandidates)
+    {
+        const QString exe = QStandardPaths::findExecutable(candidate);
+        if (!exe.isEmpty())
+            return exe;
+    }
+
+    return {};
 }

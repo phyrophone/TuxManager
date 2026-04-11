@@ -31,6 +31,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="runNewTaskButton">
+       <property name="text"><string>Run new task</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="openTerminalButton">
+       <property name="text"><string>Open terminal</string></property>
+      </widget>
+     </item>
+     <item>
       <spacer>
        <property name="orientation"><enum>Qt::Horizontal</enum></property>
        <property name="sizeHint" stdset="0">

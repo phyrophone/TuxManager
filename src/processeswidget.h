@@ -93,6 +93,8 @@ class ProcessesWidget : public QWidget
         void terminateSelectedProcesses();
         void killSelectedProcesses();
         void promptAndSendCustomSignal();
+        void runNewTask();
+        void openTerminal();
         void setShowKernelTasks(bool checked);
         void setShowOtherUsersProcesses(bool checked);
         void captureExpandedTreePids(const QModelIndex &parentProxy, QSet<pid_t> &expandedPids) const;
@@ -108,6 +110,8 @@ class ProcessesWidget : public QWidget
 
         /// Open renice dialog for all selected processes.
         void reniceSelected();
+        bool startDetachedCommand(const QString &command, QString *error = nullptr) const;
+        static QString findTerminalExecutable();
 };
 
 #endif // PROCESSESWIDGET_H
