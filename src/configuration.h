@@ -23,6 +23,7 @@
 #include <QObject>
 #include <QVariantMap>
 #include <QVector>
+#include <sys/types.h>
 
 // Convenience macro for global config access: CFG->SomeSetting
 #define CFG (Configuration::instance())
@@ -51,6 +52,7 @@ class Configuration : public QObject
         bool UseCustomColorScheme { false };
         QVariantMap CustomColorScheme;
         bool IsSuperuser { false };  ///< True when effective UID is 0 (runtime-only).
+        uid_t EUID { 0 };            ///< Effective user ID captured at startup (runtime-only).
         //! Intervals (in ms) available in menus for refresh rate (250ms, 1s, 5s etc.)
         QVector<int> RefreshRateAvailableIntervals;
 

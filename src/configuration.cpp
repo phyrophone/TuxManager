@@ -52,7 +52,8 @@ void Configuration::Load()
     this->RefreshPaused =        s.value("General/RefreshPaused",        this->RefreshPaused).toBool();
     this->UseCustomColorScheme = s.value("General/UseCustomColorScheme", this->UseCustomColorScheme).toBool();
     this->CustomColorScheme =    s.value("General/CustomColorScheme",    this->CustomColorScheme).toMap();
-    this->IsSuperuser = (::geteuid() == 0);
+    this->EUID = ::geteuid();
+    this->IsSuperuser = (this->EUID == 0);
 
     // Processes
     this->ShowKernelTasks        = s.value("Processes/ShowKernelTasks",     this->ShowKernelTasks).toBool();

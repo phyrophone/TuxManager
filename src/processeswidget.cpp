@@ -834,11 +834,37 @@ QList<pid_t> ProcessesWidget::selectedPids() const
     return pids;
 }
 
+QList<OS::Process> ProcessesWidget::selectedProcesses() const
+{
+    const QList<pid_t> pids = this->selectedPids();
+    if (pids.isEmpty())
+        return {};
+
+    const QList<OS::Process> &all = this->m_lastProcessSnapshot.isEmpty()
+                                    ? this->m_model->GetProcesses()
+                                    : this->m_lastProcessSnapshot;
+    QHash<pid_t, const OS::Process *> byPid;
+    byPid.reserve(all.size());
+    for (const OS::Process &proc : all)
+        byPid.insert(proc.PID, &proc);
+
+    QList<OS::Process> selected;
+    selected.reserve(pids.size());
+    for (pid_t pid : pids)
+    {
+        const auto it = byPid.constFind(pid);
+        if (it != byPid.cend() && it.value())
+            selected.append(*it.value());
+    }
+    return selected;
+}
+
 void ProcessesWidget::sendSignalToSelected(int signal)
 {
     const QList<pid_t> pids = this->selectedPids();
     if (pids.isEmpty())
         return;
+    const QList<OS::Process> selected = this->selectedProcesses();
 
     QStringList pidStrings;
     pidStrings.reserve(pids.size());
@@ -861,6 +887,30 @@ void ProcessesWidget::sendSignalToSelected(int signal)
                   "PIDs: %3\n\n"
                   "Do you want to continue?")
                    .arg(signalText, QString::number(pids.size()), pidStrings.join(", "));
+    }
+
+    if (!CFG->IsSuperuser)
+    {
+        bool targetsOtherUser = false;
+        QStringList otherUsers;
+        for (const OS::Process &proc : selected)
+        {
+            if (proc.UID == CFG->EUID)
+                continue;
+            targetsOtherUser = true;
+            if (!proc.User.isEmpty() && !otherUsers.contains(proc.User))
+                otherUsers.append(proc.User);
+        }
+
+        if (targetsOtherUser)
+        {
+            const QString userHint = otherUsers.isEmpty()
+                                     ? QString()
+                                     : tr("\nTarget owners: %1").arg(otherUsers.join(", "));
+            body += tr("\n\nWarning: one or more selected processes are owned by another user. "
+                       "This application is running without superuser privileges, so this signal will most likely be rejected and nothing will happen.")
+                    + userHint;
+        }
     }
 
     const QMessageBox::StandardButton answer = QMessageBox::warning(this, tr("Confirm Signal"), body, QMessageBox::Yes | QMessageBox::No, QMessageBox::No);

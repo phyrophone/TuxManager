@@ -101,6 +101,7 @@ class ProcessesWidget : public QWidget
 
         /// Collect PIDs of all currently selected rows.
         QList<pid_t> selectedPids() const;
+        QList<OS::Process> selectedProcesses() const;
 
         /// Send signal to all selected processes; show error dialog on failure.
         void sendSignalToSelected(int signal);
