@@ -38,6 +38,7 @@
 #include <QStyle>
 #include <QTreeView>
 #include <QVBoxLayout>
+#include <QFileInfo>
 
 #include <algorithm>
 #include <functional>
@@ -1052,12 +1053,28 @@ QString ProcessesWidget::findTerminalExecutable()
         "terminator",
         "xterm"
     };
+    static const QStringList trustedPrefixes {
+        "/usr/bin/",
+        "/bin/",
+        "/sbin/",
+        "/usr/sbin/"
+    };
 
     for (const QString &candidate : terminalCandidates)
     {
         const QString exe = QStandardPaths::findExecutable(candidate);
         if (!exe.isEmpty())
-            return exe;
+        {
+            const QString canonical = QFileInfo(exe).canonicalFilePath();
+            if (canonical.isEmpty())
+                continue;
+
+            for (const QString &prefix : trustedPrefixes)
+            {
+                if (canonical.startsWith(prefix))
+                    return canonical;
+            }
+        }
     }
 
     return {};
