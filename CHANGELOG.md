@@ -1,3 +1,9 @@
+# Future
+  * Services control (via d-bus / systemctl)
+  * Option to display stats for each swap device separately
+  * Dynamically load / unload swap devices as they are added / disabled
+  * Notify user when they try to send signal to processes owned by different UID
+
 # 1.0.3
   * Performance improvements (app uses less RAM and CPU now)
   * Fixed various visual glitches (graphs now look better)
