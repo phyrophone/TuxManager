@@ -25,9 +25,22 @@
 
 namespace OS
 {
+    inline constexpr int kSystemctlQueryTimeoutMs = 8000;
+    inline constexpr int kSystemctlManageTimeoutMs = 120000;
+
     class ServiceHelper
     {
         public:
+            enum class UnitAction
+            {
+                Start,
+                Stop,
+                Restart,
+                Reload,
+                TryRestart,
+                ReloadOrRestart
+            };
+
             struct ServiceRecord
             {
                 QString unit;
@@ -45,6 +58,9 @@ namespace OS
                                      int               timeoutMs = 8000);
             static bool ListServicesViaSystemdDbus(QList<ServiceRecord> &records,
                                                    QString              *error = nullptr);
+            static bool ManageUnit(const QString &unit,
+                                   UnitAction     action,
+                                   QString       *error = nullptr);
 
         private:
             ServiceHelper() = delete;

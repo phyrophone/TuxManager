@@ -17,6 +17,7 @@
  */
 
 #include "servicehelper.h"
+#include "../logger.h"
 
 #include <dlfcn.h>
 #include <QFileInfo>
@@ -36,6 +37,10 @@ namespace
     using FnSdBusCallMethod = int (*)(sd_bus *, const char *, const char *, const char *,
                                       const char *, sd_bus_error *, sd_bus_message **,
                                       const char *, ...);
+    using FnSdBusMessageNewMethodCall = int (*)(sd_bus *, sd_bus_message **, const char *, const char *, const char *, const char *);
+    using FnSdBusMessageAppend = int (*)(sd_bus_message *, const char *, ...);
+    using FnSdBusMessageSetAllowInteractiveAuthorization = int (*)(sd_bus_message *, int);
+    using FnSdBusCall = int (*)(sd_bus *, sd_bus_message *, uint64_t, sd_bus_error *, sd_bus_message **);
     using FnSdBusMessageUnref = sd_bus_message *(*)(sd_bus_message *);
     using FnSdBusMessageEnterContainer = int (*)(sd_bus_message *, char, const char *);
     using FnSdBusMessageExitContainer = int (*)(sd_bus_message *);
@@ -45,6 +50,10 @@ namespace
     FnSdBusOpenSystem pSdBusOpenSystem = nullptr;
     FnSdBusUnref pSdBusUnref = nullptr;
     FnSdBusCallMethod pSdBusCallMethod = nullptr;
+    FnSdBusMessageNewMethodCall pSdBusMessageNewMethodCall = nullptr;
+    FnSdBusMessageAppend pSdBusMessageAppend = nullptr;
+    FnSdBusMessageSetAllowInteractiveAuthorization pSdBusMessageSetAllowInteractiveAuthorization = nullptr;
+    FnSdBusCall pSdBusCall = nullptr;
     FnSdBusMessageUnref pSdBusMessageUnref = nullptr;
     FnSdBusMessageEnterContainer pSdBusMessageEnterContainer = nullptr;
     FnSdBusMessageExitContainer pSdBusMessageExitContainer = nullptr;
@@ -71,6 +80,12 @@ namespace
         pSdBusOpenSystem = reinterpret_cast<FnSdBusOpenSystem>(::dlsym(g_sdLib, "sd_bus_open_system"));
         pSdBusUnref = reinterpret_cast<FnSdBusUnref>(::dlsym(g_sdLib, "sd_bus_unref"));
         pSdBusCallMethod = reinterpret_cast<FnSdBusCallMethod>(::dlsym(g_sdLib, "sd_bus_call_method"));
+        pSdBusMessageNewMethodCall = reinterpret_cast<FnSdBusMessageNewMethodCall>(::dlsym(g_sdLib, "sd_bus_message_new_method_call"));
+        pSdBusMessageAppend = reinterpret_cast<FnSdBusMessageAppend>(::dlsym(g_sdLib, "sd_bus_message_append"));
+        pSdBusMessageSetAllowInteractiveAuthorization =
+            reinterpret_cast<FnSdBusMessageSetAllowInteractiveAuthorization>(
+                ::dlsym(g_sdLib, "sd_bus_message_set_allow_interactive_authorization"));
+        pSdBusCall = reinterpret_cast<FnSdBusCall>(::dlsym(g_sdLib, "sd_bus_call"));
         pSdBusMessageUnref = reinterpret_cast<FnSdBusMessageUnref>(::dlsym(g_sdLib, "sd_bus_message_unref"));
         pSdBusMessageEnterContainer = reinterpret_cast<FnSdBusMessageEnterContainer>(::dlsym(g_sdLib, "sd_bus_message_enter_container"));
         pSdBusMessageExitContainer = reinterpret_cast<FnSdBusMessageExitContainer>(::dlsym(g_sdLib, "sd_bus_message_exit_container"));
@@ -86,6 +101,34 @@ namespace
         if (error)
             error->clear();
         return true;
+    }
+
+    const char *managerMethodForAction(ServiceHelper::UnitAction action)
+    {
+        switch (action)
+        {
+            case ServiceHelper::UnitAction::Start:           return "StartUnit";
+            case ServiceHelper::UnitAction::Stop:            return "StopUnit";
+            case ServiceHelper::UnitAction::Restart:         return "RestartUnit";
+            case ServiceHelper::UnitAction::Reload:          return "ReloadUnit";
+            case ServiceHelper::UnitAction::TryRestart:      return "TryRestartUnit";
+            case ServiceHelper::UnitAction::ReloadOrRestart: return "ReloadOrRestartUnit";
+        }
+        return nullptr;
+    }
+
+    QString systemctlVerbForAction(ServiceHelper::UnitAction action)
+    {
+        switch (action)
+        {
+            case ServiceHelper::UnitAction::Start:           return "start";
+            case ServiceHelper::UnitAction::Stop:            return "stop";
+            case ServiceHelper::UnitAction::Restart:         return "restart";
+            case ServiceHelper::UnitAction::Reload:          return "reload";
+            case ServiceHelper::UnitAction::TryRestart:      return "try-restart";
+            case ServiceHelper::UnitAction::ReloadOrRestart: return "reload-or-restart";
+        }
+        return {};
     }
 } // namespace
 
@@ -271,3 +314,116 @@ bool ServiceHelper::ListServicesViaSystemdDbus(QList<ServiceRecord> &records, QS
     return true;
 }
 
+bool ServiceHelper::ManageUnit(const QString &unit, UnitAction action, QString *error)
+{
+    if (error)
+        error->clear();
+
+    QString reason;
+    if (!IsSystemdAvailable(&reason))
+    {
+        if (error)
+            *error = reason;
+        return false;
+    }
+
+    const char *method = managerMethodForAction(action);
+    if (!method || unit.isEmpty())
+    {
+        if (error)
+            *error = QObject::tr("Invalid service action");
+        return false;
+    }
+
+    LOG_DEBUG(QString("Managing service %1 via preferred sd-bus method %2").arg(unit, QString::fromLatin1(method)));
+
+    QString loadErr;
+    if (ensureSdBusLoaded(&loadErr))
+    {
+        sd_bus *bus = nullptr;
+        sd_bus_message *message = nullptr;
+        sd_bus_message *reply = nullptr;
+        const int openResult = pSdBusOpenSystem(&bus);
+        if (openResult >= 0 && bus)
+        {
+            int callResult = -1;
+            if (pSdBusMessageNewMethodCall && pSdBusMessageAppend && pSdBusMessageSetAllowInteractiveAuthorization && pSdBusCall)
+            {
+                const QByteArray unitUtf8 = unit.toUtf8();
+                const int newMsgResult = pSdBusMessageNewMethodCall(bus,
+                                                                    &message,
+                                                                    "org.freedesktop.systemd1",
+                                                                    "/org/freedesktop/systemd1",
+                                                                    "org.freedesktop.systemd1.Manager",
+                                                                    method);
+                if (newMsgResult >= 0 && message)
+                {
+                    const int appendResult = pSdBusMessageAppend(message, "ss", unitUtf8.constData(), "replace");
+                    const int authResult = (appendResult >= 0)
+                                           ? pSdBusMessageSetAllowInteractiveAuthorization(message, 1)
+                                           : appendResult;
+                    callResult = (authResult >= 0)
+                                 ? pSdBusCall(bus, message, 0, nullptr, &reply)
+                                 : authResult;
+                } else
+                {
+                    callResult = newMsgResult;
+                }
+            } else
+            {
+                if (error)
+                    *error = QObject::tr("libsystemd missing interactive sd-bus symbols");
+                LOG_DEBUG(QString("Interactive sd-bus symbols unavailable for %1, falling back to systemctl").arg(unit));
+            }
+
+            if (message)
+                pSdBusMessageUnref(message);
+            if (reply)
+                pSdBusMessageUnref(reply);
+            pSdBusUnref(bus);
+
+            if (callResult >= 0)
+            {
+                LOG_DEBUG(QString("Managed service %1 via sd-bus method %2").arg(unit, QString::fromLatin1(method)));
+                return true;
+            }
+
+            if (error)
+                *error = QObject::tr("systemd D-Bus call %1 for %2 failed (%3)")
+                             .arg(QString::fromLatin1(method), unit, QString::number(callResult));
+            LOG_DEBUG(QString("sd-bus management for %1 failed, falling back to systemctl: %2")
+                      .arg(unit, error ? *error : QString()));
+        } else if (error)
+        {
+            *error = QObject::tr("sd-bus open system failed (%1)").arg(openResult);
+            LOG_DEBUG(QString("sd-bus open for managing %1 failed, falling back to systemctl: %2")
+                      .arg(unit, *error));
+        }
+    } else
+    {
+        LOG_DEBUG(QString("sd-bus unavailable for managing %1, falling back to systemctl: %2")
+                  .arg(unit, loadErr));
+    }
+
+    QString stdoutText;
+    QString stderrText;
+    int exitCode = -1;
+    const QString verb = systemctlVerbForAction(action);
+    const QStringList args { verb, unit, "--no-pager" };
+    LOG_DEBUG(QString("Managing service %1 via systemctl fallback: %2").arg(unit, args.join(' ')));
+    if (!RunSystemctl(args, stdoutText, stderrText, exitCode, kSystemctlManageTimeoutMs) || exitCode != 0)
+    {
+        if (error)
+        {
+            *error = stderrText.trimmed();
+            if (error->isEmpty())
+                *error = QObject::tr("systemctl %1 %2 failed").arg(verb, unit);
+        }
+        LOG_DEBUG(QString("systemctl fallback failed for %1: exit=%2 stderr=%3")
+                  .arg(unit, QString::number(exitCode), stderrText.trimmed()));
+        return false;
+    }
+
+    LOG_DEBUG(QString("Managed service %1 via systemctl fallback").arg(unit));
+    return true;
+}

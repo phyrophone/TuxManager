@@ -67,7 +67,7 @@ QList<Service> Service::LoadAll(QString *error)
         "--no-legend",
         "--plain"
     };
-    if (!ServiceHelper::RunSystemctl(args, stdoutText, stderrText, exitCode) || exitCode != 0)
+    if (!ServiceHelper::RunSystemctl(args, stdoutText, stderrText, exitCode, kSystemctlQueryTimeoutMs) || exitCode != 0)
     {
         if (error)
             *error = stderrText.isEmpty()
@@ -101,4 +101,3 @@ QList<Service> Service::LoadAll(QString *error)
         error->clear();
     return out;
 }
-

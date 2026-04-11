@@ -20,6 +20,7 @@
 #define SERVICESWIDGET_H
 
 #include "os/service.h"
+#include "os/servicehelper.h"
 #include "os/servicemodel.h"
 #include "os/servicefilterproxy.h"
 
@@ -83,6 +84,9 @@ class ServicesWidget : public QWidget
         quint64             m_refreshToken { 0 };
 
         void startRefresh();
+        QModelIndex sourceIndexFromProxy(const QModelIndex &proxyIndex) const;
+        QString serviceUnitFromSourceIndex(const QModelIndex &sourceIndex) const;
+        void manageServiceUnit(const QString &unit, OS::ServiceHelper::UnitAction action, const QString &actionLabel);
         void showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos);
         void saveHeaderState() const;
 };

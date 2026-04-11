@@ -28,6 +28,7 @@
 #include <QGuiApplication>
 #include <QMenu>
 #include <QMetaObject>
+#include <QMessageBox>
 
 #include <algorithm>
 
@@ -242,6 +243,9 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
     const bool hasSelectedRows = !selectedRows.isEmpty();
     const bool multipleRowsSelected = selectedRows.size() > 1;
     const bool hasRowTarget = hasTargetCell || hasSelectedRows;
+    const QModelIndex sourceTargetIndex = this->sourceIndexFromProxy(targetIndex);
+    const QString targetUnit = this->serviceUnitFromSourceIndex(sourceTargetIndex);
+    const bool hasSingleTargetService = !targetUnit.isEmpty() && !multipleRowsSelected;
 
     QMenu menu(this);
     QMenu *copyMenu = menu.addMenu(tr("Copy"));
@@ -268,6 +272,50 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
     });
 
     menu.addSeparator();
+
+    QAction *startAct = menu.addAction(tr("Start"));
+    startAct->setEnabled(hasSingleTargetService);
+    connect(startAct, &QAction::triggered, this, [this, targetUnit]()
+    {
+        this->manageServiceUnit(targetUnit, OS::ServiceHelper::UnitAction::Start, tr("start"));
+    });
+
+    QAction *stopAct = menu.addAction(tr("Stop"));
+    stopAct->setEnabled(hasSingleTargetService);
+    connect(stopAct, &QAction::triggered, this, [this, targetUnit]()
+    {
+        this->manageServiceUnit(targetUnit, OS::ServiceHelper::UnitAction::Stop, tr("stop"));
+    });
+
+    QAction *restartAct = menu.addAction(tr("Restart"));
+    restartAct->setEnabled(hasSingleTargetService);
+    connect(restartAct, &QAction::triggered, this, [this, targetUnit]()
+    {
+        this->manageServiceUnit(targetUnit, OS::ServiceHelper::UnitAction::Restart, tr("restart"));
+    });
+
+    QAction *reloadAct = menu.addAction(tr("Reload"));
+    reloadAct->setEnabled(hasSingleTargetService);
+    connect(reloadAct, &QAction::triggered, this, [this, targetUnit]()
+    {
+        this->manageServiceUnit(targetUnit, OS::ServiceHelper::UnitAction::Reload, tr("reload"));
+    });
+
+    QAction *tryRestartAct = menu.addAction(tr("Try Restart"));
+    tryRestartAct->setEnabled(hasSingleTargetService);
+    connect(tryRestartAct, &QAction::triggered, this, [this, targetUnit]()
+    {
+        this->manageServiceUnit(targetUnit, OS::ServiceHelper::UnitAction::TryRestart, tr("try restart"));
+    });
+
+    QAction *reloadOrRestartAct = menu.addAction(tr("Reload Or Restart"));
+    reloadOrRestartAct->setEnabled(hasSingleTargetService);
+    connect(reloadOrRestartAct, &QAction::triggered, this, [this, targetUnit]()
+    {
+        this->manageServiceUnit(targetUnit, OS::ServiceHelper::UnitAction::ReloadOrRestart, tr("reload or restart"));
+    });
+
+    menu.addSeparator();
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
     UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
 
@@ -275,6 +323,38 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
     UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_refreshTimer, this->m_active);
 
     this->m_tableContextMenuOpen = false;
+}
+
+QModelIndex ServicesWidget::sourceIndexFromProxy(const QModelIndex &proxyIndex) const
+{
+    if (!proxyIndex.isValid())
+        return {};
+    return this->m_proxy->mapToSource(proxyIndex);
+}
+
+QString ServicesWidget::serviceUnitFromSourceIndex(const QModelIndex &sourceIndex) const
+{
+    if (!sourceIndex.isValid())
+        return {};
+    const QModelIndex unitIndex = sourceIndex.sibling(sourceIndex.row(), OS::ServiceModel::ColService);
+    if (!unitIndex.isValid())
+        return {};
+    return this->m_model->data(unitIndex, Qt::UserRole).toString();
+}
+
+void ServicesWidget::manageServiceUnit(const QString &unit, OS::ServiceHelper::UnitAction action, const QString &actionLabel)
+{
+    if (unit.isEmpty())
+        return;
+
+    QString error;
+    if (!OS::ServiceHelper::ManageUnit(unit, action, &error))
+    {
+        QMessageBox::warning(this, tr("Service action failed"), tr("Failed to %1 service %2.\n\n%3").arg(actionLabel, unit, error));
+    }
+
+    if (this->m_active && !CFG->RefreshPaused)
+        this->startRefresh();
 }
 
 void ServicesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos)
