@@ -20,6 +20,16 @@
 
 using namespace OS;
 
+namespace
+{
+    QString displayServiceUnit(const QString &unit)
+    {
+        if (unit.endsWith(".service"))
+            return unit.left(unit.size() - 8);
+        return unit;
+    }
+}
+
 ServiceModel::ServiceModel(QObject *parent) : QAbstractTableModel(parent)
 {
 }
@@ -51,7 +61,20 @@ QVariant ServiceModel::data(const QModelIndex &index, int role) const
 
     const Service &s = this->m_services.at(index.row());
 
-    if (role == Qt::DisplayRole || role == Qt::UserRole)
+    if (role == Qt::DisplayRole)
+    {
+        switch (static_cast<Column>(index.column()))
+        {
+            case ColService:     return displayServiceUnit(s.Unit);
+            case ColLoad:        return s.LoadState;
+            case ColActive:      return s.ActiveState;
+            case ColSubState:    return s.SubState;
+            case ColDescription: return s.Description;
+            default:             return {};
+        }
+    }
+
+    if (role == Qt::UserRole)
     {
         switch (static_cast<Column>(index.column()))
         {
