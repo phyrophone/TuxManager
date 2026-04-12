@@ -18,9 +18,11 @@
 
 #include "processeswidget.h"
 #include "os/processhelper.h"
-#include "ui_processeswidget.h"
 #include "configuration.h"
+#include "globals.h"
 #include "logger.h"
+#include "runtaskdialog.h"
+#include "ui_processeswidget.h"
 #include "ui/uihelper.h"
 
 #include <QClipboard>
@@ -725,15 +727,12 @@ void ProcessesWidget::promptAndSendCustomSignal()
 
 void ProcessesWidget::runNewTask()
 {
-    bool ok = false;
-    const QString command = QInputDialog::getText(
-                this,
-                tr("Run new task"),
-                tr("Open:"),
-                QLineEdit::Normal,
-                QString(),
-                &ok).trimmed();
-    if (!ok || command.isEmpty())
+    RunTaskDialog dialog(this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const QString command = dialog.Command();
+    if (command.isEmpty())
         return;
 
     QString error;
@@ -742,6 +741,12 @@ void ProcessesWidget::runNewTask()
         QMessageBox::warning(this, tr("Run new task failed"), tr("Failed to start command.\n\n%1").arg(error));
         return;
     }
+
+    CFG->TaskHistory.removeAll(command);
+    CFG->TaskHistory.prepend(command);
+    while (CFG->TaskHistory.size() > TUX_MANAGER_TASK_HISTORY)
+        CFG->TaskHistory.removeLast();
+    CFG->Save();
 
     LOG_INFO(QString("Started detached task: %1").arg(command));
 }

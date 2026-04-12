@@ -29,6 +29,7 @@ SOURCES += \
     logger.cpp \
     processeswidget.cpp \
     performancewidget.cpp \
+    runtaskdialog.cpp \
     userswidget.cpp \
     serviceswidget.cpp \
     os/proc.cpp \
@@ -75,6 +76,7 @@ HEADERS += \
     logger.h \
     processeswidget.h \
     performancewidget.h \
+    runtaskdialog.h \
     userswidget.h \
     serviceswidget.h \
     os/proc.h \
@@ -105,6 +107,7 @@ FORMS += \
     mainwindow.ui \
     processeswidget.ui \
     performancewidget.ui \
+    runtaskdialog.ui \
     userswidget.ui \
     serviceswidget.ui \
     perf/cpudetailwidget.ui \

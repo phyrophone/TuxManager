@@ -18,6 +18,7 @@
 
 #include "configuration.h"
 #include "colorscheme.h"
+#include "globals.h"
 
 #include <QApplication>
 #include <QPalette>
@@ -63,6 +64,10 @@ void Configuration::Load()
     this->ProcessListSortOrder   = s.value("Processes/SortOrder",           this->ProcessListSortOrder).toInt();
     this->ProcessListHeaderState = s.value("Processes/TableHeaderState",    this->ProcessListHeaderState).toByteArray();
     this->ProcessTreeHeaderState = s.value("Processes/TreeHeaderState",     this->ProcessTreeHeaderState).toByteArray();
+    this->TaskHistory            = s.value("Processes/TaskHistory",         this->TaskHistory).toStringList();
+    this->LastTaskDirectory      = s.value("Processes/LastTaskDirectory",   this->LastTaskDirectory).toString();
+    while (this->TaskHistory.size() > TUX_MANAGER_TASK_HISTORY)
+        this->TaskHistory.removeLast();
 
     // Services
     this->ServicesHeaderState    = s.value("Services/HeaderState",          this->ServicesHeaderState).toByteArray();
@@ -141,6 +146,8 @@ void Configuration::Save()
     s.setValue("Processes/SortOrder",           this->ProcessListSortOrder);
     s.setValue("Processes/TableHeaderState",    this->ProcessListHeaderState);
     s.setValue("Processes/TreeHeaderState",     this->ProcessTreeHeaderState);
+    s.setValue("Processes/TaskHistory",         this->TaskHistory);
+    s.setValue("Processes/LastTaskDirectory",   this->LastTaskDirectory);
 
     // Services
     s.setValue("Services/HeaderState",          this->ServicesHeaderState);

@@ -16,16 +16,33 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef GLOBALS_H
-#define GLOBALS_H
+#ifndef RUNTASKDIALOG_H
+#define RUNTASKDIALOG_H
 
-#define TUX_MANAGER_VERSION_STRING     "1.0.3"
-#define TUX_MANAGER_PRODUCT_NAME       "Tux Manager"
+#include <QDialog>
 
-/// Number of historical samples kept per metric (max graph window: 15 min at 1 Hz).
-#define TUX_MANAGER_HISTORY_SIZE       900
-#define TUX_MANAGER_TASK_HISTORY       20
+QT_BEGIN_NAMESPACE
+namespace Ui { class RunTaskDialog; }
+class QPushButton;
+QT_END_NAMESPACE
 
-#define TUX_MANAGER_MIN_RATE           1024.0
+class RunTaskDialog : public QDialog
+{
+    Q_OBJECT
 
-#endif // GLOBALS_H
+    public:
+        explicit RunTaskDialog(QWidget *parent = nullptr);
+        ~RunTaskDialog();
+
+        QString Command() const;
+
+    private:
+        void browseForCommand();
+        void updateOkButton();
+        static QString shellQuote(const QString &text);
+
+        Ui::RunTaskDialog *ui { nullptr };
+        QPushButton *m_okButton { nullptr };
+};
+
+#endif // RUNTASKDIALOG_H

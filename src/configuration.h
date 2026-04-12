@@ -21,6 +21,7 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QStringList>
 #include <QVariantMap>
 #include <QVector>
 #include <sys/types.h>
@@ -67,6 +68,8 @@ class Configuration : public QObject
         int  ProcessListSortOrder  { 1 };   ///< Qt::DescendingOrder
         QByteArray ProcessListHeaderState;  ///< Saved via QHeaderView::saveState()
         QByteArray ProcessTreeHeaderState;  ///< Saved via QHeaderView::saveState()
+        QStringList TaskHistory;            ///< Most recently executed task commands.
+        QString LastTaskDirectory;          ///< Last directory used in Run new task browse dialog.
 
         // ── Services tab ──────────────────────────────────────────────────────────
         QByteArray ServicesHeaderState;     ///< Saved via QHeaderView::saveState()
