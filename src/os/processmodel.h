@@ -22,6 +22,7 @@
 #include "process.h"
 
 #include <QAbstractTableModel>
+#include <QElapsedTimer>
 #include <QHash>
 
 namespace OS
@@ -41,6 +42,10 @@ namespace OS
                 ColCpu,
                 ColMemRss,
                 ColMemVirt,
+                ColIoReads,
+                ColIoWrites,
+                ColIoReadsPerSec,
+                ColIoWritesPerSec,
                 ColThreads,
                 ColPriority,
                 ColNice,
@@ -65,6 +70,8 @@ namespace OS
             QList<Process> RefreshSnapshot();
             void SetShowKernelTasks(bool show) { this->m_showKernelTasks = show; }
             void SetShowOtherUsersProcs(bool show) { this->m_showOtherUsersProcs = show; }
+            void SetIOMetricsEnabled(bool enabled);
+            void FlushIOMetrics();
 
             /// The raw process list (read-only access for external use).
             const QList<Process> &GetProcesses() const { return this->m_processes; }
@@ -72,11 +79,15 @@ namespace OS
         private:
             QList<Process>          m_processes;
             QHash<pid_t, quint64>   m_prevTicks;               ///< cpuTicks from previous sample
+            QHash<pid_t, quint64>   m_prevIoReadBytes;
+            QHash<pid_t, quint64>   m_prevIoWriteBytes;
             quint64                 m_prevCpuTotalTicks { 0 }; ///< Total CPU jiffies from previous /proc/stat sample
+            QElapsedTimer           m_prevIoSampleTimer;
             int                     m_numCpus { 1 };           ///< Online CPU count for normalisation
             uid_t                   m_myUid { 0 };
             bool                    m_showKernelTasks { true };
             bool                    m_showOtherUsersProcs { true };
+            bool                    m_ioMetricsEnabled { false };
 
             static QString columnHeader(Column col);
     };

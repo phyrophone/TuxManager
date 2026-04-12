@@ -18,7 +18,6 @@
 
 #include "processtreemodel.h"
 #include "../misc.h"
-
 using namespace OS;
 
 ProcessTreeModel::ProcessTreeModel(QObject *parent) : QAbstractItemModel(parent), m_root(new Node())
@@ -96,6 +95,16 @@ QVariant ProcessTreeModel::data(const QModelIndex &index, int role) const
             case ColCpu:      return QString::number(proc.CPUPercent, 'f', 1) + " %";
             case ColMemRss:   return Misc::FormatKiB(proc.VMRssKb, 0);
             case ColMemVirt:  return Misc::FormatKiB(proc.vmSizeKb, 0);
+            case ColIoReads:  return proc.IOTotalsAvailable ? Misc::FormatBytes(proc.IOReadBytes, 0) : QString("?");
+            case ColIoWrites: return proc.IOTotalsAvailable ? Misc::FormatBytes(proc.IOWriteBytes, 0) : QString("?");
+            case ColIoReadsPerSec:
+                if (proc.IOPermissionDenied)
+                    return QString("?");
+                return proc.IORatesAvailable ? Misc::FormatBytesPerSecond(proc.IOReadBps) : tr("measuring...");
+            case ColIoWritesPerSec:
+                if (proc.IOPermissionDenied)
+                    return QString("?");
+                return proc.IORatesAvailable ? Misc::FormatBytesPerSecond(proc.IOWriteBps) : tr("measuring...");
             case ColThreads:  return proc.Threads;
             case ColPriority: return proc.Priority;
             case ColNice:     return proc.Nice;
@@ -112,6 +121,22 @@ QVariant ProcessTreeModel::data(const QModelIndex &index, int role) const
             case ColCpu:      return proc.CPUPercent;
             case ColMemRss:   return static_cast<qulonglong>(proc.VMRssKb);
             case ColMemVirt:  return static_cast<qulonglong>(proc.vmSizeKb);
+            case ColIoReads:
+                return proc.IOTotalsAvailable
+                       ? QVariant::fromValue(static_cast<qlonglong>(proc.IOReadBytes))
+                       : QVariant::fromValue(static_cast<qlonglong>(-1));
+            case ColIoWrites:
+                return proc.IOTotalsAvailable
+                       ? QVariant::fromValue(static_cast<qlonglong>(proc.IOWriteBytes))
+                       : QVariant::fromValue(static_cast<qlonglong>(-1));
+            case ColIoReadsPerSec:
+                return proc.IORatesAvailable
+                       ? QVariant::fromValue(proc.IOReadBps)
+                       : QVariant::fromValue(-1.0);
+            case ColIoWritesPerSec:
+                return proc.IORatesAvailable
+                       ? QVariant::fromValue(proc.IOWriteBps)
+                       : QVariant::fromValue(-1.0);
             case ColThreads:  return proc.Threads;
             case ColPriority: return proc.Priority;
             case ColNice:     return proc.Nice;
@@ -127,6 +152,10 @@ QVariant ProcessTreeModel::data(const QModelIndex &index, int role) const
             case ColCpu:
             case ColMemRss:
             case ColMemVirt:
+            case ColIoReads:
+            case ColIoWrites:
+            case ColIoReadsPerSec:
+            case ColIoWritesPerSec:
             case ColThreads:
             case ColPriority:
             case ColNice:
@@ -208,6 +237,10 @@ QString ProcessTreeModel::columnHeader(Column col)
         case ColCpu:      return "CPU %";
         case ColMemRss:   return "MEM RES";
         case ColMemVirt:  return "MEM VIRT";
+        case ColIoReads:  return "IO Reads";
+        case ColIoWrites: return "IO Writes";
+        case ColIoReadsPerSec: return "IO Read/s";
+        case ColIoWritesPerSec:return "IO Write/s";
         case ColThreads:  return "Threads";
         case ColPriority: return "Priority";
         case ColNice:     return "Nice";

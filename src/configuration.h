@@ -54,6 +54,7 @@ class Configuration : public QObject
         QVariantMap CustomColorScheme;
         bool IsSuperuser { false };  ///< True when effective UID is 0 (runtime-only).
         uid_t EUID { 0 };            ///< Effective user ID captured at startup (runtime-only).
+        bool IOMetricsEnabled { false }; ///< True when any Processes I/O column is visible (runtime-only).
         //! Intervals (in ms) available in menus for refresh rate (250ms, 1s, 5s etc.)
         QVector<int> RefreshRateAvailableIntervals;
 

@@ -84,6 +84,10 @@ class ProcessesWidget : public QWidget
         void showHeaderContextMenu(QHeaderView *header, int columnCount, const std::function<QString(int)> &titleForColumn, const QPoint &pos);
         void saveTableHeaderState() const;
         void saveTreeHeaderState() const;
+        void syncProcessColumnVisibility(int column, bool hidden);
+        void syncAllProcessColumnVisibility();
+        void updateIOMetricsEnabledState(bool triggerImmediateRefresh = true);
+        bool anyIOMetricsColumnVisible() const;
         bool selectProcessInTree(pid_t pid);
         bool selectProcessInTable(pid_t pid);
         QVariant tableSelectionKeyFromProxy(const QModelIndex &proxyKeyIndex) const;

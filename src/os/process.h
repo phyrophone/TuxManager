@@ -34,6 +34,9 @@ namespace OS
                 bool  IncludeKernelTasks  { true };
                 bool  IncludeOtherUsers   { true };
                 uid_t MyUID               { 0 };
+                bool  CollectIOMetrics    { false };
+                bool  IsSuperuser         { false };
+                uid_t EffectiveUID        { 0 };
             };
 
             pid_t   PID           { 0 };
@@ -52,6 +55,13 @@ namespace OS
             double  CPUPercent    { 0.0 };    ///< Calculated externally after two samples
             quint64 StartTimeTicks{ 0 };      ///< Start time in jiffies since boot
             bool    IsKernelThread{ false };   ///< True when PF_KTHREAD flag is set in /proc/pid/stat flags field
+            quint64 IOReadBytes   { 0 };      ///< Cumulative bytes read from storage since start.
+            quint64 IOWriteBytes  { 0 };      ///< Cumulative bytes written to storage since start.
+            double  IOReadBps     { 0.0 };    ///< Calculated externally after two samples.
+            double  IOWriteBps    { 0.0 };    ///< Calculated externally after two samples.
+            bool    IOTotalsAvailable { false }; ///< True when /proc/pid/io totals were read.
+            bool    IORatesAvailable { false };  ///< True when a previous I/O sample exists.
+            bool    IOPermissionDenied { false }; ///< True when I/O metrics were skipped due to permissions.
 
             /// Load a snapshot of every running process from /proc.
             static QList<Process> LoadAll();
@@ -62,6 +72,7 @@ namespace OS
 
         private:
             static bool loadOneStatAndUid(pid_t pid, Process &out);
+            static bool loadIO(Process &proc);
             static void loadUserAndCmdline(Process &proc);
     };
 } // namespace Os

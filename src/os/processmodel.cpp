@@ -18,6 +18,7 @@
 
 #include "processmodel.h"
 #include "proc.h"
+#include "../configuration.h"
 #include "../misc.h"
 #include <unistd.h>
 
@@ -71,6 +72,16 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
             case ColCpu:      return QString::number(proc.CPUPercent, 'f', 1) + " %";
             case ColMemRss:   return Misc::FormatKiB(proc.VMRssKb, 0);
             case ColMemVirt:  return Misc::FormatKiB(proc.vmSizeKb, 0);
+            case ColIoReads:  return proc.IOTotalsAvailable ? Misc::FormatBytes(proc.IOReadBytes, 0) : QString("?");
+            case ColIoWrites: return proc.IOTotalsAvailable ? Misc::FormatBytes(proc.IOWriteBytes, 0) : QString("?");
+            case ColIoReadsPerSec:
+                if (proc.IOPermissionDenied)
+                    return QString("?");
+                return proc.IORatesAvailable ? Misc::FormatBytesPerSecond(proc.IOReadBps) : tr("measuring...");
+            case ColIoWritesPerSec:
+                if (proc.IOPermissionDenied)
+                    return QString("?");
+                return proc.IORatesAvailable ? Misc::FormatBytesPerSecond(proc.IOWriteBps) : tr("measuring...");
             case ColThreads:  return proc.Threads;
             case ColPriority: return proc.Priority;
             case ColNice:     return proc.Nice;
@@ -88,6 +99,22 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
             case ColCpu:      return proc.CPUPercent;
             case ColMemRss:   return static_cast<qulonglong>(proc.VMRssKb);
             case ColMemVirt:  return static_cast<qulonglong>(proc.vmSizeKb);
+            case ColIoReads:
+                return proc.IOTotalsAvailable
+                       ? QVariant::fromValue(static_cast<qlonglong>(proc.IOReadBytes))
+                       : QVariant::fromValue(static_cast<qlonglong>(-1));
+            case ColIoWrites:
+                return proc.IOTotalsAvailable
+                       ? QVariant::fromValue(static_cast<qlonglong>(proc.IOWriteBytes))
+                       : QVariant::fromValue(static_cast<qlonglong>(-1));
+            case ColIoReadsPerSec:
+                return proc.IORatesAvailable
+                       ? QVariant::fromValue(proc.IOReadBps)
+                       : QVariant::fromValue(-1.0);
+            case ColIoWritesPerSec:
+                return proc.IORatesAvailable
+                       ? QVariant::fromValue(proc.IOWriteBps)
+                       : QVariant::fromValue(-1.0);
             case ColThreads:  return proc.Threads;
             case ColPriority: return proc.Priority;
             case ColNice:     return proc.Nice;
@@ -103,6 +130,10 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
             case ColCpu:
             case ColMemRss:
             case ColMemVirt:
+            case ColIoReads:
+            case ColIoWrites:
+            case ColIoReadsPerSec:
+            case ColIoWritesPerSec:
             case ColThreads:
             case ColPriority:
             case ColNice:
@@ -157,6 +188,9 @@ QList<Process> ProcessModel::RefreshSnapshot()
     opts.IncludeKernelTasks = this->m_showKernelTasks;
     opts.IncludeOtherUsers  = this->m_showOtherUsersProcs;
     opts.MyUID              = this->m_myUid;
+    opts.CollectIOMetrics   = this->m_ioMetricsEnabled;
+    opts.IsSuperuser        = CFG->IsSuperuser;
+    opts.EffectiveUID       = CFG->EUID;
     QList<Process> fresh = Process::LoadAll(opts);
 
     // Calculate CPU% per process: (delta process ticks) / (period per CPU) * 100
@@ -180,13 +214,71 @@ QList<Process> ProcessModel::RefreshSnapshot()
         }
     }
 
+    const qint64 ioElapsedMs = this->m_ioMetricsEnabled
+                               ? (this->m_prevIoSampleTimer.isValid() ? this->m_prevIoSampleTimer.restart() : -1)
+                               : -1;
+    if (this->m_ioMetricsEnabled && !this->m_prevIoSampleTimer.isValid())
+        this->m_prevIoSampleTimer.start();
+
+    if (this->m_ioMetricsEnabled && ioElapsedMs > 0)
+    {
+        const double elapsedSec = static_cast<double>(ioElapsedMs) / 1000.0;
+        for (Process &proc : fresh)
+        {
+            if (!proc.IOTotalsAvailable)
+                continue;
+            if (!this->m_prevIoReadBytes.contains(proc.PID) || !this->m_prevIoWriteBytes.contains(proc.PID))
+                continue;
+
+            const quint64 prevReadBytes = this->m_prevIoReadBytes.value(proc.PID);
+            const quint64 prevWriteBytes = this->m_prevIoWriteBytes.value(proc.PID);
+            if (proc.IOReadBytes < prevReadBytes || proc.IOWriteBytes < prevWriteBytes)
+                continue;
+
+            proc.IOReadBps = static_cast<double>(proc.IOReadBytes - prevReadBytes) / elapsedSec;
+            proc.IOWriteBps = static_cast<double>(proc.IOWriteBytes - prevWriteBytes) / elapsedSec;
+            proc.IORatesAvailable = true;
+        }
+    }
+
     // Store snapshots for next sample
     this->m_prevTicks.clear();
     for (const Process &proc : fresh)
         this->m_prevTicks.insert(proc.PID, proc.CPUTicks);
     this->m_prevCpuTotalTicks = totalJiffies;
 
+    if (this->m_ioMetricsEnabled)
+    {
+        this->m_prevIoReadBytes.clear();
+        this->m_prevIoWriteBytes.clear();
+        for (const Process &proc : fresh)
+        {
+            if (!proc.IOTotalsAvailable)
+                continue;
+            this->m_prevIoReadBytes.insert(proc.PID, proc.IOReadBytes);
+            this->m_prevIoWriteBytes.insert(proc.PID, proc.IOWriteBytes);
+        }
+        if (!this->m_prevIoSampleTimer.isValid())
+            this->m_prevIoSampleTimer.start();
+    }
+
     return fresh;
+}
+
+void ProcessModel::SetIOMetricsEnabled(bool enabled)
+{
+    if (this->m_ioMetricsEnabled == enabled)
+        return;
+
+    this->m_ioMetricsEnabled = enabled;
+    this->FlushIOMetrics();
+}
+
+void ProcessModel::FlushIOMetrics()
+{
+    this->m_prevIoReadBytes.clear();
+    this->m_prevIoWriteBytes.clear();
+    this->m_prevIoSampleTimer.invalidate();
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -202,6 +294,10 @@ QString ProcessModel::columnHeader(Column col)
         case ColCpu:      return "CPU %";
         case ColMemRss:   return "MEM RES";
         case ColMemVirt:  return "MEM VIRT";
+        case ColIoReads:  return "IO Reads";
+        case ColIoWrites: return "IO Writes";
+        case ColIoReadsPerSec: return "IO Read/s";
+        case ColIoWritesPerSec:return "IO Write/s";
         case ColThreads:  return "Threads";
         case ColPriority: return "Priority";
         case ColNice:     return "Nice";

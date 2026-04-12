@@ -112,6 +112,53 @@ bool Process::loadOneStatAndUid(pid_t pid, Process &out)
     return true;
 }
 
+bool Process::loadIO(Process &proc)
+{
+    QFile ioFile(QString("/proc/%1/io").arg(proc.PID));
+    if (!ioFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+
+    quint64 readBytes = 0;
+    quint64 writeBytes = 0;
+    bool haveReadBytes = false;
+    bool haveWriteBytes = false;
+
+    for (;;)
+    {
+        const QByteArray line = ioFile.readLine();
+        if (line.isNull())
+            break;
+
+        const QByteArray trimmedLine = line.trimmed();
+        const int colonPos = trimmedLine.indexOf(':');
+        if (colonPos <= 0)
+            continue;
+
+        const QByteArray key = trimmedLine.left(colonPos);
+        const QByteArray value = trimmedLine.mid(colonPos + 1).trimmed();
+        if (key == "read_bytes")
+        {
+            readBytes = value.toULongLong();
+            haveReadBytes = true;
+        } else if (key == "write_bytes")
+        {
+            writeBytes = value.toULongLong();
+            haveWriteBytes = true;
+        }
+    }
+
+    ioFile.close();
+
+    if (!haveReadBytes || !haveWriteBytes)
+        return false;
+
+    proc.IOReadBytes = readBytes;
+    proc.IOWriteBytes = writeBytes;
+    proc.IOTotalsAvailable = true;
+    proc.IOPermissionDenied = false;
+    return true;
+}
+
 void Process::loadUserAndCmdline(Process &proc)
 {
     // Resolve UID → username (getpwuid is not thread-safe but fine here)
@@ -171,10 +218,21 @@ QList<Process> Process::LoadAll(const LoadOptions &options)
         if (!options.IncludeOtherUsers && proc.UID != options.MyUID)
             continue;
 
+        if (options.CollectIOMetrics)
+        {
+            if (options.IsSuperuser || proc.UID == options.EffectiveUID)
+            {
+                if (!loadIO(proc))
+                    proc.IOPermissionDenied = true;
+            } else
+            {
+                proc.IOPermissionDenied = true;
+            }
+        }
+
         loadUserAndCmdline(proc);
         list.append(proc);
     }
 
     return list;
 }
-

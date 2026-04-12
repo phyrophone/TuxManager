@@ -182,9 +182,10 @@ void ProcessesWidget::setupTable()
 
     QHeaderView *hv = tv->horizontalHeader();
     hv->setSectionsMovable(true);
-    hv->setStretchLastSection(true);
+    hv->setStretchLastSection(false);
     hv->setContextMenuPolicy(Qt::CustomContextMenu);
     hv->setSectionResizeMode(QHeaderView::Interactive);
+    hv->setSectionResizeMode(OS::ProcessModel::ColCmdline, QHeaderView::Stretch);
     connect(hv, &QHeaderView::customContextMenuRequested, this, [this, hv](const QPoint &pos)
     {
         this->showHeaderContextMenu(hv, OS::ProcessModel::ColCount, [this](int col)
@@ -216,6 +217,10 @@ void ProcessesWidget::setupTable()
     tv->setColumnWidth(OS::ProcessModel::ColCpu,      65);
     tv->setColumnWidth(OS::ProcessModel::ColMemRss,   80);
     tv->setColumnWidth(OS::ProcessModel::ColMemVirt,  80);
+    tv->setColumnWidth(OS::ProcessModel::ColIoReads,  90);
+    tv->setColumnWidth(OS::ProcessModel::ColIoWrites, 90);
+    tv->setColumnWidth(OS::ProcessModel::ColIoReadsPerSec, 100);
+    tv->setColumnWidth(OS::ProcessModel::ColIoWritesPerSec, 100);
     tv->setColumnWidth(OS::ProcessModel::ColThreads,  65);
     tv->setColumnWidth(OS::ProcessModel::ColPriority, 65);
     tv->setColumnWidth(OS::ProcessModel::ColNice,     50);
@@ -224,6 +229,10 @@ void ProcessesWidget::setupTable()
     hv->hideSection(OS::ProcessModel::ColMemVirt);
     hv->hideSection(OS::ProcessModel::ColPriority);
     hv->hideSection(OS::ProcessModel::ColNice);
+    hv->hideSection(OS::ProcessModel::ColIoReads);
+    hv->hideSection(OS::ProcessModel::ColIoWrites);
+    hv->hideSection(OS::ProcessModel::ColIoReadsPerSec);
+    hv->hideSection(OS::ProcessModel::ColIoWritesPerSec);
     if (!CFG->ProcessListHeaderState.isEmpty())
     {
         hv->restoreState(CFG->ProcessListHeaderState);
@@ -245,7 +254,8 @@ void ProcessesWidget::setupTable()
     treeHeader->setSectionsMovable(true);
     treeHeader->setContextMenuPolicy(Qt::CustomContextMenu);
     treeHeader->setSectionResizeMode(QHeaderView::Interactive);
-    treeHeader->setStretchLastSection(true);
+    treeHeader->setStretchLastSection(false);
+    treeHeader->setSectionResizeMode(OS::ProcessTreeModel::ColCmdline, QHeaderView::Stretch);
     connect(treeHeader, &QHeaderView::customContextMenuRequested, this, [this, treeHeader](const QPoint &pos)
     {
         this->showHeaderContextMenu(treeHeader, OS::ProcessTreeModel::ColCount, [this](int col)
@@ -262,18 +272,28 @@ void ProcessesWidget::setupTable()
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColCpu, 65);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColMemRss, 80);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColMemVirt, 80);
+    this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColIoReads, 90);
+    this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColIoWrites, 90);
+    this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColIoReadsPerSec, 100);
+    this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColIoWritesPerSec, 100);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColThreads, 65);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColPriority, 65);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColNice, 50);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColMemVirt, true);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColPriority, true);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColNice, true);
+    this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoReads, true);
+    this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoWrites, true);
+    this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoReadsPerSec, true);
+    this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoWritesPerSec, true);
     if (!CFG->ProcessTreeHeaderState.isEmpty())
     {
         treeHeader->restoreState(CFG->ProcessTreeHeaderState);
     }
+    this->syncAllProcessColumnVisibility();
     this->m_treeHeaderPersistenceEnabled = true;
     connect(this->m_treeView, &QTreeView::customContextMenuRequested, this, &ProcessesWidget::onTreeContextMenu);
+    this->updateIOMetricsEnabledState(false);
 
     this->setTreeViewMode(CFG->ProcessTreeView);
 }
@@ -410,15 +430,10 @@ void ProcessesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount
         return;
 
     const int col = chosen->data().toInt();
-    if (chosen->isChecked())
-        header->showSection(col);
-    else
-        header->hideSection(col);
-
-    if (header == this->ui->tableView->horizontalHeader())
-        this->saveTableHeaderState();
-    else if (header == this->m_treeView->header())
-        this->saveTreeHeaderState();
+    this->syncProcessColumnVisibility(col, !chosen->isChecked());
+    this->saveTableHeaderState();
+    this->saveTreeHeaderState();
+    this->updateIOMetricsEnabledState();
 }
 
 void ProcessesWidget::saveTableHeaderState() const
@@ -437,6 +452,58 @@ void ProcessesWidget::saveTreeHeaderState() const
 
     if (this->m_treeView && this->m_treeView->header())
         CFG->ProcessTreeHeaderState = this->m_treeView->header()->saveState();
+}
+
+void ProcessesWidget::syncProcessColumnVisibility(int column, bool hidden)
+{
+    if (column < 0 || column >= OS::ProcessModel::ColCount)
+        return;
+
+    if (QHeaderView *tableHeader = this->ui && this->ui->tableView ? this->ui->tableView->horizontalHeader() : nullptr)
+        tableHeader->setSectionHidden(column, hidden);
+    if (this->m_treeView)
+        this->m_treeView->setColumnHidden(column, hidden);
+}
+
+void ProcessesWidget::syncAllProcessColumnVisibility()
+{
+    if (!this->ui || !this->ui->tableView || !this->m_treeView)
+        return;
+
+    QHeaderView *tableHeader = this->ui->tableView->horizontalHeader();
+    QHeaderView *treeHeader = this->m_treeView->header();
+    if (!tableHeader || !treeHeader)
+        return;
+
+    for (int col = 0; col < OS::ProcessModel::ColCount; ++col)
+    {
+        const bool visible = !tableHeader->isSectionHidden(col) || !treeHeader->isSectionHidden(col);
+        this->syncProcessColumnVisibility(col, !visible);
+    }
+}
+
+bool ProcessesWidget::anyIOMetricsColumnVisible() const
+{
+    const QHeaderView *tableHeader = this->ui && this->ui->tableView ? this->ui->tableView->horizontalHeader() : nullptr;
+    if (!tableHeader)
+        return false;
+
+    return !tableHeader->isSectionHidden(OS::ProcessModel::ColIoReads)
+           || !tableHeader->isSectionHidden(OS::ProcessModel::ColIoWrites)
+           || !tableHeader->isSectionHidden(OS::ProcessModel::ColIoReadsPerSec)
+           || !tableHeader->isSectionHidden(OS::ProcessModel::ColIoWritesPerSec);
+}
+
+void ProcessesWidget::updateIOMetricsEnabledState(bool triggerImmediateRefresh)
+{
+    const bool enabled = this->anyIOMetricsColumnVisible();
+    const bool changed = (CFG->IOMetricsEnabled != enabled);
+
+    CFG->IOMetricsEnabled = enabled;
+    this->m_model->SetIOMetricsEnabled(enabled);
+
+    if (changed && enabled && triggerImmediateRefresh && this->m_active && !CFG->RefreshPaused && !this->m_tableContextMenuOpen)
+        this->onTimerTick();
 }
 
 void ProcessesWidget::onTableContextMenu(const QPoint &pos)
