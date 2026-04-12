@@ -202,8 +202,10 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
             selectionSnapshot.selectedKeys.append(key);
     }
     selectionSnapshot.currentKey = itemKey(this->ui->treeWidget->currentItem());
-    if (QScrollBar *scrollBar = this->ui->treeWidget->verticalScrollBar())
-        selectionSnapshot.scrollPos = scrollBar->value();
+
+    // Always preserve the scrollbar value so that after refresh we can restore it
+    QScrollBar *scrollbar = this->ui->treeWidget->verticalScrollBar();
+    int scroll_pos = scrollbar->value();
 
     QHash<uid_t, UserAgg> agg;
     for (const OS::Process &p : allProcs)
@@ -275,13 +277,9 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
     }
 
     if (restoredCurrentItem)
-    {
         this->ui->treeWidget->setCurrentItem(restoredCurrentItem);
-        this->ui->treeWidget->scrollToItem(restoredCurrentItem, QAbstractItemView::PositionAtCenter);
-    } else if (QScrollBar *scrollBar = this->ui->treeWidget->verticalScrollBar())
-    {
-        scrollBar->setValue(selectionSnapshot.scrollPos);
-    }
+
+    scrollbar->setValue(scroll_pos);
 
     this->ui->statusLabel->setText(tr("Logged in users: %1").arg(agg.size()));
 }
