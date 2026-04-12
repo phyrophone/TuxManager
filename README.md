@@ -11,6 +11,9 @@ A Linux Task Manager alternative built with Qt6, inspired by the Windows Task Ma
 
 ## Installing
 
+### Debian / Ubuntu / Fedora / EL derivatives (Rocky/Alma/OL)
+Use prebuilt packages that can be downloaded from [releases](https://github.com/benapetr/TuxManager/releases)
+
 ### AUR
 Use an AUR helper like paru or yay:
 ```bash
@@ -26,7 +29,7 @@ inputs.tuxManager.inputs.nixpkgs.follows = "nixpkgs"; # optional, deduplicates d
 You can then access the package at: `inputs.tuxManager.packages.${pkgs.stdenv.hostPlatform.system}.default`
 
 ### Others
-You'll need to [build it](#building) yourself.
+You can use an AppImage that can be downloaded from releases or just [build it](#building) yourself.
 
 ## Building
 
