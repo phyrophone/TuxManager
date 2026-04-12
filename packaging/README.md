@@ -7,6 +7,8 @@ This directory contains Linux packaging scripts for Tux Manager.
 - Debian/Ubuntu (`.deb`) via `package-deb.sh`
 - Fedora/RHEL/Alma/Rocky (`.rpm` + `.src.rpm`) via `package-rpm.sh`
 - AppImage (`.AppImage`) via `package-appimage.sh`
+- Arch Linux (`.pkg.tar.*`) via `package-arch.sh`
+- Arch Linux / AUR metadata via `arch/PKGBUILD`, `.SRCINFO`, and `.github/workflows/build-arch-aur.yml`
 
 ## Unsupported targets
 - Flatpak (`.flatpak`) via `package-flatpak.sh` - runs in container and doesn't allow access to host's /proc
@@ -74,6 +76,19 @@ Notes:
 - `linuxdeploy`, `linuxdeploy-plugin-qt`, and `linuxdeploy-plugin-appimage` must be available in `PATH`.
 - The script reuses the desktop/icon metadata from `packaging/flatpak/`.
 - The resulting AppImage is written to `packaging/output/`.
+
+### Arch Linux / AUR
+
+Required build tools/packages:
+
+```bash
+sudo pacman -S --needed base-devel git qt6-base
+```
+
+Notes:
+- The local Arch packaging script is `package-arch.sh`.
+- `makepkg` is provided by `base-devel`.
+- Release AUR metadata is rendered into `packaging/arch/` from `packaging/config`.
 
 ## Usage
 
@@ -149,6 +164,56 @@ Optional:
 Output (in `packaging/output/`):
 - `tux-manager-<version>-<arch>.AppImage`
 
+### Build On Arch Linux
+
+To build an Arch package from the current local repo checkout:
+
+```bash
+cd packaging
+./package-arch.sh
+```
+
+Optional:
+
+```bash
+./package-arch.sh --version 1.2.3
+```
+
+Output (in `packaging/output/`):
+- `tux-manager-<version>-1-x86_64.pkg.tar.zst`
+
+Notes:
+- This builds from the current local checkout rather than a remote release tarball.
+- The release `PKGBUILD` and `.SRCINFO` under `packaging/arch/` are generated for AUR publication.
+
+### Publish To AUR With GitHub Actions
+
+The GitHub workflow in `.github/workflows/build-arch-aur.yml` does three things:
+
+- builds a local Arch package from the current source checkout on every push and pull request
+- renders and publishes `packaging/arch/` to AUR on `v*` tags
+- also supports guarded manual publish via `workflow_dispatch`
+
+Required repository secret:
+
+- `AUR_SSH_PRIVATE_KEY`: SSH private key for the AUR account that owns the package
+
+Release requirement:
+
+- create version tags in the form `v1.2.3`
+
+Manual publish inputs:
+
+- `version`: required for manual publish, without the leading `v`
+- `aur_package_name`: optional package name override for test publishes
+
+Manual publish guardrails:
+
+- the selected `version` must match `packaging/config` and `src/globals.h`
+- the matching Git tag must already exist on `origin`
+- canonical `tux-manager` publishes are only allowed when the selected tag is an ancestor of the checked out branch head
+- if `AUR_SSH_PRIVATE_KEY` is not configured, the publish step is skipped cleanly
+
 ## Install
 
 ### Debian/Ubuntu
@@ -176,4 +241,12 @@ flatpak run io.github.benapetr.TuxManager
 ```bash
 chmod +x packaging/output/tux-manager-*.AppImage
 ./packaging/output/tux-manager-*.AppImage
+```
+
+### Arch Linux / AUR
+
+If you built the package with `package-arch.sh`:
+
+```bash
+sudo pacman -U packaging/output/tux-manager-*.pkg.tar.zst
 ```

@@ -1,0 +1,262 @@
+name: Build And Publish (Arch/AUR)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish without the leading v, for example 1.0.3
+        required: false
+        type: string
+      aur_package_name:
+        description: AUR package name override, for example tux-manager-test
+        required: false
+        default: tux-manager
+        type: string
+
+jobs:
+  build:
+    name: Arch build
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git \
+            qt6-base
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create build user
+        run: |
+          useradd --create-home builder
+          chown -R builder:builder "${GITHUB_WORKSPACE}"
+
+      - name: Build local Arch package from source checkout
+        run: |
+          runuser -u builder -- bash -lc "
+            set -euo pipefail
+            cd '${GITHUB_WORKSPACE}/packaging'
+            ./package-arch.sh
+          "
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tux-manager-arch-package
+          path: packaging/output/*.pkg.tar.*
+          if-no-files-found: error
+
+  publish-aur:
+    name: Publish to AUR
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    env:
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+    steps:
+      - name: Install publish dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            curl \
+            git \
+            openssh \
+            qt6-base
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mark workspace as safe for git
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Resolve publish parameters
+        id: params
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+            aur_package_name="${{ inputs.aur_package_name }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+            aur_package_name="tux-manager"
+          fi
+
+          if [ -z "${version}" ]; then
+            echo "Error: version is required for manual publish."
+            exit 1
+          fi
+
+          if [ -z "${aur_package_name}" ]; then
+            echo "Error: aur_package_name must not be empty."
+            exit 1
+          fi
+
+          if ! printf '%s' "${aur_package_name}" | grep -Eq '^[a-z0-9][a-z0-9+_.@-]*$'; then
+            echo "Error: invalid aur_package_name: ${aur_package_name}"
+            exit 1
+          fi
+
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "release_tag=v${version}" >> "${GITHUB_OUTPUT}"
+          echo "aur_package_name=${aur_package_name}" >> "${GITHUB_OUTPUT}"
+          if [ "${aur_package_name}" = "tux-manager" ]; then
+            echo "canonical_package=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "canonical_package=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Validate release metadata
+        run: |
+          set -euo pipefail
+
+          tag_version="${{ steps.params.outputs.version }}"
+          source packaging/config
+          code_version="$(awk -F'"' '/^#define TUX_MANAGER_VERSION_STRING/{print $2}' src/globals.h)"
+
+          test -n "${APP_VERSION}"
+          test -n "${code_version}"
+
+          test "${tag_version}" = "${APP_VERSION}"
+          test "${tag_version}" = "${code_version}"
+
+      - name: Validate release tag exists
+        run: |
+          set -euo pipefail
+
+          release_tag="${{ steps.params.outputs.release_tag }}"
+          git fetch --force --tags origin
+          git rev-parse -q --verify "refs/tags/${release_tag}" >/dev/null
+
+      - name: Guard canonical package publishes
+        if: steps.params.outputs.canonical_package == 'true'
+        run: |
+          set -euo pipefail
+
+          release_tag="${{ steps.params.outputs.release_tag }}"
+          git merge-base --is-ancestor "refs/tags/${release_tag}" HEAD
+
+      - name: Create build user
+        run: |
+          useradd --create-home builder
+          chown -R builder:builder "${GITHUB_WORKSPACE}"
+
+      - name: Generate release PKGBUILD
+        run: |
+          set -euo pipefail
+          source packaging/config
+          version='${{ steps.params.outputs.version }}'
+          aur_package_name='${{ steps.params.outputs.aur_package_name }}'
+          source_url="${aur_package_name}-${version}.tar.gz::https://github.com/benapetr/TuxManager/archive/refs/tags/v${version}.tar.gz"
+          checksum="$(curl -fsSL "https://github.com/benapetr/TuxManager/archive/refs/tags/v${version}.tar.gz" | b2sum | awk '{print $1}')"
+
+          mkdir -p packaging/arch
+          cat > packaging/arch/PKGBUILD <<PKGEOF
+          pkgname=${aur_package_name}
+          pkgver=${version}
+          pkgrel=1
+          pkgdesc="${DESCRIPTION}"
+          arch=('x86_64')
+          url="${APP_HOMEPAGE_URL}"
+          license=('GPL-3.0-or-later')
+          depends=('qt6-base')
+          makedepends=('qt6-base')
+          options=('!debug')
+          source=("${source_url}")
+          b2sums=('${checksum}')
+
+          build() {
+              cd "\${srcdir}/TuxManager-${version}"
+
+              mkdir -p build
+              cd build
+
+              qmake6 ../src/TuxManager.pro
+              make -j"\$(nproc)"
+          }
+
+          package() {
+              cd "\${srcdir}/TuxManager-${version}"
+
+              install -Dm755 "build/tux-manager" "\${pkgdir}/usr/bin/tux-manager"
+              install -Dm644 README.md "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
+              install -Dm644 LICENSE "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
+              install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.desktop \
+                  "\${pkgdir}/usr/share/applications/io.github.benapetr.TuxManager.desktop"
+              install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.svg \
+                  "\${pkgdir}/usr/share/icons/hicolor/scalable/apps/io.github.benapetr.TuxManager.svg"
+              install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.metainfo.xml \
+                  "\${pkgdir}/usr/share/metainfo/io.github.benapetr.TuxManager.metainfo.xml"
+          }
+          PKGEOF
+          chown builder:builder packaging/arch/PKGBUILD
+
+      - name: Verify Arch package and refresh .SRCINFO
+        run: |
+          runuser -u builder -- bash -lc "
+            set -euo pipefail
+            cd '${GITHUB_WORKSPACE}/packaging/arch'
+            rm -rf src pkg
+            makepkg --clean --cleanbuild --force --noconfirm
+            makepkg --printsrcinfo > .SRCINFO
+          "
+
+      - name: Skip publish when SSH key is not configured
+        if: env.AUR_SSH_PRIVATE_KEY == ''
+        run: |
+          echo 'AUR_SSH_PRIVATE_KEY is not configured; skipping AUR publish.'
+
+      - name: Configure SSH for AUR
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        run: |
+          set -euo pipefail
+
+          test -n "${AUR_SSH_PRIVATE_KEY}"
+
+          install -dm700 "${HOME}/.ssh"
+          printf '%s\n' "${AUR_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/aur"
+          chmod 600 "${HOME}/.ssh/aur"
+          ssh-keyscan aur.archlinux.org >> "${HOME}/.ssh/known_hosts"
+
+      - name: Push packaging metadata to AUR
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        env:
+          AUR_PACKAGE_NAME: ${{ steps.params.outputs.aur_package_name }}
+        run: |
+          set -euo pipefail
+
+          aur_dir="$(mktemp -d)"
+          aur_url="ssh://aur@aur.archlinux.org/${AUR_PACKAGE_NAME}.git"
+          export GIT_SSH_COMMAND="ssh -i ${HOME}/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+
+          if ! git clone "${aur_url}" "${aur_dir}"; then
+            git init "${aur_dir}"
+            git -C "${aur_dir}" branch -m master
+            git -C "${aur_dir}" remote add origin "${aur_url}"
+          fi
+
+          find "${aur_dir}" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a packaging/arch/. "${aur_dir}/"
+
+          git -C "${aur_dir}" config user.name "github-actions[bot]"
+          git -C "${aur_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${aur_dir}" add .
+
+          if git -C "${aur_dir}" diff --cached --quiet; then
+            exit 0
+          fi
+
+          git -C "${aur_dir}" commit -m "Update to ${{ steps.params.outputs.version }}"
+          git -C "${aur_dir}" push origin HEAD:master
