@@ -377,6 +377,7 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
 
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
     UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
+    UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     QAction *picked = menu.exec(globalPos);
     if (!picked)

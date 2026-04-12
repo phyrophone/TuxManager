@@ -318,6 +318,7 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
     menu.addSeparator();
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
     UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
+    UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     QAction *picked = menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
     UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_refreshTimer, this->m_active);
@@ -371,6 +372,8 @@ void ServicesWidget::showHeaderContextMenu(QHeaderView *header, int columnCount,
         action->setChecked(!header->isSectionHidden(col));
         action->setData(col);
     }
+
+    UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     const QAction *chosen = menu.exec(header->mapToGlobal(pos));
     if (!chosen)

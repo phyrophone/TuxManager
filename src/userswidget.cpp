@@ -167,6 +167,7 @@ void UsersWidget::onContextMenu(const QPoint &pos)
 
     QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
     UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
+    UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     QAction *picked = menu.exec(this->ui->treeWidget->viewport()->mapToGlobal(pos));
     UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction, this->m_refreshTimer, this->m_active);

@@ -29,6 +29,7 @@ class QModelIndex;
 class QMenu;
 class QAction;
 class QTimer;
+class QWidget;
 
 namespace UIHelper
 {
@@ -55,6 +56,7 @@ namespace UIHelper
                                const TableSelectionSnapshot &snapshot);
 
     void PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction);
+    void AddGlobalContextMenuItems(QMenu *menu, QWidget *parent = nullptr);
 
     bool ApplyRefreshIntervalAction(QAction *picked,
                                     const QHash<QAction *, int> &intervalActions,

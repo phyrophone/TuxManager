@@ -17,6 +17,7 @@
  */
 
 #include "uihelper.h"
+#include "../aboutdialog.h"
 #include "../configuration.h"
 #include "../metrics.h"
 #include "../misc.h"
@@ -159,6 +160,21 @@ void UIHelper::PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &i
     pausedAction = menu->addAction(QObject::tr("Paused"));
     pausedAction->setCheckable(true);
     pausedAction->setChecked(CFG->RefreshPaused);
+}
+
+void UIHelper::AddGlobalContextMenuItems(QMenu *menu, QWidget *parent)
+{
+    if (!menu)
+        return;
+
+    menu->addSeparator();
+    QAction *aboutAction = menu->addAction(QObject::tr("About TuxManager"));
+    QObject::connect(aboutAction, &QAction::triggered, menu, [menu, parent]()
+    {
+        QWidget *dialogParent = parent ? parent : qobject_cast<QWidget *>(menu->parent());
+        AboutDialog dialog(dialogParent);
+        dialog.exec();
+    });
 }
 
 bool UIHelper::ApplyRefreshIntervalAction(QAction *picked,
