@@ -3,6 +3,6 @@ Type=Application
 Name=Tux Manager
 Comment=Linux system monitor inspired by Windows Task Manager
 Exec=tux-manager
-Icon=/usr/share/pixmaps/tux_manager_256.ico
+Icon=/usr/share/pixmaps/tux_manager_icon.svg
 Categories=System;Monitor;
 Terminal=false

@@ -217,19 +217,19 @@ Type=Application
 Name=Tux Manager
 Comment=Linux system monitor inspired by Windows Task Manager
 Exec=$APP_NAME
-Icon=/usr/share/pixmaps/tux_manager_256.ico
+Icon=/usr/share/pixmaps/tux_manager_icon.svg
 Categories=System;Monitor;
 Terminal=false
 DESKTOP
 
-install -Dm644 src/tux_manager_256.ico %{buildroot}%{_datadir}/pixmaps/tux_manager_256.ico
+install -Dm644 res/tux_manager_icon.svg %{buildroot}%{_datadir}/pixmaps/tux_manager_icon.svg
 
 %files
 %license %{_docdir}/$APP_NAME/LICENSE
 %doc %{_docdir}/$APP_NAME/README.md
 %{_bindir}/$APP_NAME
 %{_datadir}/applications/$APP_NAME.desktop
-%{_datadir}/pixmaps/tux_manager_256.ico
+%{_datadir}/pixmaps/tux_manager_icon.svg
 
 %changelog
 * $(date '+%a %b %d %Y') $MAINTAINER - $APP_VERSION-$RELEASE
