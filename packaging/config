@@ -10,4 +10,4 @@ MAINTAINER="Petr Bena <petr@bena.rocks>"
 DESCRIPTION="Tux Manager - Linux system monitor inspired by Windows Task Manager"
 
 # Icon path (relative to project root)
-APP_ICON_PATH="res/tux_manager_icon.svg"
+APP_ICON_PATH="src/tux_manager_icon.svg"

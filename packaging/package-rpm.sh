@@ -222,7 +222,7 @@ Categories=System;Monitor;
 Terminal=false
 DESKTOP
 
-install -Dm644 res/tux_manager_icon.svg %{buildroot}%{_datadir}/pixmaps/tux_manager_icon.svg
+install -Dm644 src/tux_manager_icon.svg %{buildroot}%{_datadir}/pixmaps/tux_manager_icon.svg
 
 %files
 %license %{_docdir}/$APP_NAME/LICENSE
