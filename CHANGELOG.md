@@ -5,6 +5,9 @@
   * Notify user when they try to send signal to processes owned by different UID
   * Run new task option
   * Open terminal option
+  * New icon
+  * IO metrics for processes
+  * Updated virtual GPU / CD driver blacklist
 
 # 1.0.3
   * Performance improvements (app uses less RAM and CPU now)
