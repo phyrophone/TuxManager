@@ -104,7 +104,7 @@ namespace
         static const QStringList ignoreTokens {
             QStringLiteral("xrdpdev"),
             QStringLiteral("xrdp"),
-            QStringLiteral("vmwgfx"),
+            QStringLiteral("vmwgfx"), // vmware virtual GPU device
             QStringLiteral("vmware"),
             QStringLiteral("vkms"),
             QStringLiteral("vgem"),
