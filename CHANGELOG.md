@@ -1,4 +1,4 @@
-# Future
+# 1.0.4
   * Services control (via d-bus / systemctl)
   * Option to display stats for each swap device separately
   * Dynamically load / unload swap devices as they are added / disabled

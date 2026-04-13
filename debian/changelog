@@ -1,3 +1,17 @@
+tux-manager (1.0.4) unstable; urgency=medium
+
+  * Services control (via d-bus / systemctl)
+  * Option to display stats for each swap device separately
+  * Dynamically load / unload swap devices as they are added / disabled
+  * Notify user when they try to send signal to processes owned by different UID
+  * Run new task option
+  * Open terminal option
+  * New icon
+  * IO metrics for processes
+  * Updated virtual GPU / CD driver blacklist
+
+ -- Petr Bena <petr@bena.rocks>  Mon, 13 Apr 2026 12:00:00 +0200
+
 tux-manager (1.0.3) unstable; urgency=medium
 
   * Performance improvements (app uses less RAM and CPU now)
