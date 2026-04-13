@@ -33,9 +33,12 @@ ProcessFilterProxy::ProcessFilterProxy(QObject *parent) : QSortFilterProxyModel(
 
 void ProcessFilterProxy::ApplyFilters()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     this->beginFilterChange();
     this->endFilterChange(QSortFilterProxyModel::Direction::Rows);
+#elif QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
+    this->beginFilterChange();
+    this->invalidateRowsFilter();
 #else
     this->invalidateFilter();
 #endif
