@@ -38,8 +38,8 @@ const Storage::DiskInfo &Storage::FromIndex(int i) const
 bool Storage::shouldIgnoreBlockDevice(const QString &baseName)
 {
     return baseName.startsWith("loop")
-    || baseName.startsWith("pktcdvd")
-    || baseName.startsWith("sr")
+        || baseName.startsWith("pktcdvd")
+        || baseName.startsWith("sr")
         || baseName.startsWith("dm-")
         || baseName.startsWith("ram")
         || baseName.startsWith("zram");
