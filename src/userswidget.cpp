@@ -27,6 +27,7 @@
 #include <QHeaderView>
 #include <QMenu>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QTreeWidgetItem>
 
 #include <unistd.h>
@@ -41,22 +42,34 @@ namespace
         quint64 memKb { 0 };
     };
 
-    struct TreeSelectionSnapshot
+    uid_t userId(const QTreeWidgetItem *item)
     {
-        QStringList selectedKeys;
-        QString currentKey;
-        int scrollPos { 0 };
-    };
+        return item ? static_cast<uid_t>(item->data(0, Qt::UserRole).toUInt()) : 0;
+    }
 
-    QString itemKey(const QTreeWidgetItem *item)
+    pid_t processId(const QTreeWidgetItem *item)
     {
-        if (!item)
-            return {};
+        return item ? static_cast<pid_t>(item->data(0, Qt::UserRole).toLongLong()) : 0;
+    }
 
-        if (item->parent())
-            return QStringLiteral("p:%1").arg(item->data(0, Qt::UserRole).toLongLong());
+    void updateUserItem(QTreeWidgetItem *item, uid_t uid, const UserAgg &agg)
+    {
+        item->setText(0, QObject::tr("%1 (%2)").arg(agg.name).arg(agg.procs.size()));
+        item->setData(0, Qt::UserRole, static_cast<uint>(uid));
+        item->setText(1, QString::number(agg.cpuPct, 'f', 1) + "%");
+        item->setText(2, Misc::FormatKiB(agg.memKb, 1));
+        item->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
+        item->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
+    }
 
-        return QStringLiteral("u:%1").arg(item->data(0, Qt::UserRole).toUInt());
+    void updateProcessItem(QTreeWidgetItem *item, const OS::Process &proc)
+    {
+        item->setText(0, QObject::tr("%1 (pid %2)").arg(proc.Name).arg(proc.PID));
+        item->setData(0, Qt::UserRole, static_cast<qlonglong>(proc.PID));
+        item->setText(1, QString::number(proc.CPUPercent, 'f', 1) + "%");
+        item->setText(2, Misc::FormatKiB(proc.VMRssKb, 1));
+        item->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
+        item->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
     }
 } // namespace
 
@@ -176,37 +189,9 @@ void UsersWidget::onContextMenu(const QPoint &pos)
 
 void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
 {
-    TreeSelectionSnapshot selectionSnapshot;
-
-    // Preserve expanded/collapsed state of top-level user rows.
-    if (this->ui->treeWidget->topLevelItemCount() > 0)
-    {
-        QSet<uid_t> expanded;
-        for (int i = 0; i < this->ui->treeWidget->topLevelItemCount(); ++i)
-        {
-            QTreeWidgetItem *item = this->ui->treeWidget->topLevelItem(i);
-            if (!item || !item->isExpanded())
-                continue;
-            const uid_t uid = static_cast<uid_t>(item->data(0, Qt::UserRole).toUInt());
-            expanded.insert(uid);
-        }
-        this->m_expandedUsers = expanded;
-        this->m_hasExpansionSnapshot = true;
-    }
-
-    const QList<QTreeWidgetItem *> selectedItems = this->ui->treeWidget->selectedItems();
-    selectionSnapshot.selectedKeys.reserve(selectedItems.size());
-    for (const QTreeWidgetItem *item : selectedItems)
-    {
-        const QString key = itemKey(item);
-        if (!key.isEmpty())
-            selectionSnapshot.selectedKeys.append(key);
-    }
-    selectionSnapshot.currentKey = itemKey(this->ui->treeWidget->currentItem());
-
-    // Always preserve the scrollbar value so that after refresh we can restore it
+    QSignalBlocker blocker(this->ui->treeWidget);
     QScrollBar *scrollbar = this->ui->treeWidget->verticalScrollBar();
-    int scroll_pos = scrollbar->value();
+    const int scrollPos = scrollbar ? scrollbar->value() : 0;
 
     QHash<uid_t, UserAgg> agg;
     for (const OS::Process &p : allProcs)
@@ -227,8 +212,12 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
         it->memKb += p.VMRssKb;
     }
 
-    this->ui->treeWidget->clear();
-    QTreeWidgetItem *restoredCurrentItem = nullptr;
+    QHash<uid_t, QTreeWidgetItem *> userItems;
+    for (int i = 0; i < this->ui->treeWidget->topLevelItemCount(); ++i)
+    {
+        if (QTreeWidgetItem *item = this->ui->treeWidget->topLevelItem(i))
+            userItems.insert(userId(item), item);
+    }
 
     QList<uid_t> uids = agg.keys();
     std::sort(uids.begin(), uids.end(), [&](uid_t a, uid_t b)
@@ -236,21 +225,35 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
         return agg.value(a).cpuPct > agg.value(b).cpuPct;
     });
 
-    for (uid_t uid : uids)
+    for (int userIndex = 0; userIndex < uids.size(); ++userIndex)
     {
-        const UserAgg a = agg.value(uid);
-        auto *userItem = new QTreeWidgetItem(this->ui->treeWidget);
-        userItem->setText(0, tr("%1 (%2)").arg(a.name).arg(a.procs.size()));
-        userItem->setData(0, Qt::UserRole, static_cast<uint>(uid));
-        userItem->setText(1, QString::number(a.cpuPct, 'f', 1) + "%");
-        userItem->setText(2, Misc::FormatKiB(a.memKb, 1));
-        userItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
-        userItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-        const QString userKey = itemKey(userItem);
-        if (selectionSnapshot.selectedKeys.contains(userKey))
-            userItem->setSelected(true);
-        if (!restoredCurrentItem && selectionSnapshot.currentKey == userKey)
-            restoredCurrentItem = userItem;
+        const uid_t uid = uids.at(userIndex);
+        const UserAgg &a = agg[uid];
+        QTreeWidgetItem *userItem = userItems.take(uid);
+        if (!userItem)
+            userItem = new QTreeWidgetItem();
+
+        updateUserItem(userItem, uid, a);
+
+        if (this->ui->treeWidget->indexOfTopLevelItem(userItem) < 0)
+        {
+            this->ui->treeWidget->insertTopLevelItem(userIndex, userItem);
+        } else
+        {
+            const int currentIndex = this->ui->treeWidget->indexOfTopLevelItem(userItem);
+            if (currentIndex != userIndex)
+            {
+                this->ui->treeWidget->takeTopLevelItem(currentIndex);
+                this->ui->treeWidget->insertTopLevelItem(userIndex, userItem);
+            }
+        }
+
+        QHash<pid_t, QTreeWidgetItem *> processItems;
+        for (int i = 0; i < userItem->childCount(); ++i)
+        {
+            if (QTreeWidgetItem *child = userItem->child(i))
+                processItems.insert(processId(child), child);
+        }
 
         QList<OS::Process> procs = a.procs;
         std::sort(procs.begin(), procs.end(), [](const OS::Process &x, const OS::Process &y)
@@ -258,29 +261,42 @@ void UsersWidget::rebuildTree(const QList<OS::Process> &allProcs)
             return x.CPUPercent > y.CPUPercent;
         });
 
-        for (const OS::Process &p : procs)
+        for (int processIndex = 0; processIndex < procs.size(); ++processIndex)
         {
-            auto *procItem = new QTreeWidgetItem(userItem);
-            procItem->setText(0, tr("%1 (pid %2)").arg(p.Name).arg(p.PID));
-            procItem->setData(0, Qt::UserRole, static_cast<qlonglong>(p.PID));
-            procItem->setText(1, QString::number(p.CPUPercent, 'f', 1) + "%");
-            procItem->setText(2, Misc::FormatKiB(p.VMRssKb, 1));
-            procItem->setTextAlignment(1, Qt::AlignRight | Qt::AlignVCenter);
-            procItem->setTextAlignment(2, Qt::AlignRight | Qt::AlignVCenter);
-            const QString procKey = itemKey(procItem);
-            if (selectionSnapshot.selectedKeys.contains(procKey))
-                procItem->setSelected(true);
-            if (!restoredCurrentItem && selectionSnapshot.currentKey == procKey)
-                restoredCurrentItem = procItem;
+            const OS::Process &p = procs.at(processIndex);
+            QTreeWidgetItem *procItem = processItems.take(p.PID);
+            if (!procItem)
+                procItem = new QTreeWidgetItem();
+
+            updateProcessItem(procItem, p);
+
+            if (userItem->indexOfChild(procItem) < 0)
+            {
+                userItem->insertChild(processIndex, procItem);
+            } else
+            {
+                const int currentIndex = userItem->indexOfChild(procItem);
+                if (currentIndex != processIndex)
+                {
+                    userItem->takeChild(currentIndex);
+                    userItem->insertChild(processIndex, procItem);
+                }
+            }
         }
 
-        userItem->setExpanded(this->m_hasExpansionSnapshot && this->m_expandedUsers.contains(uid));
+        for (QTreeWidgetItem *staleProcessItem : std::as_const(processItems))
+            delete staleProcessItem;
     }
 
-    if (restoredCurrentItem)
-        this->ui->treeWidget->setCurrentItem(restoredCurrentItem);
+    for (QTreeWidgetItem *staleUserItem : std::as_const(userItems))
+    {
+        const int index = this->ui->treeWidget->indexOfTopLevelItem(staleUserItem);
+        if (index >= 0)
+            delete this->ui->treeWidget->takeTopLevelItem(index);
+    }
 
-    scrollbar->setValue(scroll_pos);
+    if (scrollbar)
+        scrollbar->setValue(scrollPos);
 
     this->ui->statusLabel->setText(tr("Logged in users: %1").arg(agg.size()));
 }

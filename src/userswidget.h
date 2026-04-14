@@ -22,7 +22,6 @@
 #include "os/process.h"
 
 #include <QHash>
-#include <QSet>
 #include <QTimer>
 #include <QWidget>
 
@@ -57,8 +56,6 @@ class UsersWidget : public QWidget
         QHash<pid_t, quint64> m_prevTicks;
         quint64          m_prevCpuTotalTicks { 0 };
         int              m_numCpus { 1 };
-        QSet<uid_t>      m_expandedUsers;
-        bool             m_hasExpansionSnapshot { false };
 
         void rebuildTree(const QList<OS::Process> &allProcs);
 };
