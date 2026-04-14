@@ -72,6 +72,7 @@ UsersWidget::UsersWidget(QWidget *parent) : QWidget(parent), ui(new Ui::UsersWid
     this->ui->treeWidget->setHeaderLabels({ tr("User / Process"), tr("CPU"), tr("Memory") });
     this->ui->treeWidget->setRootIsDecorated(true);
     this->ui->treeWidget->setAlternatingRowColors(true);
+    this->ui->treeWidget->setAnimated(false);
     this->ui->treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
 
     QHeaderView *hv = this->ui->treeWidget->header();

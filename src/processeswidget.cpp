@@ -249,6 +249,7 @@ void ProcessesWidget::setupTable()
     this->m_treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     this->m_treeView->setRootIsDecorated(true);
     this->m_treeView->setItemsExpandable(true);
+    this->m_treeView->setAnimated(false);
     this->m_treeView->setUniformRowHeights(true);
     QHeaderView *treeHeader = this->m_treeView->header();
     treeHeader->setSectionsMovable(true);
