@@ -40,11 +40,13 @@ Metrics::Metrics(QObject *parent) : QObject(parent)
 {
     this->m_timer = new QTimer(this);
     connect(this->m_timer, &QTimer::timeout, this, &Metrics::onTimer);
+    this->m_intervalMs = qMax(100, CFG->RefreshRateMs);
+    this->m_timer->setInterval(this->m_intervalMs);
 
     // Prime baselines — first real sample will have valid deltas.
     this->sampleNow();
 
-    this->m_timer->start(1000);
+    this->m_timer->start(this->m_intervalMs);
 }
 
 void Metrics::SetInterval(int ms)

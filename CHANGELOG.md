@@ -1,3 +1,9 @@
+# Future
+  * Perf -> Network:
+      * Show all IPv6 addrs instead of just the first one
+      * Implemented toggle between bytes vs bits for NICs
+  * UI: minor visual fixes of services table
+
 # 1.0.4
   * Services control (via d-bus / systemctl)
   * Option to display stats for each swap device separately
