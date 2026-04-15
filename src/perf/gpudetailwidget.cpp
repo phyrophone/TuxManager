@@ -89,6 +89,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
         auto *selector = new QComboBox(this);
         auto *value = new QLabel("0%", this);
         value->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        UIHelper::EnableCopyLabelContextMenu(value);
         selector->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         top->addWidget(selector, 1);
         top->addWidget(value);
@@ -220,10 +221,6 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     UIHelper::EnableCopyLabelContextMenu(this->m_sharedMemValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->m_driverValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->m_backendValueLabel);
-    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(0));
-    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(1));
-    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(2));
-    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(3));
 }
 
 void GpuDetailWidget::SetGpu(int index)
