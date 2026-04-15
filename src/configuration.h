@@ -91,6 +91,7 @@ class Configuration : public QObject
         bool PerfShowDisks { true };
         bool PerfShowNetwork { true };
         bool PerfShowGpu { true };
+        bool PerfNetworkUseBits { true };
         int PerfGraphWindowSec { 60 };
 
     private:

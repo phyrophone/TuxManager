@@ -41,8 +41,14 @@ namespace Perf
 
         private slots:
             void onUpdated();
+            void onGraphContextMenuRequested(const QPoint &pos);
+            void onShowBitsTriggered();
+            void onShowBytesTriggered();
 
         private:
+            void applyTransferUnitMode();
+            QString formatTransferRate(double bytesPerSec) const;
+
             Ui::NetworkDetailWidget *ui;
             int                      m_networkIndex { -1 };
     };

@@ -309,8 +309,14 @@ void PerformanceWidget::onProviderUpdated()
                 continue;
 
             const Network::NetworkInfo &network = Metrics::GetNetwork()->FromIndex(i);
+            const QString uploadRate = CFG->PerfNetworkUseBits
+                                       ? Misc::FormatBitsPerSecond(network.TxBps)
+                                       : Misc::FormatBytesPerSecond(network.TxBps);
+            const QString downloadRate = CFG->PerfNetworkUseBits
+                                         ? Misc::FormatBitsPerSecond(network.RxBps)
+                                         : Misc::FormatBytesPerSecond(network.RxBps);
             const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate")
-                                   .arg(Misc::FormatBytesPerSecond(network.TxBps), Misc::FormatBytesPerSecond(network.RxBps));
+                                   .arg(uploadRate, downloadRate);
             item->Update(netSub, network.MaxThroughputBps);
         }
     }

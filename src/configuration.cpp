@@ -99,6 +99,7 @@ void Configuration::Load()
     this->PerfShowDisks =       s.value("Performance/ShowDisks",         this->PerfShowDisks).toBool();
     this->PerfShowNetwork =     s.value("Performance/ShowNetwork",       this->PerfShowNetwork).toBool();
     this->PerfShowGpu =         s.value("Performance/ShowGpu",           this->PerfShowGpu).toBool();
+    this->PerfNetworkUseBits =  s.value("Performance/NetworkUseBits",    this->PerfNetworkUseBits).toBool();
     this->PerfGraphWindowSec =  s.value("Performance/GraphWindowSec",    this->PerfGraphWindowSec).toInt();
 
     // For now this is hardcoded, we may want to make it customizable later
@@ -167,6 +168,7 @@ void Configuration::Save()
     s.setValue("Performance/ShowDisks",                 this->PerfShowDisks);
     s.setValue("Performance/ShowNetwork",               this->PerfShowNetwork);
     s.setValue("Performance/ShowGpu",                   this->PerfShowGpu);
+    s.setValue("Performance/NetworkUseBits",            this->PerfNetworkUseBits);
     s.setValue("Performance/GraphWindowSec",            this->PerfGraphWindowSec);
 
     s.sync();

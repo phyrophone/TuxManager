@@ -21,11 +21,15 @@
 #include "metrics.h"
 #include "ui_networkdetailwidget.h"
 #include "../colorscheme.h"
+#include "../configuration.h"
 #include "../misc.h"
 #include "../ui/widgetstyle.h"
 
+#include <QAction>
+#include <QActionGroup>
 #include <QGridLayout>
 #include <QLabel>
+#include <QMenu>
 
 using namespace Perf;
 
@@ -60,7 +64,9 @@ NetworkDetailWidget::NetworkDetailWidget(QWidget *parent) : QWidget(parent), ui(
     this->ui->throughputGraphWidget->SetGridColumns(6);
     this->ui->throughputGraphWidget->SetGridRows(4);
     this->ui->throughputGraphWidget->SetSeriesNames(tr("Receive"), tr("Send"));
-    this->ui->throughputGraphWidget->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
+    this->ui->throughputGraphWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this->ui->throughputGraphWidget, &QWidget::customContextMenuRequested, this, &NetworkDetailWidget::onGraphContextMenuRequested);
+    this->applyTransferUnitMode();
 }
 
 NetworkDetailWidget::~NetworkDetailWidget()
@@ -96,6 +102,20 @@ void NetworkDetailWidget::ApplyColorScheme()
     this->update();
 }
 
+void NetworkDetailWidget::applyTransferUnitMode()
+{
+    this->ui->throughputGraphWidget->SetValueFormat(CFG->PerfNetworkUseBits
+                                                    ? GraphWidget::ValueFormat::BitsPerSec
+                                                    : GraphWidget::ValueFormat::BytesPerSec);
+}
+
+QString NetworkDetailWidget::formatTransferRate(double bytesPerSec) const
+{
+    return CFG->PerfNetworkUseBits
+           ? Misc::FormatBitsPerSecond(bytesPerSec)
+           : Misc::FormatBytesPerSecond(bytesPerSec);
+}
+
 void NetworkDetailWidget::SetNetwork(int index)
 {
     this->m_networkIndex = index;
@@ -124,10 +144,50 @@ void NetworkDetailWidget::onUpdated()
         return;
 
     const Network::NetworkInfo &network = Metrics::GetNetwork()->FromIndex(this->m_networkIndex);
-    this->ui->sendValueLabel->setText(Misc::FormatBytesPerSecond(network.TxBps));
-    this->ui->receiveValueLabel->setText(Misc::FormatBytesPerSecond(network.RxBps));
+    this->ui->sendValueLabel->setText(this->formatTransferRate(network.TxBps));
+    this->ui->receiveValueLabel->setText(this->formatTransferRate(network.RxBps));
 
     this->ui->throughputGraphWidget->SetMax(network.MaxThroughputBps);
     this->ui->throughputGraphWidget->Tick();
-    this->ui->throughputGraphMaxLabel->setText(Misc::FormatBytesPerSecond(network.MaxThroughputBps));
+    this->ui->throughputGraphMaxLabel->setText(this->formatTransferRate(network.MaxThroughputBps));
+}
+
+void NetworkDetailWidget::onGraphContextMenuRequested(const QPoint &pos)
+{
+    QMenu menu(this);
+    menu.setTitle(tr("Network graph options"));
+
+    QActionGroup unitGroup(&menu);
+    unitGroup.setExclusive(true);
+
+    QAction *bitsAction = menu.addAction(tr("Show speeds in bits"));
+    bitsAction->setCheckable(true);
+    bitsAction->setChecked(CFG->PerfNetworkUseBits);
+    bitsAction->setActionGroup(&unitGroup);
+
+    QAction *bytesAction = menu.addAction(tr("Show speeds in bytes"));
+    bytesAction->setCheckable(true);
+    bytesAction->setChecked(!CFG->PerfNetworkUseBits);
+    bytesAction->setActionGroup(&unitGroup);
+
+    connect(bitsAction, &QAction::triggered, this, &NetworkDetailWidget::onShowBitsTriggered);
+    connect(bytesAction, &QAction::triggered, this, &NetworkDetailWidget::onShowBytesTriggered);
+
+    menu.exec(this->ui->throughputGraphWidget->mapToGlobal(pos));
+}
+
+void NetworkDetailWidget::onShowBitsTriggered()
+{
+    CFG->PerfNetworkUseBits = true;
+    CFG->Save();
+    this->applyTransferUnitMode();
+    this->onUpdated();
+}
+
+void NetworkDetailWidget::onShowBytesTriggered()
+{
+    CFG->PerfNetworkUseBits = false;
+    CFG->Save();
+    this->applyTransferUnitMode();
+    this->onUpdated();
 }

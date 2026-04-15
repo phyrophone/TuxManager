@@ -41,6 +41,7 @@ namespace Perf
                 Auto,          ///< Percent if max<=100, otherwise raw number.
                 Percent,       ///< 0..100%
                 BytesPerSec,   ///< B/s, KB/s, MB/s, GB/s
+                BitsPerSec,    ///< b/s, Kb/s, Mb/s, Gb/s
                 Raw            ///< Plain number
             };
 

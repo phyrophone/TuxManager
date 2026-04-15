@@ -362,6 +362,8 @@ QString GraphWidget::formatValue(double v) const
         }
         case ValueFormat::BytesPerSec:
             return Misc::FormatBytesPerSecond(v);
+        case ValueFormat::BitsPerSec:
+            return Misc::FormatBitsPerSecond(v);
         case ValueFormat::Raw:
             return QString::number(v, 'f', 2);
         case ValueFormat::Auto:

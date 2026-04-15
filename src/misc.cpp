@@ -72,6 +72,22 @@ QString Misc::FormatBytesPerSecond(double bytesPerSec)
     return QString::number(v, 'f', 0) + QObject::tr(" B/s");
 }
 
+QString Misc::FormatBitsPerSecond(double bytesPerSec)
+{
+    const double v = (bytesPerSec < 0.0) ? 0.0 : (bytesPerSec * 8.0);
+
+    if (v >= 1024.0 * 1024.0 * 1024.0)
+        return QString::number(v / (1024.0 * 1024.0 * 1024.0), 'f', 2) + QObject::tr(" Gb/s");
+
+    if (v >= 1024.0 * 1024.0)
+        return QString::number(v / (1024.0 * 1024.0), 'f', 1) + QObject::tr(" Mb/s");
+
+    if (v >= 1024.0)
+        return QString::number(v / 1024.0, 'f', 0) + QObject::tr(" Kb/s");
+
+    return QString::number(v, 'f', 0) + QObject::tr(" b/s");
+}
+
 QString Misc::FormatBytes(quint64 bytes, int precision)
 {
     static const std::array<const char *, 5> kUnits = { " B", " KB", " MB", " GB", " TB" };
