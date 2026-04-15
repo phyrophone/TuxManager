@@ -365,8 +365,8 @@ bool GPU::sampleNvml()
                                   : 0.0;
         g.MemUsageHistory.Push(memPct);
         g.SharedMemHistory.Push(0.0);
-        Misc::PushHistoryAndUpdateMax(g.CopyTxHistory, g.CopyTxBps, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
-        Misc::PushHistoryAndUpdateMax(g.CopyRxHistory, g.CopyRxBps, g.MaxCopyBps, TUX_MANAGER_MIN_RATE);
+        Misc::PushHistoryAndUpdateMax(g.CopyTxHistory, g.CopyTxBps, g.MaxCopyBps);
+        Misc::PushHistoryAndUpdateMax(g.CopyRxHistory, g.CopyRxBps, g.MaxCopyBps);
 
         QSet<QString> seenEngineKeys;
         auto addEngine = [&](const QString &key, const QString &label, double pct)
@@ -478,8 +478,8 @@ bool GPU::sampleNvml()
             g->UtilHistory.Push(0.0);
             g->MemUsageHistory.Push(0.0);
             g->SharedMemHistory.Push(0.0);
-            Misc::PushHistoryAndUpdateMax(g->CopyTxHistory, 0.0, g->MaxCopyBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(g->CopyRxHistory, 0.0, g->MaxCopyBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(g->CopyTxHistory, 0.0, g->MaxCopyBps);
+            Misc::PushHistoryAndUpdateMax(g->CopyRxHistory, 0.0, g->MaxCopyBps);
             for (const auto &e : g->Engines)
             {
                 e->Pct = 0.0;

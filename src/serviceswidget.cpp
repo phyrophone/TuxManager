@@ -62,10 +62,14 @@ ServicesWidget::ServicesWidget(QWidget *parent)
 
     this->ui->tableView->setModel(this->m_proxy);
     this->ui->tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    this->ui->tableView->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    this->ui->tableView->setShowGrid(false);
     this->ui->tableView->setContextMenuPolicy(Qt::CustomContextMenu);
+    this->ui->tableView->verticalHeader()->hide();
 
     QHeaderView *hv = this->ui->tableView->horizontalHeader();
     hv->setSectionsMovable(true);
+    hv->setStretchLastSection(false);
     hv->setContextMenuPolicy(Qt::CustomContextMenu);
     hv->setSectionResizeMode(0, QHeaderView::Interactive);
     hv->setSectionResizeMode(1, QHeaderView::Interactive);

@@ -104,6 +104,7 @@ void Network::refreshNetworkMetadata(bool force)
         QString ipv4;
         QStringList ipv6;
     };
+
     QHash<QString, IfAddrInfo> ifaddrByName;
     struct ifaddrs *ifaddr = nullptr;
     if (::getifaddrs(&ifaddr) == 0)
@@ -112,6 +113,7 @@ void Network::refreshNetworkMetadata(bool force)
         {
             if (!ifa->ifa_name || !ifa->ifa_addr)
                 continue;
+
             const QString name = QString::fromUtf8(ifa->ifa_name);
 
             char host[NI_MAXHOST] = {};
@@ -122,18 +124,15 @@ void Network::refreshNetworkMetadata(bool force)
             const socklen_t addrLen = (fam == AF_INET)
                                           ? static_cast<socklen_t>(sizeof(sockaddr_in))
                                           : static_cast<socklen_t>(sizeof(sockaddr_in6));
-            if (::getnameinfo(ifa->ifa_addr, addrLen,
-                              host, sizeof(host),
-                              nullptr, 0,
-                              NI_NUMERICHOST) != 0)
-            {
+
+            if (::getnameinfo(ifa->ifa_addr, addrLen, host, sizeof(host), nullptr, 0, NI_NUMERICHOST) != 0)
                 continue;
-            }
 
             IfAddrInfo &info = ifaddrByName[name];
             if (fam == AF_INET && info.ipv4.isEmpty())
+            {
                 info.ipv4 = QString::fromLatin1(host);
-            else if (fam == AF_INET6)
+            } else if (fam == AF_INET6)
             {
                 const QString ipv6 = QString::fromLatin1(host);
                 if (!info.ipv6.contains(ipv6))
@@ -164,6 +163,7 @@ bool Network::Sample()
         quint64 rxBytes { 0 };
         quint64 txBytes { 0 };
     };
+
     QHash<QString, NetCounters> countersByName;
     QStringList seenNames;
 
@@ -243,8 +243,8 @@ bool Network::Sample()
         {
             n->RxBps = 0.0;
             n->TxBps = 0.0;
-            Misc::PushHistoryAndUpdateMax(n->RxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(n->TxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(n->RxHistory, 0.0, n->MaxThroughputBps);
+            Misc::PushHistoryAndUpdateMax(n->TxHistory, 0.0, n->MaxThroughputBps);
             continue;
         }
 
@@ -253,8 +253,8 @@ bool Network::Sample()
         {
             n->PrevRxBytes = c.rxBytes;
             n->PrevTxBytes = c.txBytes;
-            Misc::PushHistoryAndUpdateMax(n->RxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
-            Misc::PushHistoryAndUpdateMax(n->TxHistory, 0.0, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+            Misc::PushHistoryAndUpdateMax(n->RxHistory, 0.0, n->MaxThroughputBps);
+            Misc::PushHistoryAndUpdateMax(n->TxHistory, 0.0, n->MaxThroughputBps);
             continue;
         }
 
@@ -265,8 +265,8 @@ bool Network::Sample()
 
         n->RxBps = static_cast<double>(dRx) * 1000.0 / static_cast<double>(dtMs);
         n->TxBps = static_cast<double>(dTx) * 1000.0 / static_cast<double>(dtMs);
-        Misc::PushHistoryAndUpdateMax(n->RxHistory, n->RxBps, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
-        Misc::PushHistoryAndUpdateMax(n->TxHistory, n->TxBps, n->MaxThroughputBps, TUX_MANAGER_MIN_RATE);
+        Misc::PushHistoryAndUpdateMax(n->RxHistory, n->RxBps, n->MaxThroughputBps);
+        Misc::PushHistoryAndUpdateMax(n->TxHistory, n->TxBps, n->MaxThroughputBps);
     }
 
     return true;

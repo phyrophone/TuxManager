@@ -21,6 +21,7 @@
 
 #include <QString>
 #include <QtGlobal>
+#include "globals.h"
 
 class HistoryBuffer;
 
@@ -56,7 +57,7 @@ namespace Misc
     bool TextContainsAnyToken(const QString &text, const QStringList &tokens);
     QString FileNameFromSymlink(const QString &path);
 
-    void PushHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cachedMax, double minMax = 0.0);
+    void PushHistoryAndUpdateMax(HistoryBuffer &vec, double val, double &cachedMax, double minMax = TUX_MANAGER_MIN_RATE);
 }
 
 #endif // MISC_H

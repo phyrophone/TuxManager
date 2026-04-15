@@ -199,7 +199,7 @@ bool Swap::Sample(bool &devicesChanged)
 
     this->m_prevSwapInPages = pswpin;
     this->m_prevSwapOutPages = pswpout;
-    Misc::PushHistoryAndUpdateMax(this->m_swapInHistory, this->m_swapInBps, this->m_swapMaxActivityBps, TUX_MANAGER_MIN_RATE);
-    Misc::PushHistoryAndUpdateMax(this->m_swapOutHistory, this->m_swapOutBps, this->m_swapMaxActivityBps, TUX_MANAGER_MIN_RATE);
+    Misc::PushHistoryAndUpdateMax(this->m_swapInHistory, this->m_swapInBps, this->m_swapMaxActivityBps);
+    Misc::PushHistoryAndUpdateMax(this->m_swapOutHistory, this->m_swapOutBps, this->m_swapMaxActivityBps);
     return true;
 }
