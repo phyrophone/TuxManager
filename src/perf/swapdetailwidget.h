@@ -27,6 +27,10 @@
 #include <QVector>
 #include <QWidget>
 
+QT_BEGIN_NAMESPACE
+namespace Ui { class SwapDetailWidget; }
+QT_END_NAMESPACE
+
 namespace Perf
 {
     class SwapDetailWidget : public QWidget
@@ -35,6 +39,7 @@ namespace Perf
 
         public:
             explicit SwapDetailWidget(QWidget *parent = nullptr);
+            ~SwapDetailWidget();
 
             void Init();
             void ApplyColorScheme();
@@ -45,18 +50,7 @@ namespace Perf
             void onSwapDevicesChanged();
 
         private:
-            QLabel *m_titleLabel { nullptr };
-            QLabel *m_totalLabel { nullptr };
-            SwapGraphArea *m_usageGraphArea { nullptr };
-            QLabel *m_usageValueLabel { nullptr };
-
-            GraphWidget *m_activityGraph { nullptr };
-            QLabel *m_activityMaxLabel { nullptr };
-
-            QLabel *m_inUseValueLabel { nullptr };
-            QLabel *m_freeValueLabel { nullptr };
-            QLabel *m_inRateValueLabel { nullptr };
-            QLabel *m_outRateValueLabel { nullptr };
+            Ui::SwapDetailWidget *ui { nullptr };
             QVector<QLabel *> m_statLabels;
             QVector<QLabel *> m_axisLabels;
 

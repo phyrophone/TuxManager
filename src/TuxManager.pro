@@ -116,6 +116,8 @@ FORMS += \
     perf/cpudetailwidget.ui \
     perf/diskdetailwidget.ui \
     perf/networkdetailwidget.ui \
+    perf/gpudetailwidget.ui \
+    perf/swapdetailwidget.ui \
     perf/memorydetailwidget.ui
 
 RESOURCES += \

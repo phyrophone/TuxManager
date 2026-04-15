@@ -28,6 +28,10 @@
 #include <QVector>
 #include <QWidget>
 
+QT_BEGIN_NAMESPACE
+namespace Ui { class GpuDetailWidget; }
+QT_END_NAMESPACE
+
 namespace Perf
 {
     class GpuDetailWidget : public QWidget
@@ -36,6 +40,7 @@ namespace Perf
 
         public:
             explicit GpuDetailWidget(QWidget *parent = nullptr);
+            ~GpuDetailWidget();
 
             void SetGpu(int index);
             void ApplyColorScheme();
@@ -50,30 +55,13 @@ namespace Perf
             void bindEngineGraphSource(int slot);
             void bindMemoryAndCopySources();
 
+            Ui::GpuDetailWidget *ui { nullptr };
             int m_gpuIndex { -1 };
-
-            QLabel *m_titleLabel { nullptr };
-            QLabel *m_modelLabel { nullptr };
-            QLabel *m_utilValueLabel { nullptr };
-            QLabel *m_tempValueLabel { nullptr };
-            QLabel *m_gpuMemValueLabel { nullptr };
-            QLabel *m_dedicatedMemValueLabel { nullptr };
-            QLabel *m_sharedMemValueLabel { nullptr };
-            QLabel *m_driverValueLabel { nullptr };
-            QLabel *m_backendValueLabel { nullptr };
-            QLabel *m_dedicatedMemGraphMaxLabel { nullptr };
-            QLabel *m_sharedMemGraphMaxLabel { nullptr };
-            QLabel *m_copyBwGraphMaxLabel { nullptr };
-            QLabel *m_copyBwLegendLabel { nullptr };
 
             QVector<QComboBox *>   m_engineSelectors;
             QVector<QLabel *>      m_engineValueLabels;
             QVector<GraphWidget *> m_engineGraphs;
             QVector<int>           m_selectedEngineBySlot;
-
-            GraphWidget *m_dedicatedMemGraph { nullptr };
-            GraphWidget *m_sharedMemGraph { nullptr };
-            GraphWidget *m_copyBwGraph { nullptr };
     };
 } // namespace Perf
 
