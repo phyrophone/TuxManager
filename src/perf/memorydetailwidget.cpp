@@ -22,6 +22,7 @@
 #include "ui_memorydetailwidget.h"
 #include "../colorscheme.h"
 #include "../misc.h"
+#include "../ui/uihelper.h"
 #include "../ui/widgetstyle.h"
 
 #include <QGridLayout>
@@ -70,6 +71,14 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
     this->ui->graphWidget->SetGridRows(4);
     this->ui->graphWidget->SetSeriesNames(tr("Used memory"));
     this->ui->graphWidget->SetValueFormat(GraphWidget::ValueFormat::Percent);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statInUseValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statAvailValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statDirtyValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statFreeValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statCachedValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statBuffersValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statDimmSlotsValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statMemSpeedValue);
 }
 
 MemoryDetailWidget::~MemoryDetailWidget()

@@ -22,6 +22,7 @@
 #include "ui_diskdetailwidget.h"
 #include "../colorscheme.h"
 #include "../misc.h"
+#include "../ui/uihelper.h"
 #include "../ui/widgetstyle.h"
 
 #include <QGridLayout>
@@ -76,6 +77,15 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     this->ui->transferGraphWidget->SetSeriesNames(tr("Read"), tr("Write"));
     this->ui->transferGraphWidget->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
     this->ui->activeGraphMaxLabel->setText(tr("100%"));
+    UIHelper::EnableCopyLabelContextMenu(this->ui->activeValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->capacityValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->readValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->formattedValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->writeValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->systemDiskValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->deviceValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->pageFileValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->typeValueLabel);
 }
 
 DiskDetailWidget::~DiskDetailWidget()

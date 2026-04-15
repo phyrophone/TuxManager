@@ -19,6 +19,7 @@
 #include "swapdetailwidget.h"
 #include "../colorscheme.h"
 #include "../misc.h"
+#include "../ui/uihelper.h"
 #include "../ui/widgetstyle.h"
 #include "configuration.h"
 #include "globals.h"
@@ -148,6 +149,12 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent)
     stats->addWidget(swapOutLabel, 1, 2);
     stats->addWidget(this->m_outRateValueLabel, 1, 3);
     root->addLayout(stats);
+
+    UIHelper::EnableCopyLabelContextMenu(this->m_usageValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_inUseValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_freeValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_inRateValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_outRateValueLabel);
 }
 
 void SwapDetailWidget::Init()

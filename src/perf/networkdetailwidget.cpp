@@ -23,6 +23,7 @@
 #include "../colorscheme.h"
 #include "../configuration.h"
 #include "../misc.h"
+#include "../ui/uihelper.h"
 #include "../ui/widgetstyle.h"
 
 #include <QAction>
@@ -66,6 +67,13 @@ NetworkDetailWidget::NetworkDetailWidget(QWidget *parent) : QWidget(parent), ui(
     this->ui->throughputGraphWidget->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this->ui->throughputGraphWidget, &QWidget::customContextMenuRequested, this, &NetworkDetailWidget::onGraphContextMenuRequested);
     this->applyTransferUnitMode();
+    UIHelper::EnableCopyLabelContextMenu(this->ui->sendValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->adapterValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->receiveValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->typeValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->speedValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->ipv4ValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->ipv6ValueLabel);
 }
 
 NetworkDetailWidget::~NetworkDetailWidget()

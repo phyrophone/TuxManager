@@ -30,6 +30,7 @@ class QMenu;
 class QAction;
 class QTimer;
 class QWidget;
+class QLabel;
 
 namespace UIHelper
 {
@@ -57,6 +58,8 @@ namespace UIHelper
 
     void PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction);
     void AddGlobalContextMenuItems(QMenu *menu, QWidget *parent = nullptr);
+    //! Adds a context menu with a Copy action that copies the label text to the clipboard.
+    void EnableCopyLabelContextMenu(QLabel *label);
 
     bool ApplyRefreshIntervalAction(QAction *picked,
                                     const QHash<QAction *, int> &intervalActions,

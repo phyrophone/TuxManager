@@ -21,6 +21,7 @@
 #include "metrics.h"
 #include "../colorscheme.h"
 #include "../misc.h"
+#include "../ui/uihelper.h"
 #include "../ui/widgetstyle.h"
 
 #include <algorithm>
@@ -211,6 +212,18 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent)
     stats->addWidget(mkLabel(tr("Backend")), 3, 2);
     stats->addWidget(this->m_backendValueLabel, 3, 3);
     root->addLayout(stats);
+
+    UIHelper::EnableCopyLabelContextMenu(this->m_utilValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_tempValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_gpuMemValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_dedicatedMemValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_sharedMemValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_driverValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_backendValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(0));
+    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(1));
+    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(2));
+    UIHelper::EnableCopyLabelContextMenu(this->m_engineValueLabels.value(3));
 }
 
 void GpuDetailWidget::SetGpu(int index)

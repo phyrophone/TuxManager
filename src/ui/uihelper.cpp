@@ -26,11 +26,14 @@
 #include <QAction>
 #include <QHeaderView>
 #include <QItemSelectionModel>
+#include <QLabel>
 #include <QMenu>
 #include <QStringList>
 #include <QScrollBar>
 #include <QTableView>
 #include <QTimer>
+#include <QApplication>
+#include <QClipboard>
 
 QString UIHelper::GetVisibleRowText(const QTableView *view, int row)
 {
@@ -175,6 +178,29 @@ void UIHelper::AddGlobalContextMenuItems(QMenu *menu, QWidget *parent)
         AboutDialog dialog(dialogParent);
         dialog.exec();
     });
+}
+
+void UIHelper::EnableCopyLabelContextMenu(QLabel *label)
+{
+    if (!label)
+        return;
+
+    label->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(label, &QWidget::customContextMenuRequested, label, [label](const QPoint &pos)
+    {
+        QString text = label->text();
+        text.replace('\r', ' ');
+        text.replace('\n', ' ');
+        QMenu menu(label);
+        QAction *copyAction = menu.addAction(QObject::tr("Copy"));
+        copyAction->setEnabled(!text.isEmpty() && text != QString::fromUtf8("—"));
+        QObject::connect(copyAction, &QAction::triggered, &menu, [text]()
+        {
+            QApplication::clipboard()->setText(text);
+        });
+        menu.exec(label->mapToGlobal(pos));
+    });
+
 }
 
 bool UIHelper::ApplyRefreshIntervalAction(QAction *picked,

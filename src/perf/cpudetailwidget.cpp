@@ -21,6 +21,7 @@
 #include "configuration.h"
 #include "metrics.h"
 #include "../colorscheme.h"
+#include "../ui/uihelper.h"
 #include "../ui/widgetstyle.h"
 
 #include <QAction>
@@ -74,6 +75,14 @@ CpuDetailWidget::CpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
                 ? CpuGraphArea::GraphMode::PerCore
                 : CpuGraphArea::GraphMode::Overall);
     this->m_graphArea->SetShowKernelTime(CFG->CpuShowKernelTimes);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statUtilValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statSpeedValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statProcessesValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statThreadsValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statUptimeValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statLogicalCpusValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statVmValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statTempValue);
 }
 
 CpuDetailWidget::~CpuDetailWidget()

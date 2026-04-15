@@ -107,8 +107,7 @@ void ColorSchemeDialog::refreshUi()
         row.ResetButton->setEnabled(enabled);
 
         const QColor color = this->m_scheme.*(row.Field->Member);
-        row.Preview->setStyleSheet(QString("background:%1; border:1px solid palette(mid);")
-                                   .arg(color.name(QColor::HexArgb)));
+        row.Preview->setStyleSheet(QString("background:%1; border:1px solid palette(mid);").arg(color.name(QColor::HexArgb)));
         row.PickButton->setText(color.name(QColor::HexArgb));
     }
 }
