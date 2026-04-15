@@ -26,7 +26,6 @@
 #include "../ui/widgetstyle.h"
 
 #include <QAction>
-#include <QActionGroup>
 #include <QGridLayout>
 #include <QLabel>
 #include <QMenu>
@@ -157,18 +156,13 @@ void NetworkDetailWidget::onGraphContextMenuRequested(const QPoint &pos)
     QMenu menu(this);
     menu.setTitle(tr("Network graph options"));
 
-    QActionGroup unitGroup(&menu);
-    unitGroup.setExclusive(true);
-
     QAction *bitsAction = menu.addAction(tr("Show speeds in bits"));
     bitsAction->setCheckable(true);
     bitsAction->setChecked(CFG->PerfNetworkUseBits);
-    bitsAction->setActionGroup(&unitGroup);
 
     QAction *bytesAction = menu.addAction(tr("Show speeds in bytes"));
     bytesAction->setCheckable(true);
     bytesAction->setChecked(!CFG->PerfNetworkUseBits);
-    bytesAction->setActionGroup(&unitGroup);
 
     connect(bitsAction, &QAction::triggered, this, &NetworkDetailWidget::onShowBitsTriggered);
     connect(bytesAction, &QAction::triggered, this, &NetworkDetailWidget::onShowBytesTriggered);
