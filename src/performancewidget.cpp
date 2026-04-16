@@ -26,6 +26,8 @@
 #include "logger.h"
 #include "misc.h"
 #include "perf/graphwidget.h"
+#include "perf/sidepanelgroup.h"
+#include "perf/sidepanelorderdialog.h"
 #include "ui/uihelper.h"
 
 #include <QAction>
@@ -35,6 +37,38 @@
 #include <QMenu>
 #include <QPalette>
 #include <QRegularExpression>
+
+namespace
+{
+    QList<Perf::SidePanelGroup> sanitizeSidePanelGroupOrder(const QStringList &storedOrder)
+    {
+        const QList<Perf::SidePanelGroup> defaults = Perf::DefaultSidePanelGroupOrder();
+        QList<Perf::SidePanelGroup> sanitized;
+        for (const QString &id : storedOrder)
+        {
+            const auto group = Perf::SidePanelGroupFromId(id);
+            if (group.has_value() && !sanitized.contains(*group))
+                sanitized.append(*group);
+        }
+
+        for (Perf::SidePanelGroup group : defaults)
+        {
+            if (!sanitized.contains(group))
+                sanitized.append(group);
+        }
+
+        return sanitized;
+    }
+
+    QStringList serializeSidePanelGroupOrder(const QList<Perf::SidePanelGroup> &order)
+    {
+        QStringList out;
+        out.reserve(order.size());
+        for (Perf::SidePanelGroup group : order)
+            out.append(Perf::SidePanelGroupId(group));
+        return out;
+    }
+}
 
 // ── Construction ──────────────────────────────────────────────────────────────
 
@@ -53,6 +87,7 @@ PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new 
 
     this->setupLayout();
     this->setupSidePanel();
+    this->applySidePanelOrder();
 
     // Wire detail widgets to the data provider
     this->m_cpuDetail->Init();
@@ -63,9 +98,12 @@ PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new 
     connect(Metrics::Get(), &Metrics::updated, this, &PerformanceWidget::onProviderUpdated);
 
     // Expensive process/thread counting is only needed for CPU detail page.
-    connect(this->m_sidePanel, &Perf::SidePanel::currentChanged, this, [this](int index)
+    connect(this->m_sidePanel, &Perf::SidePanel::currentChanged, this, [this](Perf::SidePanelItem *item)
     {
-        Metrics::Get()->SetProcessStatsEnabled(index == this->m_cpuPanelIndex && CFG->PerfShowCpu);
+        QWidget *detail = this->m_detailByItem.value(item, nullptr);
+        if (detail)
+            this->m_stack->setCurrentWidget(detail);
+        Metrics::Get()->SetProcessStatsEnabled(item == this->m_cpuItem && CFG->PerfShowCpu);
     });
     connect(this->m_sidePanel, &Perf::SidePanel::itemContextMenuRequested, this, &PerformanceWidget::onSidePanelContextMenu);
 
@@ -73,7 +111,7 @@ PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new 
     this->applyGraphWindowSeconds();
     this->applyPanelVisibility();
     this->updateSamplingPolicy();
-    Metrics::Get()->SetProcessStatsEnabled(this->m_sidePanel->GetCurrentIndex() == this->m_cpuPanelIndex && CFG->PerfShowCpu);
+    Metrics::Get()->SetProcessStatsEnabled(this->m_sidePanel->GetCurrentItem() == this->m_cpuItem && CFG->PerfShowCpu);
 
     this->SetActive(false);
 
@@ -108,38 +146,37 @@ void PerformanceWidget::setupSidePanel()
     const ColorScheme *scheme = ColorScheme::GetCurrent();
 
     // ── CPU item ─────────────────────────────────────────────────────────────
-    auto *cpuItem = new Perf::SidePanelItem(tr("CPU"), this);
-    cpuItem->SetGraphColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
-    cpuItem->SetGraphSource(Metrics::GetCPU()->CpuHistory());
-    this->m_cpuPanelIndex = this->m_sidePanel->AddItem(cpuItem);
+    this->m_cpuItem = new Perf::SidePanelItem(tr("CPU"), this);
+    this->m_cpuItem->SetGraphColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
+    this->m_cpuItem->SetGraphSource(Metrics::GetCPU()->CpuHistory());
+    this->m_sidePanel->AddItem(this->m_cpuItem);
     this->m_stack->addWidget(this->m_cpuDetail);
+    this->m_detailByItem.insert(this->m_cpuItem, this->m_cpuDetail);
 
     // ── Memory item ──────────────────────────────────────────────────────────
-    auto *memItem = new Perf::SidePanelItem(tr("Memory"), this);
-    memItem->SetGraphColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
-    memItem->SetGraphSource(Metrics::GetMemory()->MemHistory());
-    this->m_memoryPanelIndex = this->m_sidePanel->AddItem(memItem);
+    this->m_memoryItem = new Perf::SidePanelItem(tr("Memory"), this);
+    this->m_memoryItem->SetGraphColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
+    this->m_memoryItem->SetGraphSource(Metrics::GetMemory()->MemHistory());
+    this->m_sidePanel->AddItem(this->m_memoryItem);
     this->m_stack->addWidget(this->m_memDetail);
+    this->m_detailByItem.insert(this->m_memoryItem, this->m_memDetail);
 
     // ── Swap item ────────────────────────────────────────────────────────────
-    auto *swapItem = new Perf::SidePanelItem(tr("Swap"), this);
-    swapItem->SetGraphColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
-    swapItem->SetGraphSource(Metrics::GetSwap()->SwapUsageHistory());
-    this->m_swapPanelIndex = this->m_sidePanel->AddItem(swapItem);
+    this->m_swapItem = new Perf::SidePanelItem(tr("Swap"), this);
+    this->m_swapItem->SetGraphColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
+    this->m_swapItem->SetGraphSource(Metrics::GetSwap()->SwapUsageHistory());
+    this->m_sidePanel->AddItem(this->m_swapItem);
     this->m_stack->addWidget(this->m_swapDetail);
+    this->m_detailByItem.insert(this->m_swapItem, this->m_swapDetail);
 
     this->setupDiskPanels();
     this->setupNetworkPanels();
     this->setupGpuPanels();
-
-    // Side-panel selection drives the stacked widget page
-    connect(this->m_sidePanel, &Perf::SidePanel::currentChanged, this->m_stack, &QStackedWidget::setCurrentIndex);
 }
 
 void PerformanceWidget::setupDiskPanels()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
-    this->m_diskPanelStart = this->m_sidePanel->GetCount();
     const int count = Metrics::GetStorage()->DiskCount();
     for (int i = 0; i < count; ++i)
     {
@@ -156,13 +193,13 @@ void PerformanceWidget::setupDiskPanels()
         detail->SetDisk(i);
         this->m_stack->addWidget(detail);
         this->m_diskDetails.append(detail);
+        this->m_detailByItem.insert(item, detail);
     }
 }
 
 void PerformanceWidget::setupGpuPanels()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
-    this->m_gpuPanelStart = this->m_sidePanel->GetCount();
     const int count = Metrics::GetGPU()->GpuCount();
     for (int i = 0; i < count; ++i)
     {
@@ -179,13 +216,13 @@ void PerformanceWidget::setupGpuPanels()
         detail->SetGpu(i);
         this->m_stack->addWidget(detail);
         this->m_gpuDetails.append(detail);
+        this->m_detailByItem.insert(item, detail);
     }
 }
 
 void PerformanceWidget::setupNetworkPanels()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
-    this->m_networkPanelStart = this->m_sidePanel->GetCount();
     const int count = Metrics::GetNetwork()->NetworkCount();
     for (int i = 0; i < count; ++i)
     {
@@ -202,6 +239,7 @@ void PerformanceWidget::setupNetworkPanels()
         detail->SetNetwork(i);
         this->m_stack->addWidget(detail);
         this->m_networkDetails.append(detail);
+        this->m_detailByItem.insert(item, detail);
     }
 }
 
@@ -217,10 +255,7 @@ void PerformanceWidget::onProviderUpdated()
                                  .arg(QString::number(cpuPct, 'f', 0), "%", QString::number(cpuTempC))
                            : QString::number(cpuPct, 'f', 0) + "%";
     if (CFG->PerfShowCpu)
-    {
-        if (auto *item = this->m_sidePanel->GetItemAt(this->m_cpuPanelIndex))
-            item->Update(cpuSub);
-    }
+        this->m_cpuItem->Update(cpuSub);
 
     // Update Memory side panel item
     const qint64 used  = Metrics::GetMemory()->MemUsedKb();
@@ -233,10 +268,7 @@ void PerformanceWidget::onProviderUpdated()
                                 Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, total)), 1),
                                 QString::number(pct));
     if (CFG->PerfShowMemory)
-    {
-        if (auto *item = this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex))
-            item->Update(memSub);
-    }
+        this->m_memoryItem->Update(memSub);
 
     // Update Swap side panel item
     const qint64 swapUsed = Metrics::GetSwap()->SwapUsedKb();
@@ -253,10 +285,7 @@ void PerformanceWidget::onProviderUpdated()
     else
         swapSub = tr("Off");
     if (CFG->PerfShowSwap)
-    {
-        if (auto *item = this->m_sidePanel->GetItemAt(this->m_swapPanelIndex))
-            item->Update(swapSub);
-    }
+        this->m_swapItem->Update(swapSub);
 
     if (CFG->PerfShowDisks)
     {
@@ -333,7 +362,7 @@ void PerformanceWidget::SetActive(bool active)
         this->onProviderUpdated();
 }
 
-void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &globalPos)
+void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, const QPoint &globalPos)
 {
     QMenu menu(this);
     QHash<QAction *, int> graphWindowActions;
@@ -365,6 +394,7 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
     gpu->setChecked(CFG->PerfShowGpu);
 
     menu.addSeparator();
+    QAction *customizeOrder = menu.addAction(tr("Customize order..."));
     QAction *customizeColors = menu.addAction(tr("Customize colors..."));
 
     menu.addSeparator();
@@ -401,6 +431,18 @@ void PerformanceWidget::onSidePanelContextMenu(int /*index*/, const QPoint &glob
 
     if (UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction))
         return;
+
+    if (picked == customizeOrder)
+    {
+        SidePanelOrderDialog dialog(sanitizeSidePanelGroupOrder(CFG->PerfSidePanelGroupOrder), this);
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+
+        CFG->PerfSidePanelGroupOrder = serializeSidePanelGroupOrder(dialog.GetOrder());
+        this->applySidePanelOrder();
+        CFG->Save();
+        return;
+    }
 
     if (picked == customizeColors)
     {
@@ -473,9 +515,9 @@ void PerformanceWidget::ApplyColorScheme()
         item->update();
     };
 
-    applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_cpuPanelIndex), scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
-    applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_memoryPanelIndex), scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
-    applySidePanelItem(this->m_sidePanel->GetItemAt(this->m_swapPanelIndex), scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
+    applySidePanelItem(this->m_cpuItem, scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
+    applySidePanelItem(this->m_memoryItem, scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
+    applySidePanelItem(this->m_swapItem, scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
 
     for (Perf::SidePanelItem *item : std::as_const(this->m_diskItems))
         applySidePanelItem(item, scheme->DiskGraphLineColor, scheme->DiskGraphFillColor);
@@ -501,25 +543,64 @@ void PerformanceWidget::ApplyColorScheme()
     this->update();
 }
 
+void PerformanceWidget::applySidePanelOrder()
+{
+    const QList<Perf::SidePanelGroup> order = sanitizeSidePanelGroupOrder(CFG->PerfSidePanelGroupOrder);
+    CFG->PerfSidePanelGroupOrder = serializeSidePanelGroupOrder(order);
+
+    QList<Perf::SidePanelItem *> items;
+    items.reserve(this->m_sidePanel->GetCount());
+
+    for (Perf::SidePanelGroup group : order)
+    {
+        switch (group)
+        {
+            case Perf::SidePanelGroup::Cpu:
+                items.append(this->m_cpuItem);
+                break;
+            case Perf::SidePanelGroup::Memory:
+                items.append(this->m_memoryItem);
+                break;
+            case Perf::SidePanelGroup::Swap:
+                items.append(this->m_swapItem);
+                break;
+            case Perf::SidePanelGroup::Disks:
+                for (Perf::SidePanelItem *item : std::as_const(this->m_diskItems))
+                    items.append(item);
+                break;
+            case Perf::SidePanelGroup::Network:
+                for (Perf::SidePanelItem *item : std::as_const(this->m_networkItems))
+                    items.append(item);
+                break;
+            case Perf::SidePanelGroup::Gpu:
+                for (Perf::SidePanelItem *item : std::as_const(this->m_gpuItems))
+                    items.append(item);
+                break;
+        }
+    }
+
+    this->m_sidePanel->SetItemOrder(items);
+}
+
 void PerformanceWidget::applyPanelVisibility()
 {
     if (!(CFG->PerfShowCpu || CFG->PerfShowMemory || CFG->PerfShowSwap || CFG->PerfShowDisks || CFG->PerfShowNetwork || CFG->PerfShowGpu))
         CFG->PerfShowCpu = true;
 
-    this->m_sidePanel->SetItemVisible(this->m_cpuPanelIndex, CFG->PerfShowCpu);
-    this->m_sidePanel->SetItemVisible(this->m_memoryPanelIndex, CFG->PerfShowMemory);
-    this->m_sidePanel->SetItemVisible(this->m_swapPanelIndex, CFG->PerfShowSwap);
+    this->m_sidePanel->SetItemVisible(this->m_cpuItem, CFG->PerfShowCpu);
+    this->m_sidePanel->SetItemVisible(this->m_memoryItem, CFG->PerfShowMemory);
+    this->m_sidePanel->SetItemVisible(this->m_swapItem, CFG->PerfShowSwap);
 
-    for (int i = 0; i < this->m_diskItems.size(); ++i)
-        this->m_sidePanel->SetItemVisible(this->m_diskPanelStart + i, CFG->PerfShowDisks);
-    for (int i = 0; i < this->m_networkItems.size(); ++i)
-        this->m_sidePanel->SetItemVisible(this->m_networkPanelStart + i, CFG->PerfShowNetwork);
-    for (int i = 0; i < this->m_gpuItems.size(); ++i)
-        this->m_sidePanel->SetItemVisible(this->m_gpuPanelStart + i, CFG->PerfShowGpu);
+    for (Perf::SidePanelItem *item : std::as_const(this->m_diskItems))
+        this->m_sidePanel->SetItemVisible(item, CFG->PerfShowDisks);
+    for (Perf::SidePanelItem *item : std::as_const(this->m_networkItems))
+        this->m_sidePanel->SetItemVisible(item, CFG->PerfShowNetwork);
+    for (Perf::SidePanelItem *item : std::as_const(this->m_gpuItems))
+        this->m_sidePanel->SetItemVisible(item, CFG->PerfShowGpu);
 
-    const int first = this->m_sidePanel->FirstVisibleIndex();
-    if (first >= 0 && !this->m_sidePanel->IsItemVisible(this->m_sidePanel->GetCurrentIndex()))
-        this->m_sidePanel->SetCurrentIndex(first);
+    Perf::SidePanelItem *first = this->m_sidePanel->FirstVisibleItem();
+    if (first && !this->m_sidePanel->IsItemVisible(this->m_sidePanel->GetCurrentItem()))
+        this->m_sidePanel->SetCurrentItem(first);
 }
 
 void PerformanceWidget::updateSamplingPolicy()
@@ -530,7 +611,7 @@ void PerformanceWidget::updateSamplingPolicy()
     Metrics::Get()->SetDiskSamplingEnabled(CFG->PerfShowDisks);
     Metrics::Get()->SetNetworkSamplingEnabled(CFG->PerfShowNetwork);
     Metrics::Get()->SetGpuSamplingEnabled(CFG->PerfShowGpu);
-    Metrics::Get()->SetProcessStatsEnabled(CFG->PerfShowCpu && this->m_sidePanel->GetCurrentIndex() == this->m_cpuPanelIndex);
+    Metrics::Get()->SetProcessStatsEnabled(CFG->PerfShowCpu && this->m_sidePanel->GetCurrentItem() == this->m_cpuItem);
 }
 
 void PerformanceWidget::tagTimeAxisLabels()

@@ -42,26 +42,25 @@ namespace Perf
             /// Add a new item to the panel; returns the assigned index (0-based).
             int AddItem(SidePanelItem *item);
             void ApplyColorScheme();
+            void SetItemOrder(const QList<SidePanelItem *> &items);
 
-            void SetCurrentIndex(int index);
-            int  GetCurrentIndex() const { return this->m_currentIndex; }
-            void SetItemVisible(int index, bool visible);
-            bool IsItemVisible(int index) const;
-            int  FirstVisibleIndex() const;
-
-            SidePanelItem *GetItemAt(int index) const;
-            int            GetCount() const { return this->m_items.size(); }
+            void SetCurrentItem(SidePanelItem *item);
+            SidePanelItem *GetCurrentItem() const { return this->m_currentItem; }
+            void SetItemVisible(SidePanelItem *item, bool visible);
+            bool IsItemVisible(SidePanelItem *item) const;
+            SidePanelItem *FirstVisibleItem() const;
+            int GetCount() const { return this->m_items.size(); }
 
         signals:
-            void currentChanged(int index);
-            void itemContextMenuRequested(int index, const QPoint &globalPos);
+            void currentChanged(SidePanelItem *item);
+            void itemContextMenuRequested(SidePanelItem *item, const QPoint &globalPos);
 
         private:
-            QScrollArea          *m_scrollArea;
-            QWidget              *m_container;
-            QVBoxLayout          *m_containerLayout;
+            QScrollArea           *m_scrollArea;
+            QWidget               *m_container;
+            QVBoxLayout           *m_containerLayout;
             QList<SidePanelItem *> m_items;
-            int                   m_currentIndex { -1 };
+            SidePanelItem         *m_currentItem { nullptr };
     };
 } // namespace Perf
 

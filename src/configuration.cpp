@@ -101,6 +101,7 @@ void Configuration::Load()
     this->PerfShowGpu =         s.value("Performance/ShowGpu",           this->PerfShowGpu).toBool();
     this->PerfNetworkUseBits =  s.value("Performance/NetworkUseBits",    this->PerfNetworkUseBits).toBool();
     this->PerfGraphWindowSec =  s.value("Performance/GraphWindowSec",    this->PerfGraphWindowSec).toInt();
+    this->PerfSidePanelGroupOrder = s.value("Performance/SidePanelGroupOrder", this->PerfSidePanelGroupOrder).toStringList();
 
     // For now this is hardcoded, we may want to make it customizable later
     this->RefreshRateAvailableIntervals.append(QList<int> { 250, 500, 1000, 2000, 5000, 15000 });
@@ -170,6 +171,7 @@ void Configuration::Save()
     s.setValue("Performance/ShowGpu",                   this->PerfShowGpu);
     s.setValue("Performance/NetworkUseBits",            this->PerfNetworkUseBits);
     s.setValue("Performance/GraphWindowSec",            this->PerfGraphWindowSec);
+    s.setValue("Performance/SidePanelGroupOrder",       this->PerfSidePanelGroupOrder);
 
     s.sync();
 }

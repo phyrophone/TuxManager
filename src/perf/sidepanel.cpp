@@ -60,6 +60,27 @@ void SidePanel::ApplyColorScheme()
     this->update();
 }
 
+void SidePanel::SetItemOrder(const QList<SidePanelItem *> &items)
+{
+    if (items.size() != this->m_items.size())
+        return;
+
+    for (SidePanelItem *item : items)
+    {
+        if (!item || !this->m_items.contains(item))
+            return;
+    }
+
+    for (SidePanelItem *item : this->m_items)
+        this->m_containerLayout->removeWidget(item);
+
+    this->m_items = items;
+
+    const int stretchIdx = this->m_containerLayout->count() - 1;
+    for (int i = 0; i < this->m_items.size(); ++i)
+        this->m_containerLayout->insertWidget(stretchIdx + i, this->m_items.at(i));
+}
+
 int SidePanel::AddItem(SidePanelItem *item)
 {
     const int index = this->m_items.size();
@@ -69,77 +90,72 @@ int SidePanel::AddItem(SidePanelItem *item)
     const int stretchIdx = this->m_containerLayout->count() - 1;
     this->m_containerLayout->insertWidget(stretchIdx, item);
 
-    connect(item, &SidePanelItem::clicked, this, [this, index]()
+    connect(item, &SidePanelItem::clicked, this, [this, item]()
     {
-        this->SetCurrentIndex(index);
+        this->SetCurrentItem(item);
     });
-    connect(item, &SidePanelItem::contextMenuRequested, this, [this, index](const QPoint &globalPos)
+    connect(item, &SidePanelItem::contextMenuRequested, this, [this, item](const QPoint &globalPos)
     {
-        emit this->itemContextMenuRequested(index, globalPos);
+        emit this->itemContextMenuRequested(item, globalPos);
     });
 
     // Auto-select the first item added
     if (index == 0)
-        this->SetCurrentIndex(0);
+        this->SetCurrentItem(item);
 
     return index;
 }
 
-void SidePanel::SetCurrentIndex(int index)
+void SidePanel::SetCurrentItem(SidePanelItem *item)
 {
-    if (index < 0 || index >= this->m_items.size())
+    if (!item || !this->m_items.contains(item))
         return;
-    if (!this->IsItemVisible(index))
+    if (!this->IsItemVisible(item))
         return;
-    if (index == this->m_currentIndex)
+    if (item == this->m_currentItem)
         return;
 
     // Deselect previous
-    if (this->m_currentIndex >= 0 && this->m_currentIndex < this->m_items.size())
-        this->m_items.at(this->m_currentIndex)->SetSelected(false);
+    if (this->m_currentItem)
+        this->m_currentItem->SetSelected(false);
 
-    this->m_currentIndex = index;
-    this->m_items.at(index)->SetSelected(true);
+    this->m_currentItem = item;
+    this->m_currentItem->SetSelected(true);
 
-    emit this->currentChanged(index);
+    emit this->currentChanged(item);
 }
 
-void SidePanel::SetItemVisible(int index, bool visible)
+void SidePanel::SetItemVisible(SidePanelItem *item, bool visible)
 {
-    SidePanelItem *item = this->GetItemAt(index);
     if (!item)
         return;
 
     item->setVisible(visible);
-    if (!visible && this->m_currentIndex == index)
+    if (!visible && this->m_currentItem == item)
     {
-        const int next = this->FirstVisibleIndex();
-        if (next >= 0)
-            this->SetCurrentIndex(next);
-        else
-            this->m_currentIndex = -1;
+        SidePanelItem *next = this->FirstVisibleItem();
+        if (next)
+        {
+            this->SetCurrentItem(next);
+        } else
+        {
+            this->m_currentItem->SetSelected(false);
+            this->m_currentItem = nullptr;
+        }
     }
 }
 
-bool SidePanel::IsItemVisible(int index) const
+bool SidePanel::IsItemVisible(SidePanelItem *item) const
 {
-    SidePanelItem *item = this->GetItemAt(index);
     return item && item->isVisible();
 }
 
-int SidePanel::FirstVisibleIndex() const
+SidePanelItem *SidePanel::FirstVisibleItem() const
 {
-    for (int i = 0; i < this->m_items.size(); ++i)
+    for (SidePanelItem *item : this->m_items)
     {
-        if (this->m_items.at(i)->isVisible())
-            return i;
+        if (item && item->isVisible())
+            return item;
     }
-    return -1;
-}
-
-SidePanelItem *SidePanel::GetItemAt(int index) const
-{
-    if (index < 0 || index >= this->m_items.size())
-        return nullptr;
-    return this->m_items.at(index);
+    return nullptr;
 }

@@ -27,6 +27,7 @@
 #include "perf/gpudetailwidget.h"
 #include "perf/swapdetailwidget.h"
 
+#include <QHash>
 #include <QPoint>
 #include <QStackedWidget>
 #include <QVector>
@@ -49,12 +50,16 @@ class PerformanceWidget : public QWidget
 
     private slots:
         void onProviderUpdated();
-        void onSidePanelContextMenu(int index, const QPoint &globalPos);
+        void onSidePanelContextMenu(Perf::SidePanelItem *item, const QPoint &globalPos);
 
     private:
         Ui::PerformanceWidget      *ui;
         Perf::SidePanel            *m_sidePanel;
         QStackedWidget             *m_stack;
+        QHash<Perf::SidePanelItem *, QWidget *> m_detailByItem;
+        Perf::SidePanelItem        *m_cpuItem { nullptr };
+        Perf::SidePanelItem        *m_memoryItem { nullptr };
+        Perf::SidePanelItem        *m_swapItem { nullptr };
         Perf::CpuDetailWidget      *m_cpuDetail;
         Perf::MemoryDetailWidget   *m_memDetail;
         Perf::SwapDetailWidget     *m_swapDetail;
@@ -68,18 +73,13 @@ class PerformanceWidget : public QWidget
         QVector<Perf::GpuDetailWidget *> m_gpuDetails;
         QVector<QString>                 m_gpuNames;
         bool                             m_active { false };
-        int                              m_cpuPanelIndex { -1 };
-        int                              m_memoryPanelIndex { -1 };
-        int                              m_swapPanelIndex { -1 };
-        int                              m_diskPanelStart { -1 };
-        int                              m_networkPanelStart { -1 };
-        int                              m_gpuPanelStart { -1 };
 
         void setupLayout();
         void setupSidePanel();
         void setupDiskPanels();
         void setupNetworkPanels();
         void setupGpuPanels();
+        void applySidePanelOrder();
         void tagTimeAxisLabels();
         void applyGraphWindowSeconds();
         void applyPanelVisibility();

@@ -46,6 +46,8 @@ SOURCES += \
     perf/graphwidget.cpp \
     perf/sidepanelitem.cpp \
     perf/sidepanel.cpp \
+    perf/sidepanelgroup.cpp \
+    perf/sidepanelorderdialog.cpp \
     perf/cpugrapharea.cpp \
     perf/cpudetailwidget.cpp \
     perf/diskdetailwidget.cpp \
@@ -94,6 +96,8 @@ HEADERS += \
     perf/graphwidget.h \
     perf/sidepanelitem.h \
     perf/sidepanel.h \
+    perf/sidepanelgroup.h \
+    perf/sidepanelorderdialog.h \
     perf/cpugrapharea.h \
     perf/cpudetailwidget.h \
     perf/diskdetailwidget.h \
@@ -113,6 +117,7 @@ FORMS += \
     runtaskdialog.ui \
     userswidget.ui \
     serviceswidget.ui \
+    perf/sidepanelorderdialog.ui \
     perf/cpudetailwidget.ui \
     perf/diskdetailwidget.ui \
     perf/networkdetailwidget.ui \

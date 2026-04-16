@@ -93,6 +93,7 @@ class Configuration : public QObject
         bool PerfShowGpu { true };
         bool PerfNetworkUseBits { true };
         int PerfGraphWindowSec { 60 };
+        QStringList PerfSidePanelGroupOrder;
 
     private:
         explicit Configuration(QObject *parent = nullptr);

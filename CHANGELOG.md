@@ -3,6 +3,7 @@
       * Show all IPv6 addrs instead of just the first one
       * Implemented toggle between bytes vs bits for NICs
   * UI: minor visual fixes of services table
+  * Implemented ability to reorder performance widgets in side panel
 
 # 1.0.4
   * Services control (via d-bus / systemctl)
