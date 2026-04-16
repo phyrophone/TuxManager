@@ -164,13 +164,18 @@ void GPU::zeroMissingEngines(GPUInfo &gpu, const QSet<QString> &seenEngineKeys)
 
 void GPU::detectGpuBackends()
 {
+    LOG_DEBUG("Detecting GPU backends");
+
     this->m_hasNvml = false;
     this->m_nvmlLibHandle = nullptr;
 
     // Try to load NVML for NVIDIA GPUs
     this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so.1", RTLD_LAZY | RTLD_LOCAL);
     if (!this->m_nvmlLibHandle)
+    {
+        LOG_DEBUG("NVML scan: unable to locate libnvidia-ml.so.1, trying fallback to libnvidia-ml.so");
         this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so", RTLD_LAZY | RTLD_LOCAL);
+    }
 
     if (this->m_nvmlLibHandle)
     {
@@ -232,6 +237,9 @@ void GPU::detectGpuBackends()
                 this->unloadGpuBackends();
             }
         }
+    } else
+    {
+        LOG_DEBUG("NVML scan: no nvidia driver libs detected");
     }
 
     // DRM sysfs fallback (amdgpu, i915, …); NVIDIA cards covered by NVML are skipped.
@@ -494,6 +502,8 @@ bool GPU::sampleNvml()
 
 void GPU::detectDrmCards()
 {
+    LOG_DEBUG("Detecting DRM GPUs");
+
     this->m_drmCards.clear();
 
     const QDir drmDir("/sys/class/drm");
@@ -589,6 +599,7 @@ void GPU::detectDrmCards()
             card.GttUsedPath  = gttU;
         }
 
+        LOG_DEBUG("Found DRM GPU: " + entry);
         this->m_drmCards.append(card);
     }
 }

@@ -389,20 +389,16 @@ bool ServiceHelper::ManageUnit(const QString &unit, UnitAction action, QString *
             }
 
             if (error)
-                *error = QObject::tr("systemd D-Bus call %1 for %2 failed (%3)")
-                             .arg(QString::fromLatin1(method), unit, QString::number(callResult));
-            LOG_DEBUG(QString("sd-bus management for %1 failed, falling back to systemctl: %2")
-                      .arg(unit, error ? *error : QString()));
+                *error = QObject::tr("systemd D-Bus call %1 for %2 failed (%3)").arg(QString::fromLatin1(method), unit, QString::number(callResult));
+            LOG_DEBUG(QString("sd-bus management for %1 failed, falling back to systemctl: %2").arg(unit, error ? *error : QString()));
         } else if (error)
         {
             *error = QObject::tr("sd-bus open system failed (%1)").arg(openResult);
-            LOG_DEBUG(QString("sd-bus open for managing %1 failed, falling back to systemctl: %2")
-                      .arg(unit, *error));
+            LOG_DEBUG(QString("sd-bus open for managing %1 failed, falling back to systemctl: %2").arg(unit, *error));
         }
     } else
     {
-        LOG_DEBUG(QString("sd-bus unavailable for managing %1, falling back to systemctl: %2")
-                  .arg(unit, loadErr));
+        LOG_DEBUG(QString("sd-bus unavailable for managing %1, falling back to systemctl: %2").arg(unit, loadErr));
     }
 
     QString stdoutText;
@@ -419,8 +415,7 @@ bool ServiceHelper::ManageUnit(const QString &unit, UnitAction action, QString *
             if (error->isEmpty())
                 *error = QObject::tr("systemctl %1 %2 failed").arg(verb, unit);
         }
-        LOG_DEBUG(QString("systemctl fallback failed for %1: exit=%2 stderr=%3")
-                  .arg(unit, QString::number(exitCode), stderrText.trimmed()));
+        LOG_DEBUG(QString("systemctl fallback failed for %1: exit=%2 stderr=%3").arg(unit, QString::number(exitCode), stderrText.trimmed()));
         return false;
     }
 
