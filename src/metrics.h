@@ -38,13 +38,13 @@ class Metrics : public QObject
     Q_OBJECT
 
     public:
-        static CPU      *GetCPU()       { return &Metrics::g_CPU; }
-        static GPU      *GetGPU()       { return &Metrics::g_GPU; }
-        static Network  *GetNetwork()   { return &Metrics::g_Network; }
-        static Memory   *GetMemory()    { return &Metrics::g_Memory; }
-        static Swap     *GetSwap()      { return &Metrics::g_Swap; }
-        static Storage  *GetStorage()   { return &Metrics::g_Storage; }
-        static Kernel   *GetKernel()    { return &Metrics::g_Kernel; }
+        static CPU      *GetCPU();
+        static GPU      *GetGPU();
+        static Network  *GetNetwork();
+        static Memory   *GetMemory();
+        static Swap     *GetSwap();
+        static Storage  *GetStorage();
+        static Kernel   *GetKernel();
         static Metrics  *Get();
 
         Metrics(QObject *parent);
@@ -68,14 +68,6 @@ class Metrics : public QObject
         void onTimer();
 
     private:
-        static CPU      g_CPU;
-        static GPU      g_GPU;
-        static Memory   g_Memory;
-        static Swap     g_Swap;
-        static Network  g_Network;
-        static Storage  g_Storage;
-        static Kernel   g_Kernel;
-
         //! Check if sampling is enabled and if yes, runs sampleNow() and emits a signal
         void sample();
         bool sampleNow();

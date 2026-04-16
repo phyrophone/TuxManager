@@ -22,13 +22,47 @@
 #include <QObject>
 #include <QTimer>
 
-CPU     Metrics::g_CPU;
-GPU     Metrics::g_GPU;
-Memory  Metrics::g_Memory;
-Swap    Metrics::g_Swap;
-Network Metrics::g_Network;
-Storage Metrics::g_Storage;
-Kernel  Metrics::g_Kernel;
+CPU *Metrics::GetCPU()
+{
+    static CPU instance;
+    return &instance;
+}
+
+GPU *Metrics::GetGPU()
+{
+    static GPU instance;
+    return &instance;
+}
+
+Network *Metrics::GetNetwork()
+{
+    static Network instance;
+    return &instance;
+}
+
+Memory *Metrics::GetMemory()
+{
+    static Memory instance;
+    return &instance;
+}
+
+Swap *Metrics::GetSwap()
+{
+    static Swap instance;
+    return &instance;
+}
+
+Storage *Metrics::GetStorage()
+{
+    static Storage instance;
+    return &instance;
+}
+
+Kernel *Metrics::GetKernel()
+{
+    static Kernel instance;
+    return &instance;
+}
 
 Metrics *Metrics::Get()
 {
@@ -100,19 +134,19 @@ bool Metrics::sampleNow()
     bool swapDevicesChanged = false;
 
     if (this->m_cpuSamplingEnabled)
-        Metrics::g_CPU.Sample();
+        Metrics::GetCPU()->Sample();
     if (this->m_memorySamplingEnabled)
-        Metrics::g_Memory.Sample();
+        Metrics::GetMemory()->Sample();
     if (this->m_swapSamplingEnabled)
-        Metrics::g_Swap.Sample(swapDevicesChanged);
+        Metrics::GetSwap()->Sample(swapDevicesChanged);
     if (this->m_diskSamplingEnabled)
-        Metrics::g_Storage.Sample();
+        Metrics::GetStorage()->Sample();
     if (this->m_networkSamplingEnabled)
-        Metrics::g_Network.Sample();
+        Metrics::GetNetwork()->Sample();
     if (this->m_gpuSamplingEnabled)
-        Metrics::g_GPU.Sample();
+        Metrics::GetGPU()->Sample();
     if (this->m_processStatsEnabled)
-        Metrics::g_Kernel.Sample();
+        Metrics::GetKernel()->Sample();
 
     return swapDevicesChanged;
 }

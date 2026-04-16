@@ -17,6 +17,7 @@
  */
 
 #include "gpu.h"
+#include "../configuration.h"
 #include "../misc.h"
 #include "../logger.h"
 #include <QFileInfo>
@@ -168,6 +169,13 @@ void GPU::detectGpuBackends()
 
     this->m_hasNvml = false;
     this->m_nvmlLibHandle = nullptr;
+
+    if (CFG->ForceGpuDrm)
+    {
+        LOG_INFO("GPU backend detection forced to DRM via --force-drm");
+        this->detectDrmCards();
+        return;
+    }
 
     // Try to load NVML for NVIDIA GPUs
     this->m_nvmlLibHandle = ::dlopen("libnvidia-ml.so.1", RTLD_LAZY | RTLD_LOCAL);

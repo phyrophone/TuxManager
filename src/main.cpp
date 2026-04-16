@@ -41,6 +41,7 @@ static void print_help()
            "Options:\n"
            "  -h, --help     Show this help and exit\n"
            "  -V, --version  Show version and exit\n"
+           "      --force-drm Force DRM GPU backend and skip NVML detection\n"
            "  -v             Increase log verbosity.\n"
            "                 Repeat for more detail: -v, -vv, -vvv\n",
            TUX_MANAGER_PRODUCT_NAME);
@@ -80,6 +81,8 @@ int main(int argc, char *argv[])
 
     QCommandLineOption verboseOption(QStringList{"v"}, "Increase verbosity. Repeat for more detail: -v, -vv, -vvv.");
     parser.addOption(verboseOption);
+    QCommandLineOption forceDrmOption(QStringList{"force-drm"}, "Force DRM GPU backend and skip NVML detection.");
+    parser.addOption(forceDrmOption);
 
     parser.process(a);
 
@@ -99,6 +102,7 @@ int main(int argc, char *argv[])
 
     // ── Bootstrap ─────────────────────────────────────────────────────────────
     CFG->Load();
+    CFG->ForceGpuDrm = parser.isSet(forceDrmOption);
     LOG_INFO(QString("%1 %2 starting (verbosity=%3)").arg(a.applicationName(), a.applicationVersion()).arg(verbosity));
 
     MainWindow w;
