@@ -4,6 +4,7 @@
       * Implemented toggle between bytes vs bits for NICs
   * UI: minor visual fixes of services table
   * Implemented ability to reorder performance widgets in side panel
+  * Expose more NVML metrics: freq and power usage
 
 # 1.0.4
   * Services control (via d-bus / systemctl)

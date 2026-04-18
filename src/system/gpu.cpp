@@ -59,6 +59,8 @@ namespace
     using FnNvmlDeviceGetDecoderUtilization = NvmlReturn (*)(NvmlDevice, unsigned int *, unsigned int *);
     using FnNvmlDeviceGetPcieThroughput = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
     using FnNvmlDeviceGetTemperature = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
+    using FnNvmlDeviceGetClockInfo = NvmlReturn (*)(NvmlDevice, unsigned int, unsigned int *);
+    using FnNvmlDeviceGetPowerUsage = NvmlReturn (*)(NvmlDevice, unsigned int *);
 
     struct NvmlProcessInfo_v2
     {
@@ -99,6 +101,8 @@ namespace
     FnNvmlDeviceGetDecoderUtilization pNvmlDeviceGetDecoderUtilization = nullptr;
     FnNvmlDeviceGetPcieThroughput pNvmlDeviceGetPcieThroughput = nullptr;
     FnNvmlDeviceGetTemperature pNvmlDeviceGetTemperature = nullptr;
+    FnNvmlDeviceGetClockInfo pNvmlDeviceGetClockInfo = nullptr;
+    FnNvmlDeviceGetPowerUsage pNvmlDeviceGetPowerUsage = nullptr;
 
     bool shouldIgnoreDrmGpu(const QString &driverName, const QString &uevent)
     {
@@ -213,6 +217,10 @@ void GPU::detectGpuBackends()
             ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPcieThroughput"));
         pNvmlDeviceGetTemperature = reinterpret_cast<FnNvmlDeviceGetTemperature>(
             ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetTemperature"));
+        pNvmlDeviceGetClockInfo = reinterpret_cast<FnNvmlDeviceGetClockInfo>(
+            ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetClockInfo"));
+        pNvmlDeviceGetPowerUsage = reinterpret_cast<FnNvmlDeviceGetPowerUsage>(
+            ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetPowerUsage"));
         pNvmlDeviceGetGraphicsRunningProcesses = reinterpret_cast<FnNvmlDeviceGetGraphicsRunningProcesses>(
             ::dlsym(this->m_nvmlLibHandle, "nvmlDeviceGetGraphicsRunningProcesses_v3"));
         pNvmlDeviceGetComputeRunningProcesses = reinterpret_cast<FnNvmlDeviceGetComputeRunningProcesses>(
@@ -284,6 +292,8 @@ void GPU::unloadGpuBackends()
     pNvmlDeviceGetDecoderUtilization = nullptr;
     pNvmlDeviceGetPcieThroughput = nullptr;
     pNvmlDeviceGetTemperature = nullptr;
+    pNvmlDeviceGetClockInfo = nullptr;
+    pNvmlDeviceGetPowerUsage = nullptr;
     pNvmlDeviceGetGraphicsRunningProcesses = nullptr;
     pNvmlDeviceGetComputeRunningProcesses = nullptr;
     pNvmlDeviceGetProcessUtilization = nullptr;
@@ -316,6 +326,7 @@ bool GPU::sampleNvml()
         static constexpr unsigned int kNvmlPcieTxBytes = 0;
         static constexpr unsigned int kNvmlPcieRxBytes = 1;
         static constexpr unsigned int kNvmlTemperatureGpu = 0;
+        static constexpr unsigned int kNvmlClockGraphics = 0;
 
         NvmlDevice dev = nullptr;
         if (pNvmlDeviceGetHandleByIndexV2(i, &dev) != NVML_SUCCESS || !dev)
@@ -344,6 +355,12 @@ bool GPU::sampleNvml()
         unsigned int tempC = 0;
         const bool hasTemp = pNvmlDeviceGetTemperature
                              && (pNvmlDeviceGetTemperature(dev, kNvmlTemperatureGpu, &tempC) == NVML_SUCCESS);
+        unsigned int coreClockMHz = 0;
+        const bool hasCoreClock = pNvmlDeviceGetClockInfo
+                                  && (pNvmlDeviceGetClockInfo(dev, kNvmlClockGraphics, &coreClockMHz) == NVML_SUCCESS);
+        unsigned int powerMilliW = 0;
+        const bool hasPower = pNvmlDeviceGetPowerUsage
+                              && (pNvmlDeviceGetPowerUsage(dev, &powerMilliW) == NVML_SUCCESS);
 
         int gpuIdx = -1;
         for (int j = 0; j < static_cast<int>(this->m_gpus.size()); ++j)
@@ -369,6 +386,8 @@ bool GPU::sampleNvml()
         g.Backend = "NVML";
         g.UtilPct = hasUtil ? qBound(0.0, static_cast<double>(util.gpu), 100.0) : 0.0;
         g.TemperatureC = hasTemp ? static_cast<int>(tempC) : -1;
+        g.CoreClockMHz = hasCoreClock ? static_cast<int>(coreClockMHz) : -1;
+        g.PowerUsageW = hasPower ? static_cast<double>(powerMilliW) / 1000.0 : -1.0;
         g.MemUsedMiB = hasMem ? static_cast<qint64>(mem.used / (1024ULL * 1024ULL)) : 0;
         g.MemTotalMiB = hasMem ? static_cast<qint64>(mem.total / (1024ULL * 1024ULL)) : 0;
         g.SharedMemUsedMiB = 0;
@@ -485,6 +504,8 @@ bool GPU::sampleNvml()
         {
             g->UtilPct = 0.0;
             g->TemperatureC = -1;
+            g->CoreClockMHz = -1;
+            g->PowerUsageW = -1.0;
             g->MemUsedMiB = 0;
             g->MemTotalMiB = 0;
             g->SharedMemUsedMiB = 0;
@@ -653,6 +674,8 @@ bool GPU::sampleDrm()
 
         GPUInfo &g = *this->m_gpus[gpuIdx];
         g.TemperatureC = -1;
+        g.CoreClockMHz = -1;
+        g.PowerUsageW = -1.0;
 
         if (!card.BusyPath.isEmpty())
         {

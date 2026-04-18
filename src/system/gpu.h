@@ -48,6 +48,8 @@ class GPU
             QString         Backend;
             double          UtilPct { 0.0 };
             int             TemperatureC { -1 };
+            int             CoreClockMHz { -1 };
+            double          PowerUsageW { -1.0 };
             qint64          MemUsedMiB { 0 };
             qint64          MemTotalMiB { 0 };
             qint64          SharedMemUsedMiB { 0 };

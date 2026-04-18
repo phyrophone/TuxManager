@@ -118,6 +118,8 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
     UIHelper::EnableCopyLabelContextMenu(this->ui->sharedMemValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->ui->driverValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->ui->backendValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->coreClockValueLabel);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->powerUsageValueLabel);
 
     WidgetStyle::ApplyTextStyle(this->ui->copyBwLegendLabel, scheme->StatLabelColor);
 }
@@ -220,6 +222,8 @@ void GpuDetailWidget::onUpdated()
     const GPU::GPUInfo &gpu = Metrics::GetGPU()->FromIndex(this->m_gpuIndex);
     const double util = gpu.UtilPct;
     const int tempC = gpu.TemperatureC;
+    const bool hasCoreClock = gpu.CoreClockMHz >= 0;
+    const bool hasPowerUsage = gpu.PowerUsageW >= 0.0;
     const qint64 dedicatedUsedMiB = gpu.MemUsedMiB;
     const qint64 dedicatedTotalMiB = gpu.MemTotalMiB;
 
@@ -242,6 +246,15 @@ void GpuDetailWidget::onUpdated()
                                            .arg(Misc::FormatMiB(static_cast<quint64>(qMax<qint64>(0, sharedTotalMiB)), 1)));
     this->ui->driverValueLabel->setText(gpu.DriverVersion);
     this->ui->backendValueLabel->setText(gpu.Backend);
+    this->ui->coreClockLabel->setVisible(hasCoreClock);
+    this->ui->coreClockValueLabel->setVisible(hasCoreClock);
+    if (hasCoreClock)
+        this->ui->coreClockValueLabel->setText(tr("%1 MHz").arg(gpu.CoreClockMHz));
+
+    this->ui->powerUsageLabel->setVisible(hasPowerUsage);
+    this->ui->powerUsageValueLabel->setVisible(hasPowerUsage);
+    if (hasPowerUsage)
+        this->ui->powerUsageValueLabel->setText(tr("%1 W").arg(QString::number(gpu.PowerUsageW, 'f', 1)));
 
     for (int slot = 0; slot < this->m_engineGraphs.size(); ++slot)
     {
