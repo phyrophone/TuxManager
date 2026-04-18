@@ -22,10 +22,13 @@
 #include "../globals.h"
 #include "../historybuffer.h"
 
+#include <QHash>
 #include <memory>
-#include <QSet>
-#include <QElapsedTimer>
 #include <vector>
+
+class GpuNvmlBackend;
+class GpuAmdSmiBackend;
+class GpuDrmBackend;
 
 class GPU
 {
@@ -66,30 +69,6 @@ class GPU
             QHash<QString, qint64>      PrevFDInfoEngineNs;
         };
 
-        // Cached sysfs paths for a kernel DRM-managed GPU.
-        // Populated once at startup; used every sampling tick.
-        struct DRMCard
-        {
-            QString   ID;             // PCI address, e.g. 0000:05:00.0
-            QString   Vendor;         // PCI vendor, e.g. "0x1002"
-            QString   DriverName;     // e.g. "amdgpu", "i915"
-            QString   DriverVersion;
-            QString   BusyPath;       // .../gpu_busy_percent
-            QString   VramTotalPath;  // .../mem_info_vram_total
-            QString   VramUsedPath;   // .../mem_info_vram_used
-            QString   GttTotalPath;   // .../mem_info_gtt_total  (shared / system)
-            QString   GttUsedPath;    // .../mem_info_gtt_used
-            QString   TempPath;       // hwmon temp1_input (milli-°C)
-            QString   RenderNodePath; // /dev/dri/renderDN  (for fdinfo matching)
-            QString   CardNodePath;   // /dev/dri/cardN
-
-            // All *_busy_percent engine files (excluding gpu_busy_percent).
-            QVector<QPair<QString, QString>>  EngineBusyPaths; // (key, sysfs path)
-
-            // Cached fdinfo paths from the last full /proc scan.
-            QStringList     CachedFDInfoPaths;
-        };
-
         GPU();
         ~GPU();
 
@@ -101,25 +80,14 @@ class GPU
 
     private:
         void detectGpuBackends();
-        void detectDrmCards();
-        bool sampleNvml();
-        bool sampleDrm();
-        /// Pushes a zero sample for engines that were known before but were not
-        /// reported on the current tick, so the UI falls back to zero instead of
-        /// showing a frozen stale graph/value.
-        void zeroMissingEngines(GPUInfo &gpu, const QSet<QString> &seenEngineKeys);
-        QHash<QString, qint64> scanDrmFdInfoEngines(DRMCard &card);
         void unloadGpuBackends();
         //! Returned if index of requested GPU doesn't exist
         GPUInfo m_nullGPU;
 
         std::vector<std::unique_ptr<GPUInfo>>    m_gpus;
-        bool                m_hasNvml { false };
-        void               *m_nvmlLibHandle { nullptr };
-        QVector<DRMCard>    m_drmCards;
-        QElapsedTimer       m_gpuFdInfoTimer;
-        bool                m_gpuFdInfoTimerStarted { false };
-        int                 m_gpuFdInfoRescanCounter { 0 };
+        std::unique_ptr<GpuNvmlBackend>  m_nvmlBackend;
+        std::unique_ptr<GpuAmdSmiBackend> m_amdSmiBackend;
+        std::unique_ptr<GpuDrmBackend>   m_drmBackend;
 };
 
 #endif // GPU_H

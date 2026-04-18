@@ -19,6 +19,9 @@ SOURCES += \
     misc.cpp \
     system/cpu.cpp \
     system/gpu.cpp \
+    system/gpu/amdsmibackend.cpp \
+    system/gpu/drmbackend.cpp \
+    system/gpu/nvmlbackend.cpp \
     system/kernel.cpp \
     system/memory.cpp \
     system/network.cpp \
@@ -69,6 +72,9 @@ HEADERS += \
     misc.h \
     system/cpu.h \
     system/gpu.h \
+    system/gpu/amdsmibackend.h \
+    system/gpu/drmbackend.h \
+    system/gpu/nvmlbackend.h \
     system/kernel.h \
     system/memory.h \
     system/network.h \

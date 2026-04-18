@@ -5,6 +5,7 @@
   * UI: minor visual fixes of services table
   * Implemented ability to reorder performance widgets in side panel
   * Expose more NVML metrics: freq and power usage
+  * Support for AMD GPUs via AMDSMI
 
 # 1.0.4
   * Services control (via d-bus / systemctl)
