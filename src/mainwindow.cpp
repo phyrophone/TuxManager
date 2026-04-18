@@ -22,9 +22,10 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , m_processesWidget(new ProcessesWidget(this))
+    , m_processRefreshService(new OS::ProcessRefreshService(this))
+    , m_processesWidget(new ProcessesWidget(this->m_processRefreshService, this))
     , m_performanceWidget(new PerformanceWidget(this))
-    , m_usersWidget(new UsersWidget(this))
+    , m_usersWidget(new UsersWidget(this->m_processRefreshService, this))
     , m_servicesWidget(new ServicesWidget(this))
 {
     this->ui->setupUi(this);
@@ -58,6 +59,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(this->m_usersWidget, &UsersWidget::goToProcessRequested, this, [this](pid_t pid)
     {
         this->ui->tabWidget->setCurrentIndex(0);
+        this->m_processesWidget->ClearSearchFilter();
         this->m_processesWidget->SelectProcessByPid(pid);
     });
 }

@@ -20,6 +20,7 @@
 #define OS_PROCESS_H
 
 #include <QList>
+#include <QMetaType>
 #include <QString>
 #include <sys/types.h>
 
@@ -29,6 +30,12 @@ namespace OS
     class Process
     {
         public:
+            struct Identity
+            {
+                pid_t   PID { 0 };
+                quint64 StartTimeTicks { 0 };
+            };
+
             struct LoadOptions
             {
                 bool  IncludeKernelTasks  { true };
@@ -69,12 +76,20 @@ namespace OS
 
             /// Human-readable description of a raw state character.
             static QString GetStateString(char state);
+            /// Identity based on PID and StartTime (should be unique) - used by perf optimizations to avoid unnecessary queries
+            Identity GetIdentity() const;
 
         private:
             static bool loadOneStatAndUid(pid_t pid, Process &out);
             static bool loadIO(Process &proc);
             static void loadUserAndCmdline(Process &proc);
     };
+
+    bool operator<(const Process::Identity &lhs, const Process::Identity &rhs);
+    bool operator==(const Process::Identity &lhs, const Process::Identity &rhs);
 } // namespace Os
+
+Q_DECLARE_METATYPE(OS::Process)
+Q_DECLARE_METATYPE(QList<OS::Process>)
 
 #endif // OS_PROCESS_H
