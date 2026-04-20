@@ -29,6 +29,32 @@
 
 Configuration *Configuration::s_instance = nullptr;
 
+namespace
+{
+    // Temporary migration fallback for the legacy "Tux Manager" settings path
+    // this is only for loading of settings - we never write to old path
+    std::unique_ptr<QSettings> getSettings()
+    {
+        auto current = std::make_unique<QSettings>();
+
+        // If the new path is already containing data use it to read settings, otherwise try fallback to old path
+        if (!current->allKeys().isEmpty())
+            return current;
+
+        auto legacy = std::make_unique<QSettings>(
+            QSettings::NativeFormat,
+            QSettings::UserScope,
+            "Tux Manager",
+            "Tux Manager");
+
+        if (!legacy->allKeys().isEmpty())
+            return legacy;
+
+        // Neither new or old path contains any data, use new path
+        return current;
+    }
+}
+
 Configuration *Configuration::instance()
 {
     if (!s_instance)
@@ -41,7 +67,10 @@ Configuration::Configuration(QObject *parent) : QObject(parent)
 
 void Configuration::Load()
 {
-    QSettings s;
+    // QSettings s;
+    // Let's keep this for like 5 more versions then we can restore original simple loading mechanism
+    std::unique_ptr<QSettings> temp = getSettings();
+    QSettings &s = *temp;
 
     // Window
     this->WindowGeometry = s.value("Window/Geometry").toByteArray();
