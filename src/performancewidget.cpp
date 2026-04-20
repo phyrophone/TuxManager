@@ -70,7 +70,9 @@ namespace
     }
 }
 
-// ── Construction ──────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new Ui::PerformanceWidget)
 {
@@ -123,7 +125,9 @@ PerformanceWidget::~PerformanceWidget()
     delete this->ui;
 }
 
-// ── Private setup ─────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Private setup
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PerformanceWidget::setupLayout()
 {
@@ -145,7 +149,9 @@ void PerformanceWidget::setupSidePanel()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
 
-    // ── CPU item ─────────────────────────────────────────────────────────────
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CPU item
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     this->m_cpuItem = new Perf::SidePanelItem(tr("CPU"), this);
     this->m_cpuItem->SetGraphColor(scheme->CpuGraphLineColor, scheme->CpuGraphFillColor);
     this->m_cpuItem->SetGraphSource(Metrics::GetCPU()->CpuHistory());
@@ -153,7 +159,9 @@ void PerformanceWidget::setupSidePanel()
     this->m_stack->addWidget(this->m_cpuDetail);
     this->m_detailByItem.insert(this->m_cpuItem, this->m_cpuDetail);
 
-    // ── Memory item ──────────────────────────────────────────────────────────
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Memory item
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     this->m_memoryItem = new Perf::SidePanelItem(tr("Memory"), this);
     this->m_memoryItem->SetGraphColor(scheme->MemoryGraphLineColor, scheme->MemoryGraphFillColor);
     this->m_memoryItem->SetGraphSource(Metrics::GetMemory()->MemHistory());
@@ -161,7 +169,9 @@ void PerformanceWidget::setupSidePanel()
     this->m_stack->addWidget(this->m_memDetail);
     this->m_detailByItem.insert(this->m_memoryItem, this->m_memDetail);
 
-    // ── Swap item ────────────────────────────────────────────────────────────
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Swap item
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     this->m_swapItem = new Perf::SidePanelItem(tr("Swap"), this);
     this->m_swapItem->SetGraphColor(scheme->SwapUsageGraphLineColor, scheme->SwapUsageGraphFillColor);
     this->m_swapItem->SetGraphSource(Metrics::GetSwap()->SwapUsageHistory());
@@ -243,7 +253,9 @@ void PerformanceWidget::setupNetworkPanels()
     }
 }
 
-// ── Slots ─────────────────────────────────────────────────────────────────────
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Slots
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PerformanceWidget::onProviderUpdated()
 {
@@ -278,12 +290,16 @@ void PerformanceWidget::onProviderUpdated()
                         : 0;
     QString swapSub;
     if (swapTotal > 0)
+    {
         swapSub = QString("%1/%2 (%3%)")
                   .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapUsed)), 1),
                        Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, swapTotal)), 1),
                        QString::number(swapPct));
-    else
+    } else
+    {
         swapSub = tr("Off");
+    }
+
     if (CFG->PerfShowSwap)
         this->m_swapItem->Update(swapSub);
 
@@ -298,9 +314,7 @@ void PerformanceWidget::onProviderUpdated()
                 continue;
 
             const Storage::DiskInfo &disk = Metrics::GetStorage()->FromIndex(i);
-            const QString diskSub = tr("%1 %2", "%1=disk type %2=active percentage")
-                                    .arg(disk.Type,
-                                         QString::number(disk.ActivePct, 'f', 0) + "%");
+            const QString diskSub = tr("%1 %2", "%1=disk type %2=active percentage").arg(disk.Type, QString::number(disk.ActivePct, 'f', 0) + "%");
             item->Update(diskSub);
         }
     }
@@ -316,8 +330,7 @@ void PerformanceWidget::onProviderUpdated()
                 continue;
 
             const GPU::GPUInfo &gpu = Metrics::GetGPU()->FromIndex(i);
-            const QString utilText = tr("%1%2", "%1=GPU utilization value %2=percent sign")
-                                     .arg(QString::number(gpu.UtilPct, 'f', 0), "%");
+            const QString utilText = tr("%1%2", "%1=GPU utilization value %2=percent sign").arg(QString::number(gpu.UtilPct, 'f', 0), "%");
             const int tempC = gpu.TemperatureC;
             const QString sub = (tempC >= 0)
                                 ? tr("%1 %2C", "%1=GPU utilization %2=temperature in Celsius")
@@ -344,8 +357,7 @@ void PerformanceWidget::onProviderUpdated()
             const QString downloadRate = CFG->PerfNetworkUseBits
                                          ? Misc::FormatBitsPerSecond(network.RxBps)
                                          : Misc::FormatBytesPerSecond(network.RxBps);
-            const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate")
-                                   .arg(uploadRate, downloadRate);
+            const QString netSub = tr("U:%1 D:%2", "%1=upload rate %2=download rate").arg(uploadRate, downloadRate);
             item->Update(netSub, network.MaxThroughputBps);
         }
     }
@@ -397,7 +409,7 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
     QMenu *settingsMenu = menu.addMenu(tr("Settings"));
     QAction *customizeOrder = settingsMenu->addAction(tr("Customize order..."));
     QAction *customizeColors = settingsMenu->addAction(tr("Customize colors..."));
-    QAction *showGrid = settingsMenu->addAction(tr("Show grid"));
+    QAction *showGrid = settingsMenu->addAction(tr("Show grid in side panel"));
     showGrid->setCheckable(true);
     showGrid->setChecked(CFG->SidePanelGridEnabled);
 
