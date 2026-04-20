@@ -83,6 +83,7 @@ class ColorScheme
         QColor DiskTitleColor;
         QColor DiskHeaderValueColor;
         QColor NetworkTitleColor;
+        QColor GpuTitleColor;
         QColor MutedTextColor;
         QColor StatLabelColor;
         QColor AxisLabelColor;

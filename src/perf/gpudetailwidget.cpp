@@ -121,6 +121,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
     UIHelper::EnableCopyLabelContextMenu(this->ui->coreClockValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->ui->powerUsageValueLabel);
 
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->GpuTitleColor, 18, true);
     WidgetStyle::ApplyTextStyle(this->ui->copyBwLegendLabel, scheme->StatLabelColor);
 }
 
@@ -148,6 +149,7 @@ void GpuDetailWidget::SetGpu(int index)
 void GpuDetailWidget::ApplyColorScheme()
 {
     const ColorScheme *scheme = ColorScheme::GetCurrent();
+    WidgetStyle::ApplyTextStyle(this->ui->titleLabel, scheme->GpuTitleColor, 18, true);
     WidgetStyle::ApplyTextStyle(this->ui->copyBwLegendLabel, scheme->StatLabelColor);
 
     auto applyGraph = [scheme](GraphWidget *graph)
