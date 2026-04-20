@@ -66,6 +66,7 @@ namespace
         { "DiskTitleColor", &ColorScheme::DiskTitleColor },
         { "DiskHeaderValueColor", &ColorScheme::DiskHeaderValueColor },
         { "NetworkTitleColor", &ColorScheme::NetworkTitleColor },
+        { "GpuTitleColor", &ColorScheme::GpuTitleColor },
         { "MutedTextColor", &ColorScheme::MutedTextColor },
         { "StatLabelColor", &ColorScheme::StatLabelColor },
         { "AxisLabelColor", &ColorScheme::AxisLabelColor },
@@ -178,6 +179,7 @@ ColorScheme ColorScheme::DefaultDark()
     scheme.DiskTitleColor = scheme.DiskGraphLineColor;
     scheme.DiskHeaderValueColor = QColor(0xaa, 0xdd, 0xaa);
     scheme.NetworkTitleColor = scheme.NetworkGraphLineColor;
+    scheme.GpuTitleColor = scheme.GpuGraphLineColor;
     scheme.MutedTextColor = QColor(0xaa, 0xaa, 0xaa);
     scheme.StatLabelColor = QColor(0x88, 0x88, 0x88);
     scheme.AxisLabelColor = QColor(0x66, 0x66, 0x66);
@@ -237,6 +239,7 @@ ColorScheme ColorScheme::DefaultLight()
     scheme.DiskTitleColor = scheme.DiskGraphLineColor;
     scheme.DiskHeaderValueColor = QColor(0x74, 0xa5, 0x5d);
     scheme.NetworkTitleColor = scheme.NetworkGraphLineColor;
+    scheme.GpuTitleColor = scheme.GpuGraphLineColor;
     scheme.MutedTextColor = QColor(0x77, 0x77, 0x77);
     scheme.StatLabelColor = QColor(0x7a, 0x7a, 0x7a);
     scheme.AxisLabelColor = QColor(0x6d, 0x6d, 0x6d);
