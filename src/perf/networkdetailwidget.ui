@@ -10,7 +10,7 @@
     <height>620</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0,0">
    <property name="spacing">
     <number>6</number>
    </property>
@@ -51,6 +51,33 @@
        </property>
       </spacer>
      </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="throughputLabelLayout">
+     <item>
+      <widget class="QLabel" name="throughputLabel">
+       <property name="styleSheet">
+        <string>font-size: 8pt;</string>
+       </property>
+       <property name="text">
+        <string>Throughput</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer>
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
      <item>
       <widget class="QLabel" name="throughputGraphMaxLabel">
        <property name="styleSheet">
@@ -67,20 +94,7 @@
     </layout>
    </item>
    <item>
-    <widget class="QLabel" name="throughputLabel">
-     <property name="styleSheet">
-      <string>font-size: 8pt;</string>
-     </property>
-     <property name="text">
-      <string>Throughput</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="Perf::GraphWidget" name="throughputGraphWidget" native="true">
-     <property name="minimumHeight">
-      <number>220</number>
-     </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
@@ -140,7 +154,7 @@
      <item row="0" column="0">
       <widget class="QLabel" name="sendLabel">
        <property name="styleSheet">
-        <string></string>
+        <string/>
        </property>
        <property name="text">
         <string>Send</string>
@@ -157,7 +171,7 @@
      <item row="0" column="2">
       <widget class="QLabel" name="adapterLabel">
        <property name="styleSheet">
-        <string></string>
+        <string/>
        </property>
        <property name="text">
         <string>Adapter</string>
@@ -174,7 +188,7 @@
      <item row="1" column="0">
       <widget class="QLabel" name="receiveLabel">
        <property name="styleSheet">
-        <string></string>
+        <string/>
        </property>
        <property name="text">
         <string>Receive</string>
@@ -191,7 +205,7 @@
      <item row="1" column="2">
       <widget class="QLabel" name="typeLabel">
        <property name="styleSheet">
-        <string></string>
+        <string/>
        </property>
        <property name="text">
         <string>Connection type</string>
@@ -208,7 +222,7 @@
      <item row="2" column="2">
       <widget class="QLabel" name="speedLabel">
        <property name="styleSheet">
-        <string></string>
+        <string/>
        </property>
        <property name="text">
         <string>Link speed</string>
@@ -225,7 +239,7 @@
      <item row="3" column="2">
       <widget class="QLabel" name="ipv4Label">
        <property name="styleSheet">
-        <string></string>
+        <string/>
        </property>
        <property name="text">
         <string>IPv4 address</string>
@@ -240,31 +254,31 @@
       </widget>
      </item>
      <item row="4" column="2">
-     <widget class="QLabel" name="ipv6Label">
+      <widget class="QLabel" name="ipv6Label">
        <property name="styleSheet">
-        <string></string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+        <string/>
        </property>
        <property name="text">
         <string>IPv6 addresses</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
        </property>
       </widget>
      </item>
      <item row="4" column="3">
       <widget class="QLabel" name="ipv6ValueLabel">
+       <property name="text">
+        <string>—</string>
+       </property>
        <property name="textFormat">
         <enum>Qt::TextFormat::PlainText</enum>
-       </property>
-       <property name="wordWrap">
-        <bool>true</bool>
        </property>
        <property name="alignment">
         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
        </property>
-       <property name="text">
-        <string>—</string>
+       <property name="wordWrap">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
