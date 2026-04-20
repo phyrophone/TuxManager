@@ -17,6 +17,7 @@
  */
 
 #include "sidepanelitem.h"
+#include "../configuration.h"
 #include "../colorscheme.h"
 #include "globals.h"
 
@@ -40,6 +41,7 @@ SidePanelItem::SidePanelItem(const QString &title, QWidget *parent) : QWidget(pa
     lay->setContentsMargins(2, 22, 2, 2);   // leave room for title text
     lay->setSpacing(0);
     this->m_graph->SetSampleCapacity(TUX_MANAGER_HISTORY_SIZE);
+    this->m_graph->SetGridEnabled(CFG->SidePanelGridEnabled);
     this->m_graph->SetHoverLineEnabled(false);
     this->m_graph->SetHoverTooltipEnabled(false);
     lay->addWidget(this->m_graph);
@@ -70,6 +72,11 @@ void SidePanelItem::SetSelected(bool selected)
 void SidePanelItem::SetGraphColor(QColor line, QColor fill)
 {
     this->m_graph->SetColor(line, fill);
+}
+
+void SidePanelItem::SetGraphGridEnabled(bool enabled)
+{
+    this->m_graph->SetGridEnabled(enabled);
 }
 
 // ── Paint ─────────────────────────────────────────────────────────────────────

@@ -46,6 +46,7 @@ namespace Perf
             bool IsSelected() const { return this->m_selected; }
 
             void SetGraphColor(QColor line, QColor fill);
+            void SetGraphGridEnabled(bool enabled);
 
             QSize sizeHint()        const override { return QSize(160, 80); }
             QSize minimumSizeHint() const override { return QSize(120, 70); }

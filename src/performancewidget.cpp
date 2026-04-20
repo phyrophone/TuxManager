@@ -394,8 +394,12 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
     gpu->setChecked(CFG->PerfShowGpu);
 
     menu.addSeparator();
-    QAction *customizeOrder = menu.addAction(tr("Customize order..."));
-    QAction *customizeColors = menu.addAction(tr("Customize colors..."));
+    QMenu *settingsMenu = menu.addMenu(tr("Settings"));
+    QAction *customizeOrder = settingsMenu->addAction(tr("Customize order..."));
+    QAction *customizeColors = settingsMenu->addAction(tr("Customize colors..."));
+    QAction *showGrid = settingsMenu->addAction(tr("Show grid"));
+    showGrid->setCheckable(true);
+    showGrid->setChecked(CFG->SidePanelGridEnabled);
 
     menu.addSeparator();
     QMenu *timeMenu = menu.addMenu(tr("Graph time"));
@@ -462,6 +466,14 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
                                                  : ColorScheme::DefaultLight()));
 
         this->ApplyColorScheme();
+        CFG->Save();
+        return;
+    }
+
+    if (picked == showGrid)
+    {
+        CFG->SidePanelGridEnabled = showGrid->isChecked();
+        this->applySidePanelGridEnabled();
         CFG->Save();
         return;
     }
@@ -612,6 +624,25 @@ void PerformanceWidget::updateSamplingPolicy()
     Metrics::Get()->SetNetworkSamplingEnabled(CFG->PerfShowNetwork);
     Metrics::Get()->SetGpuSamplingEnabled(CFG->PerfShowGpu);
     Metrics::Get()->SetProcessStatsEnabled(CFG->PerfShowCpu && this->m_sidePanel->GetCurrentItem() == this->m_cpuItem);
+}
+
+void PerformanceWidget::applySidePanelGridEnabled()
+{
+    const bool enabled = CFG->SidePanelGridEnabled;
+
+    if (this->m_cpuItem)
+        this->m_cpuItem->SetGraphGridEnabled(enabled);
+    if (this->m_memoryItem)
+        this->m_memoryItem->SetGraphGridEnabled(enabled);
+    if (this->m_swapItem)
+        this->m_swapItem->SetGraphGridEnabled(enabled);
+
+    for (Perf::SidePanelItem *item : std::as_const(this->m_diskItems))
+        item->SetGraphGridEnabled(enabled);
+    for (Perf::SidePanelItem *item : std::as_const(this->m_networkItems))
+        item->SetGraphGridEnabled(enabled);
+    for (Perf::SidePanelItem *item : std::as_const(this->m_gpuItems))
+        item->SetGraphGridEnabled(enabled);
 }
 
 void PerformanceWidget::tagTimeAxisLabels()

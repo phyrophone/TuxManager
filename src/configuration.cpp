@@ -78,7 +78,7 @@ void Configuration::Load()
     this->ActiveTab      = s.value("Window/ActiveTab", this->ActiveTab).toInt();
 
     // General
-    this->RefreshRateMs  =       s.value("General/RefreshRateMs",        this->RefreshRateMs).toInt();
+    this->RefreshRateMs =        s.value("General/RefreshRateMs",        this->RefreshRateMs).toInt();
     this->RefreshPaused =        s.value("General/RefreshPaused",        this->RefreshPaused).toBool();
     this->UseCustomColorScheme = s.value("General/UseCustomColorScheme", this->UseCustomColorScheme).toBool();
     this->CustomColorScheme =    s.value("General/CustomColorScheme",    this->CustomColorScheme).toMap();
@@ -128,6 +128,7 @@ void Configuration::Load()
     this->PerfShowDisks =       s.value("Performance/ShowDisks",         this->PerfShowDisks).toBool();
     this->PerfShowNetwork =     s.value("Performance/ShowNetwork",       this->PerfShowNetwork).toBool();
     this->PerfShowGpu =         s.value("Performance/ShowGpu",           this->PerfShowGpu).toBool();
+    this->SidePanelGridEnabled = s.value("Performance/SidePanelGridEnabled", this->SidePanelGridEnabled).toBool();
     this->PerfNetworkUseBits =  s.value("Performance/NetworkUseBits",    this->PerfNetworkUseBits).toBool();
     this->PerfGraphWindowSec =  s.value("Performance/GraphWindowSec",    this->PerfGraphWindowSec).toInt();
     this->PerfSidePanelGroupOrder = s.value("Performance/SidePanelGroupOrder", this->PerfSidePanelGroupOrder).toStringList();
@@ -198,6 +199,7 @@ void Configuration::Save()
     s.setValue("Performance/ShowDisks",                 this->PerfShowDisks);
     s.setValue("Performance/ShowNetwork",               this->PerfShowNetwork);
     s.setValue("Performance/ShowGpu",                   this->PerfShowGpu);
+    s.setValue("Performance/SidePanelGridEnabled",      this->SidePanelGridEnabled);
     s.setValue("Performance/NetworkUseBits",            this->PerfNetworkUseBits);
     s.setValue("Performance/GraphWindowSec",            this->PerfGraphWindowSec);
     s.setValue("Performance/SidePanelGroupOrder",       this->PerfSidePanelGroupOrder);

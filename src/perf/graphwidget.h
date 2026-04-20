@@ -66,14 +66,23 @@ namespace Perf
             void SetColor(QColor line, QColor fill, QColor fill2 = QColor());
 
             //! Number of horizontal grid divisions.
-            void SetGridColumns(int cols) { this->m_gridCols = cols; update(); }
+            void SetGridColumns(int cols) { this->m_gridCols = cols; this->update(); }
             //! Number of vertical grid divisions.
-            void SetGridRows(int rows)    { this->m_gridRows = rows; update(); }
+            void SetGridRows(int rows)    { this->m_gridRows = rows; this->update(); }
             //! Number of fixed time slots across the X axis (controls scrolling).
             void SetSampleCapacity(int samples);
 
+            //! Show / hide grid
+            void SetGridEnabled(bool enabled)
+            {
+                if (this->m_gridEnabled == enabled)
+                    return;
+                this->m_gridEnabled = enabled;
+                this->update();
+            }
+
             //! Enable/disable the vertical guide line that follows mouse hover.
-            void SetHoverLineEnabled(bool enabled) { this->m_hoverLineEnabled = enabled; update(); }
+            void SetHoverLineEnabled(bool enabled) { this->m_hoverLineEnabled = enabled; this->update(); }
             //! Enable/disable value tooltips shown while hovering the graph.
             void SetHoverTooltipEnabled(bool enabled) { this->m_hoverTooltipEnabled = enabled; }
             //! Set display names used in hover tooltip for primary/secondary series.
@@ -104,6 +113,7 @@ namespace Perf
 
             int             m_gridCols  { 5 };
             int             m_gridRows  { 4 };
+            bool            m_gridEnabled { true };
             int             m_sampleCapacity { 60 };  ///< Matches the default history window in seconds.
             int             m_historyTick { 0 };      ///< Advances as samples arrive; used for grid phase.
             int             m_hoverSlot { -1 };

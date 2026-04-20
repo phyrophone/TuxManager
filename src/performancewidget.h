@@ -83,6 +83,7 @@ class PerformanceWidget : public QWidget
         void tagTimeAxisLabels();
         void applyGraphWindowSeconds();
         void applyPanelVisibility();
+        void applySidePanelGridEnabled();
         void updateSamplingPolicy();
 };
 

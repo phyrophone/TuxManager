@@ -131,7 +131,9 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     const double contentWidth = qMax(0.0, contentRight - contentLeft);
     const double contentHeight = qMax(0.0, contentBottom - contentTop);
 
-    // ── Background ────────────────────────────────────────────────────────────
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Background
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     const QColor bg = this->palette().color(QPalette::Base);
     const ColorScheme *scheme = ColorScheme::GetCurrent();
     p.fillRect(r, bg);
@@ -140,40 +142,47 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     const int sampleCount = qMax(2, this->m_sampleCapacity);
     const double stepX = contentWidth / static_cast<double>(sampleCount - 1);
 
-    // ── Grid ──────────────────────────────────────────────────────────────────
-    p.setPen(QPen(scheme->GraphGridColor, 1));
-
-    // Denser grid on larger widgets while keeping existing configured minimum.
-    const int targetGridPxX = 80;
-    const int targetGridPxY = 55;
-    const int gridCols = qMax(this->m_gridCols, qMax(1, w / targetGridPxX));
-    const int gridRows = qMax(this->m_gridRows, qMax(1, h / targetGridPxY));
-
-    // Horizontal lines
-    for (int i = 1; i < gridRows; ++i)
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Grid
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    if (this->m_gridEnabled)
     {
-        const double y = contentTop + contentHeight * i / gridRows;
-        p.drawLine(QPointF(contentLeft, y), QPointF(contentRight, y));
+        p.setPen(QPen(scheme->GraphGridColor, 1));
+
+        // Denser grid on larger widgets while keeping existing configured minimum.
+        const int targetGridPxX = 80;
+        const int targetGridPxY = 55;
+        const int gridCols = qMax(this->m_gridCols, qMax(1, w / targetGridPxX));
+        const int gridRows = qMax(this->m_gridRows, qMax(1, h / targetGridPxY));
+
+        // Horizontal lines
+        for (int i = 1; i < gridRows; ++i)
+        {
+            const double y = contentTop + contentHeight * i / gridRows;
+            p.drawLine(QPointF(contentLeft, y), QPointF(contentRight, y));
+        }
+
+        // Vertical lines snap to time slots and phase-shift with sample updates.
+        // This keeps graph points aligned to the same grid columns as data scrolls.
+        const int gridSlotStep = qMax(1, sampleCount / gridCols);
+        const int phase = this->m_historyTick % gridSlotStep;
+        int lastX = -1;
+        for (int slot = 1; slot < sampleCount - 1; ++slot)
+        {
+            if (((slot + phase) % gridSlotStep) != 0)
+                continue;
+
+            const int x = static_cast<int>(contentLeft + slot * stepX + 0.5);
+            if (x <= contentLeft || x >= contentRight || x == lastX)
+                continue;
+            p.drawLine(QPointF(x, contentTop), QPointF(x, contentBottom));
+            lastX = x;
+        }
     }
 
-    // Vertical lines snap to time slots and phase-shift with sample updates.
-    // This keeps graph points aligned to the same grid columns as data scrolls.
-    const int gridSlotStep = qMax(1, sampleCount / gridCols);
-    const int phase = this->m_historyTick % gridSlotStep;
-    int lastX = -1;
-    for (int slot = 1; slot < sampleCount - 1; ++slot)
-    {
-        if (((slot + phase) % gridSlotStep) != 0)
-            continue;
-
-        const int x = static_cast<int>(contentLeft + slot * stepX + 0.5);
-        if (x <= contentLeft || x >= contentRight || x == lastX)
-            continue;
-        p.drawLine(QPointF(x, contentTop), QPointF(x, contentBottom));
-        lastX = x;
-    }
-
-    // ── Data ──────────────────────────────────────────────────────────────────
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Data
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     if (!this->m_data || this->m_data->IsEmpty())
         return;
 
@@ -242,7 +251,9 @@ void GraphWidget::paintEvent(QPaintEvent * /*event*/)
     p.setBrush(Qt::NoBrush);
     p.drawPath(path);
 
-    // ── Border ────────────────────────────────────────────────────────────────
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Border
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
     p.setPen(QPen(this->m_lineColor.darker(150), 1));
     p.setBrush(Qt::NoBrush);
     p.drawRect(QRectF(0.5, 0.5, qMax(0.0, right - 1.0), qMax(0.0, bottom - 1.0)));
