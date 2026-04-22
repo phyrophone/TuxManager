@@ -134,8 +134,8 @@ void Configuration::Load()
     this->PerfSidePanelGroupOrder = s.value("Performance/SidePanelGroupOrder", this->PerfSidePanelGroupOrder).toStringList();
 
     // For now this is hardcoded, we may want to make it customizable later
-    this->RefreshRateAvailableIntervals.append(QList<int> { 250, 500, 1000, 2000, 5000, 15000 });
-    this->DataWindowAvailableIntervals.append(QList<int> { 60, 120, 300, 900 });
+    this->RefreshRateAvailableIntervals = { 250, 500, 1000, 2000, 5000, 15000 };
+    this->DataWindowAvailableIntervals = { 60, 120, 300, 900 };
 
     if (!this->RefreshRateAvailableIntervals.contains(this->RefreshRateMs))
         this->RefreshRateMs = this->RefreshRateAvailableIntervals[0];

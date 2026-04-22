@@ -23,6 +23,7 @@
 #include <QIODevice>
 #include <QFile>
 #include <QDir>
+#include <QSet>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
