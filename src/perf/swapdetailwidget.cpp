@@ -27,8 +27,6 @@
 #include "metrics.h"
 
 #include <QAction>
-#include <QApplication>
-#include <QClipboard>
 #include <QMenu>
 
 using namespace Perf;
@@ -91,6 +89,7 @@ SwapDetailWidget::SwapDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     this->ui->activityGraphWidget->setToolTip(
                 tr("Swap in: disk -> RAM (pages read back into memory)\n"
                    "Swap out: RAM -> disk (pages written to swap storage)"));
+    UIHelper::EnableCopyWidgetContextMenu(this->ui->activityGraphWidget);
 
     UIHelper::EnableCopyLabelContextMenu(this->ui->usageValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->ui->inUseValueLabel);
@@ -222,11 +221,7 @@ void SwapDetailWidget::onContextMenuRequested(const QPoint &globalPos)
 
     menu.addSeparator();
 
-    QAction *actCopy = menu.addAction(tr("Copy\tCtrl+C"));
-    connect(actCopy, &QAction::triggered, this, [this]()
-    {
-        QApplication::clipboard()->setPixmap(this->ui->usageGraphArea->grab());
-    });
+    UIHelper::AddCopyWidgetAction(&menu, this->ui->usageGraphArea, tr("Copy graph"));
 
     menu.exec(globalPos);
 }

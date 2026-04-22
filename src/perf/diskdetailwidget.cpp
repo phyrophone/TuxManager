@@ -76,6 +76,8 @@ DiskDetailWidget::DiskDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui
     this->ui->transferGraphWidget->SetGridRows(4);
     this->ui->transferGraphWidget->SetSeriesNames(tr("Read"), tr("Write"));
     this->ui->transferGraphWidget->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
+    UIHelper::EnableCopyWidgetContextMenu(this->ui->activeGraphWidget);
+    UIHelper::EnableCopyWidgetContextMenu(this->ui->transferGraphWidget);
     this->ui->activeGraphMaxLabel->setText(tr("100%"));
     UIHelper::EnableCopyLabelContextMenu(this->ui->activeValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->ui->capacityValueLabel);

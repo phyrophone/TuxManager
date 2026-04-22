@@ -60,6 +60,10 @@ namespace UIHelper
     void AddGlobalContextMenuItems(QMenu *menu, QWidget *parent = nullptr);
     //! Adds a context menu with a Copy action that copies the label text to the clipboard.
     void EnableCopyLabelContextMenu(QLabel *label);
+    //! Adds a Copy graph action to an existing menu that copies the widget snapshot to the clipboard.
+    QAction *AddCopyWidgetAction(QMenu *menu, QWidget *widget, const QString &text = QString());
+    //! Adds a context menu with a Copy graph action that copies the widget snapshot to the clipboard.
+    void EnableCopyWidgetContextMenu(QWidget *widget, const QString &text = QString());
 
     bool ApplyRefreshIntervalAction(QAction *picked,
                                     const QHash<QAction *, int> &intervalActions,

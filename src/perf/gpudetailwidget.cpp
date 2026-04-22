@@ -78,6 +78,7 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
         auto *graph = new GraphWidget(this);
         configureGraph(graph);
         graph->setMinimumHeight(120);
+        UIHelper::EnableCopyWidgetContextMenu(graph);
 
         this->m_engineSelectors.append(selector);
         this->m_engineValueLabels.append(value);
@@ -102,14 +103,17 @@ GpuDetailWidget::GpuDetailWidget(QWidget *parent) : QWidget(parent), ui(new Ui::
 
     configureGraph(this->ui->dedicatedMemGraphWidget);
     this->ui->dedicatedMemGraphWidget->SetSeriesNames(tr("Dedicated memory usage"));
+    UIHelper::EnableCopyWidgetContextMenu(this->ui->dedicatedMemGraphWidget);
 
     configureGraph(this->ui->sharedMemGraphWidget);
     this->ui->sharedMemGraphWidget->SetSeriesNames(tr("Shared memory usage"));
+    UIHelper::EnableCopyWidgetContextMenu(this->ui->sharedMemGraphWidget);
 
     configureGraph(this->ui->copyBwGraphWidget);
     this->ui->copyBwGraphWidget->SetSeriesNames(tr("TX"), tr("RX"));
     this->ui->copyBwGraphWidget->SetValueFormat(GraphWidget::ValueFormat::BytesPerSec);
     this->ui->copyBwGraphWidget->setToolTip(tr("Copy bandwidth: light trace = TX, dark trace = RX"));
+    UIHelper::EnableCopyWidgetContextMenu(this->ui->copyBwGraphWidget);
 
     UIHelper::EnableCopyLabelContextMenu(this->ui->utilValueLabel);
     UIHelper::EnableCopyLabelContextMenu(this->ui->tempValueLabel);

@@ -203,6 +203,33 @@ void UIHelper::EnableCopyLabelContextMenu(QLabel *label)
 
 }
 
+QAction *UIHelper::AddCopyWidgetAction(QMenu *menu, QWidget *widget, const QString &text)
+{
+    if (!menu || !widget)
+        return nullptr;
+
+    QAction *copyAction = menu->addAction(text.isEmpty() ? QObject::tr("Copy graph") : text);
+    QObject::connect(copyAction, &QAction::triggered, menu, [widget]()
+    {
+        QApplication::clipboard()->setPixmap(widget->grab());
+    });
+    return copyAction;
+}
+
+void UIHelper::EnableCopyWidgetContextMenu(QWidget *widget, const QString &text)
+{
+    if (!widget)
+        return;
+
+    widget->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(widget, &QWidget::customContextMenuRequested, widget, [widget, text](const QPoint &pos)
+    {
+        QMenu menu(widget);
+        AddCopyWidgetAction(&menu, widget, text);
+        menu.exec(widget->mapToGlobal(pos));
+    });
+}
+
 bool UIHelper::ApplyRefreshIntervalAction(QAction *picked,
                                           const QHash<QAction *, int> &intervalActions,
                                           QAction *pausedAction,

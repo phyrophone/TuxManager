@@ -25,8 +25,6 @@
 #include "../ui/widgetstyle.h"
 
 #include <QAction>
-#include <QApplication>
-#include <QClipboard>
 #include <QFile>
 #include <QGridLayout>
 #include <QLabel>
@@ -238,11 +236,7 @@ void CpuDetailWidget::onContextMenuRequested(const QPoint &globalPos)
     menu.addSeparator();
 
     // ── Copy ─────────────────────────────────────────────────────────────────
-    QAction *actCopy = menu.addAction(tr("Copy\tCtrl+C"));
-    connect(actCopy, &QAction::triggered, this, [this]()
-    {
-        QApplication::clipboard()->setPixmap(this->m_graphArea->grab());
-    });
+    UIHelper::AddCopyWidgetAction(&menu, this->m_graphArea, tr("Copy graph"));
 
     menu.exec(globalPos);
 }
