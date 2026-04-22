@@ -12,8 +12,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$PROJECT_ROOT/packaging/output"
 BUILD_DIR="$PROJECT_ROOT/packaging/.appimage-build"
 APPDIR="$PROJECT_ROOT/packaging/.AppDir"
-DESKTOP_FILE_SRC="$PROJECT_ROOT/packaging/flatpak/io.github.benapetr.TuxManager.desktop"
-ICON_FILE_SRC="$PROJECT_ROOT/packaging/flatpak/io.github.benapetr.TuxManager.svg"
+DESKTOP_FILE_SRC="$PROJECT_ROOT/packaging/data/io.github.benapetr.TuxManager.desktop"
+ICON_FILE_SRC="$PROJECT_ROOT/src/tux_manager_icon.svg"
 METADATA_FILE_SRC="$PROJECT_ROOT/packaging/flatpak/io.github.benapetr.TuxManager.metainfo.xml"
 
 QT_BIN_PATH=""
@@ -114,13 +114,13 @@ echo ""
 echo "Step 2: Creating AppDir..."
 install -Dm755 "$BUILD_DIR/$APP_NAME" "$APPDIR/usr/bin/$APP_NAME"
 install -Dm644 "$DESKTOP_FILE_SRC" "$APPDIR/usr/share/applications/io.github.benapetr.TuxManager.desktop"
-install -Dm644 "$ICON_FILE_SRC" "$APPDIR/usr/share/icons/hicolor/scalable/apps/io.github.benapetr.TuxManager.svg"
+install -Dm644 "$ICON_FILE_SRC" "$APPDIR/usr/share/icons/hicolor/scalable/apps/tux_manager_icon.svg"
 if [ -f "$METADATA_FILE_SRC" ]; then
     install -Dm644 "$METADATA_FILE_SRC" "$APPDIR/usr/share/metainfo/io.github.benapetr.TuxManager.metainfo.xml"
 fi
 
 ln -sf usr/share/applications/io.github.benapetr.TuxManager.desktop "$APPDIR/io.github.benapetr.TuxManager.desktop"
-ln -sf usr/share/icons/hicolor/scalable/apps/io.github.benapetr.TuxManager.svg "$APPDIR/io.github.benapetr.TuxManager.svg"
+ln -sf usr/share/icons/hicolor/scalable/apps/tux_manager_icon.svg "$APPDIR/tux_manager_icon.svg"
 
 echo ""
 echo "Step 3: Bundling AppImage..."
@@ -132,7 +132,7 @@ QMAKE="$(command -v "$QMAKE_CMD")"
 linuxdeploy \
     --appdir "$APPDIR" \
     --desktop-file "$APPDIR/usr/share/applications/io.github.benapetr.TuxManager.desktop" \
-    --icon-file "$APPDIR/usr/share/icons/hicolor/scalable/apps/io.github.benapetr.TuxManager.svg" \
+    --icon-file "$APPDIR/usr/share/icons/hicolor/scalable/apps/tux_manager_icon.svg" \
     --plugin qt \
     --output appimage
 

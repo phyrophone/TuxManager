@@ -108,10 +108,10 @@ package() {
     install -Dm755 "build/tux-manager" "\${pkgdir}/usr/bin/tux-manager"
     install -Dm644 README.md "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
     install -Dm644 LICENSE "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
-    install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.desktop \
+    install -Dm644 packaging/data/io.github.benapetr.TuxManager.desktop \
         "\${pkgdir}/usr/share/applications/io.github.benapetr.TuxManager.desktop"
-    install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.svg \
-        "\${pkgdir}/usr/share/icons/hicolor/scalable/apps/io.github.benapetr.TuxManager.svg"
+    install -Dm644 src/tux_manager_icon.svg \
+        "\${pkgdir}/usr/share/icons/hicolor/scalable/apps/tux_manager_icon.svg"
     install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.metainfo.xml \
         "\${pkgdir}/usr/share/metainfo/io.github.benapetr.TuxManager.metainfo.xml"
 }

@@ -24,9 +24,9 @@ modules:
       - qmake6 src/TuxManager.pro -o build/Makefile
       - make -C build -j${FLATPAK_BUILDER_N_JOBS}
       - install -Dm755 build/tux-manager /app/bin/tux-manager
-      - install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.desktop /app/share/applications/io.github.benapetr.TuxManager.desktop
+      - install -Dm644 packaging/data/io.github.benapetr.TuxManager.desktop /app/share/applications/io.github.benapetr.TuxManager.desktop
       - install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.metainfo.xml /app/share/metainfo/io.github.benapetr.TuxManager.metainfo.xml
-      - install -Dm644 packaging/flatpak/io.github.benapetr.TuxManager.svg /app/share/icons/hicolor/scalable/apps/io.github.benapetr.TuxManager.svg
+      - install -Dm644 src/tux_manager_icon.svg /app/share/icons/hicolor/scalable/apps/tux_manager_icon.svg
     sources:
       - type: dir
         path: ../../

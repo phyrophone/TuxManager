@@ -74,7 +74,7 @@ linuxdeploy-plugin-appimage --help
 
 Notes:
 - `linuxdeploy`, `linuxdeploy-plugin-qt`, and `linuxdeploy-plugin-appimage` must be available in `PATH`.
-- The script reuses the desktop/icon metadata from `packaging/flatpak/`.
+- The script reuses the desktop metadata from `packaging/data/` and the app icon from `src/tux_manager_icon.svg`.
 - The resulting AppImage is written to `packaging/output/`.
 
 ### Arch Linux / AUR

@@ -210,25 +210,14 @@ install -Dm755 release/tux-manager %{buildroot}%{_bindir}/$APP_NAME
 install -Dm644 README.md %{buildroot}%{_docdir}/$APP_NAME/README.md
 install -Dm644 LICENSE %{buildroot}%{_docdir}/$APP_NAME/LICENSE
 
-install -d %{buildroot}%{_datadir}/applications
-cat <<'DESKTOP' > %{buildroot}%{_datadir}/applications/$APP_NAME.desktop
-[Desktop Entry]
-Type=Application
-Name=Tux Manager
-Comment=Linux system monitor inspired by Windows Task Manager
-Exec=$APP_NAME
-Icon=/usr/share/pixmaps/tux_manager_icon.svg
-Categories=System;Monitor;
-Terminal=false
-DESKTOP
-
+install -Dm644 packaging/data/io.github.benapetr.TuxManager.desktop %{buildroot}%{_datadir}/applications/io.github.benapetr.TuxManager.desktop
 install -Dm644 src/tux_manager_icon.svg %{buildroot}%{_datadir}/pixmaps/tux_manager_icon.svg
 
 %files
 %license %{_docdir}/$APP_NAME/LICENSE
 %doc %{_docdir}/$APP_NAME/README.md
 %{_bindir}/$APP_NAME
-%{_datadir}/applications/$APP_NAME.desktop
+%{_datadir}/applications/io.github.benapetr.TuxManager.desktop
 %{_datadir}/pixmaps/tux_manager_icon.svg
 
 %changelog
