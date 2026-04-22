@@ -1,4 +1,6 @@
 # Future
+
+# 1.0.5
   * Perf -> Network:
       * Show all IPv6 addrs instead of just the first one
       * Implemented toggle between bytes vs bits for NICs

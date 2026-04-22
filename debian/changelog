@@ -1,3 +1,15 @@
+tux-manager (1.0.5) unstable; urgency=medium
+
+  * Perf -> Network:
+    - Show all IPv6 addrs instead of just the first one
+    - Implemented toggle between bytes vs bits for NICs
+  * UI: minor visual fixes of services table
+  * Implemented ability to reorder performance widgets in side panel
+  * Expose more NVML metrics: freq and power usage
+  * Support for AMD GPUs via AMDSMI
+
+ -- Petr Bena <petr@bena.rocks>  Wed, 22 Apr 2026 12:00:00 +0200
+
 tux-manager (1.0.4) unstable; urgency=medium
 
   * Services control (via d-bus / systemctl)
