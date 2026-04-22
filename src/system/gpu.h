@@ -28,6 +28,7 @@
 
 class GpuNvmlBackend;
 class GpuAmdSmiBackend;
+class GpuIntelSysmanBackend;
 class GpuDrmBackend;
 
 class GPU
@@ -87,6 +88,7 @@ class GPU
         std::vector<std::unique_ptr<GPUInfo>>    m_gpus;
         std::unique_ptr<GpuNvmlBackend>  m_nvmlBackend;
         std::unique_ptr<GpuAmdSmiBackend> m_amdSmiBackend;
+        std::unique_ptr<GpuIntelSysmanBackend> m_intelSysmanBackend;
         std::unique_ptr<GpuDrmBackend>   m_drmBackend;
 };
 

@@ -21,6 +21,7 @@ SOURCES += \
     system/gpu.cpp \
     system/gpu/amdsmibackend.cpp \
     system/gpu/drmbackend.cpp \
+    system/gpu/intelsysmanbackend.cpp \
     system/gpu/nvmlbackend.cpp \
     system/kernel.cpp \
     system/memory.cpp \
@@ -74,6 +75,7 @@ HEADERS += \
     system/gpu.h \
     system/gpu/amdsmibackend.h \
     system/gpu/drmbackend.h \
+    system/gpu/intelsysmanbackend.h \
     system/gpu/nvmlbackend.h \
     system/kernel.h \
     system/memory.h \

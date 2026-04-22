@@ -19,6 +19,7 @@
 #include "gpu.h"
 #include "gpu/amdsmibackend.h"
 #include "gpu/drmbackend.h"
+#include "gpu/intelsysmanbackend.h"
 #include "gpu/nvmlbackend.h"
 #include "../configuration.h"
 #include "../logger.h"
@@ -26,6 +27,7 @@
 GPU::GPU() :
     m_nvmlBackend(std::make_unique<GpuNvmlBackend>()),
     m_amdSmiBackend(std::make_unique<GpuAmdSmiBackend>()),
+    m_intelSysmanBackend(std::make_unique<GpuIntelSysmanBackend>()),
     m_drmBackend(std::make_unique<GpuDrmBackend>())
 {
     this->detectGpuBackends();
@@ -58,13 +60,16 @@ void GPU::detectGpuBackends()
     if (CFG->ForceGpuDrm)
     {
         LOG_INFO("GPU backend detection forced to DRM via --force-drm");
-        this->m_drmBackend->Detect(false, false);
+        this->m_drmBackend->Detect(false, false, false);
         return;
     }
 
     this->m_nvmlBackend->Detect();
     this->m_amdSmiBackend->Detect();
-    this->m_drmBackend->Detect(this->m_nvmlBackend->IsAvailable(), this->m_amdSmiBackend->IsAvailable());
+    this->m_intelSysmanBackend->Detect();
+    this->m_drmBackend->Detect(this->m_nvmlBackend->IsAvailable(),
+                               this->m_amdSmiBackend->IsAvailable(),
+                               this->m_intelSysmanBackend->IsAvailable());
 }
 
 bool GPU::Sample()
@@ -74,6 +79,8 @@ bool GPU::Sample()
         ok |= this->m_nvmlBackend->Sample(this->m_gpus);
     if (this->m_amdSmiBackend->IsAvailable())
         ok |= this->m_amdSmiBackend->Sample(this->m_gpus);
+    if (this->m_intelSysmanBackend->IsAvailable())
+        ok |= this->m_intelSysmanBackend->Sample(this->m_gpus);
     if (this->m_drmBackend->HasCards())
         ok |= this->m_drmBackend->Sample(this->m_gpus);
     return ok;
@@ -83,5 +90,6 @@ void GPU::unloadGpuBackends()
 {
     this->m_nvmlBackend.reset();
     this->m_amdSmiBackend.reset();
+    this->m_intelSysmanBackend.reset();
     this->m_drmBackend.reset();
 }

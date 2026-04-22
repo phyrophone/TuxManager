@@ -30,17 +30,24 @@
 class GpuDrmBackend
 {
     public:
-        void Detect(bool skipNvidia, bool skipAmd);
+        void Detect(bool skipNvidia, bool skipAmd, bool skipIntel);
         bool Sample(std::vector<std::unique_ptr<GPU::GPUInfo>> &gpus);
         bool HasCards() const { return !this->m_cards.isEmpty(); }
 
     private:
+        enum class SamplerKind
+        {
+            Amd,
+            Intel
+        };
+
         struct DRMCard
         {
             QString ID;
             QString Vendor;
             QString DriverName;
             QString DriverVersion;
+            SamplerKind Sampler { SamplerKind::Amd };
             QString BusyPath;
             QString VramTotalPath;
             QString VramUsedPath;
@@ -53,6 +60,8 @@ class GpuDrmBackend
             QStringList CachedFDInfoPaths;
         };
 
+        bool sampleAmdCard(DRMCard &card, GPU::GPUInfo &gpu, qint64 fdInfoElapsedNs);
+        bool sampleIntelCard(DRMCard &card, GPU::GPUInfo &gpu, qint64 fdInfoElapsedNs);
         QHash<QString, qint64> scanFdInfoEngines(DRMCard &card);
 
         QVector<DRMCard>   m_cards;

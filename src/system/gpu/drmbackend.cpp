@@ -29,6 +29,16 @@
 
 namespace
 {
+    bool isIntelDrmDriver(const QString &driverName)
+    {
+        return driverName == QLatin1String("i915") || driverName == QLatin1String("xe");
+    }
+
+    bool isAmdDrmDriver(const QString &driverName)
+    {
+        return driverName == QLatin1String("amdgpu");
+    }
+
     bool shouldIgnoreDrmGpu(const QString &driverName, const QString &uevent)
     {
         static const QStringList ignoreTokens {
@@ -78,7 +88,7 @@ namespace
     }
 }
 
-void GpuDrmBackend::Detect(bool skipNvidia, bool skipAmd)
+void GpuDrmBackend::Detect(bool skipNvidia, bool skipAmd, bool skipIntel)
 {
     LOG_DEBUG("Detecting DRM GPUs");
 
@@ -95,10 +105,6 @@ void GpuDrmBackend::Detect(bool skipNvidia, bool skipAmd)
         const QString devPath = drmDir.filePath(entry + QStringLiteral("/device"));
         const QString vendorStr = Misc::ReadFile(devPath + QStringLiteral("/vendor")).trimmed();
         const QString uevent = Misc::ReadFile(devPath + QStringLiteral("/uevent"));
-
-        // Skip nvidia and AMD cards - they are handled by NVML and amdsmi backends instead of this
-        if ((skipNvidia && vendorStr == QLatin1String("0x10de")) || (skipAmd && vendorStr == QLatin1String("0x1002")))
-            continue;
 
         DRMCard card;
         card.Vendor = vendorStr;
@@ -129,6 +135,11 @@ void GpuDrmBackend::Detect(bool skipNvidia, bool skipAmd)
             card.DriverName = Misc::FileNameFromSymlink(devPath + QStringLiteral("/driver"));
 
         if (shouldIgnoreDrmGpu(card.DriverName, uevent))
+            continue;
+
+        if ((skipNvidia && vendorStr == QLatin1String("0x10de"))
+            || (skipAmd && vendorStr == QLatin1String("0x1002"))
+            || (skipIntel && vendorStr == QLatin1String("0x8086")))
             continue;
 
         if (!card.DriverName.isEmpty())
@@ -171,6 +182,18 @@ void GpuDrmBackend::Detect(bool skipNvidia, bool skipAmd)
             card.GttUsedPath = gttUsed;
         }
 
+        if (isAmdDrmDriver(card.DriverName) || card.Vendor == QLatin1String("0x1002"))
+            card.Sampler = SamplerKind::Amd;
+        else if (isIntelDrmDriver(card.DriverName) || card.Vendor == QLatin1String("0x8086"))
+            card.Sampler = SamplerKind::Intel;
+        else
+        {
+            const QString driverLabel = card.DriverName.isEmpty() ? QStringLiteral("<unknown>") : card.DriverName;
+            LOG_DEBUG(QStringLiteral("Ignoring unsupported DRM GPU %1 (vendor=%2, driver=%3)")
+                          .arg(entry, vendorStr, driverLabel));
+            continue;
+        }
+
         LOG_DEBUG("Found DRM GPU: " + entry);
         this->m_cards.append(card);
     }
@@ -196,127 +219,280 @@ bool GpuDrmBackend::Sample(std::vector<std::unique_ptr<GPU::GPUInfo>> &gpus)
         else
             gpu.Name = QStringLiteral("GPU");
 
-        gpu.TemperatureC = -1;
-        gpu.CoreClockMHz = -1;
-        gpu.PowerUsageW = -1.0;
-
-        if (!card.BusyPath.isEmpty())
+        switch (card.Sampler)
         {
-            bool ok = false;
-            const int pct = Misc::ReadFile(card.BusyPath).trimmed().toInt(&ok);
-            gpu.UtilPct = ok ? qBound(0.0, static_cast<double>(pct), 100.0) : 0.0;
+            case SamplerKind::Amd:
+                this->sampleAmdCard(card, gpu, fdInfoElapsedNs);
+                break;
+            case SamplerKind::Intel:
+                this->sampleIntelCard(card, gpu, fdInfoElapsedNs);
+                break;
         }
-        else
-        {
-            gpu.UtilPct = 0.0;
-        }
-        gpu.UtilHistory.Push(gpu.UtilPct);
-
-        if (!card.TempPath.isEmpty())
-        {
-            bool ok = false;
-            const int milliC = Misc::ReadFile(card.TempPath).trimmed().toInt(&ok);
-            gpu.TemperatureC = ok ? milliC / 1000 : -1;
-        }
-
-        if (!card.VramTotalPath.isEmpty())
-        {
-            bool okTotal = false;
-            bool okUsed = false;
-            const qint64 total = Misc::ReadFile(card.VramTotalPath).trimmed().toLongLong(&okTotal);
-            const qint64 used = Misc::ReadFile(card.VramUsedPath).trimmed().toLongLong(&okUsed);
-            gpu.MemTotalMiB = okTotal ? total / (1024LL * 1024LL) : 0;
-            gpu.MemUsedMiB = okUsed ? used / (1024LL * 1024LL) : 0;
-        }
-
-        if (!card.GttTotalPath.isEmpty())
-        {
-            bool okTotal = false;
-            bool okUsed = false;
-            const qint64 total = Misc::ReadFile(card.GttTotalPath).trimmed().toLongLong(&okTotal);
-            const qint64 used = Misc::ReadFile(card.GttUsedPath).trimmed().toLongLong(&okUsed);
-            gpu.SharedMemTotalMiB = okTotal ? total / (1024LL * 1024LL) : 0;
-            gpu.SharedMemUsedMiB = okUsed ? used / (1024LL * 1024LL) : 0;
-        }
-
-        const double memPct = gpu.MemTotalMiB > 0
-                                  ? static_cast<double>(gpu.MemUsedMiB) / static_cast<double>(gpu.MemTotalMiB) * 100.0
-                                  : 0.0;
-        gpu.MemUsageHistory.Push(memPct);
-
-        const double sharedPct = gpu.SharedMemTotalMiB > 0
-                                     ? static_cast<double>(gpu.SharedMemUsedMiB) / static_cast<double>(gpu.SharedMemTotalMiB) * 100.0
-                                     : 0.0;
-        gpu.SharedMemHistory.Push(sharedPct);
-
-        gpu.CopyTxHistory.Push(0.0);
-        gpu.CopyRxHistory.Push(0.0);
-
-        QSet<QString> seenEngineKeys;
-        auto addEngine = [&](const QString &key, const QString &label, double pct)
-        {
-            GPU::GPUEngineInfo *engine = gpu.FindEngine(key);
-            if (!engine)
-            {
-                auto newEngine = std::make_unique<GPU::GPUEngineInfo>();
-                newEngine->Key = key;
-                newEngine->Label = label;
-                gpu.Engines.push_back(std::move(newEngine));
-                engine = gpu.Engines.back().get();
-            }
-            engine->Pct = qBound(0.0, pct, 100.0);
-            engine->History.Push(engine->Pct);
-            seenEngineKeys.insert(key);
-        };
-
-        if (!card.BusyPath.isEmpty())
-            addEngine(QStringLiteral("gfx"), QStringLiteral("GFX"), gpu.UtilPct);
-
-        for (const auto &enginePath : std::as_const(card.EngineBusyPaths))
-        {
-            bool ok = false;
-            const int pct = Misc::ReadFile(enginePath.second).trimmed().toInt(&ok);
-            addEngine(enginePath.first, enginePath.first.toUpper(), ok ? static_cast<double>(pct) : 0.0);
-        }
-
-        if (!card.RenderNodePath.isEmpty())
-        {
-            const QHash<QString, qint64> curNs = this->scanFdInfoEngines(card);
-            QSet<QString> sysFsKeys;
-            sysFsKeys.insert(QStringLiteral("gfx"));
-            for (const auto &enginePath : std::as_const(card.EngineBusyPaths))
-                sysFsKeys.insert(enginePath.first);
-
-            for (auto it = curNs.cbegin(); it != curNs.cend(); ++it)
-            {
-                if (sysFsKeys.contains(it.key()))
-                    continue;
-
-                double pct = 0.0;
-                if (fdInfoElapsedNs > 0 && gpu.PrevFDInfoEngineNs.contains(it.key()))
-                {
-                    const qint64 delta = it.value() - gpu.PrevFDInfoEngineNs.value(it.key());
-                    pct = static_cast<double>(delta) / static_cast<double>(fdInfoElapsedNs) * 100.0;
-                }
-
-                QString label = it.key();
-                for (int i = 0; i < label.size(); ++i)
-                {
-                    if (i == 0 || label[i - 1] == QLatin1Char('-'))
-                        label[i] = label[i].toUpper();
-                }
-                addEngine(it.key(), label, pct);
-            }
-            gpu.PrevFDInfoEngineNs = curNs;
-        }
-
-        zeroMissingEngines(gpu, seenEngineKeys);
     }
 
     this->m_fdInfoTimer.start();
     this->m_fdInfoTimerStarted = true;
 
     return !this->m_cards.isEmpty();
+}
+
+bool GpuDrmBackend::sampleAmdCard(DRMCard &card, GPU::GPUInfo &gpu, qint64 fdInfoElapsedNs)
+{
+    gpu.TemperatureC = -1;
+    gpu.CoreClockMHz = -1;
+    gpu.PowerUsageW = -1.0;
+
+    if (!card.BusyPath.isEmpty())
+    {
+        bool ok = false;
+        const int pct = Misc::ReadFile(card.BusyPath).trimmed().toInt(&ok);
+        gpu.UtilPct = ok ? qBound(0.0, static_cast<double>(pct), 100.0) : 0.0;
+    }
+    else
+    {
+        gpu.UtilPct = 0.0;
+    }
+    gpu.UtilHistory.Push(gpu.UtilPct);
+
+    if (!card.TempPath.isEmpty())
+    {
+        bool ok = false;
+        const int milliC = Misc::ReadFile(card.TempPath).trimmed().toInt(&ok);
+        gpu.TemperatureC = ok ? milliC / 1000 : -1;
+    }
+
+    if (!card.VramTotalPath.isEmpty())
+    {
+        bool okTotal = false;
+        bool okUsed = false;
+        const qint64 total = Misc::ReadFile(card.VramTotalPath).trimmed().toLongLong(&okTotal);
+        const qint64 used = Misc::ReadFile(card.VramUsedPath).trimmed().toLongLong(&okUsed);
+        gpu.MemTotalMiB = okTotal ? total / (1024LL * 1024LL) : 0;
+        gpu.MemUsedMiB = okUsed ? used / (1024LL * 1024LL) : 0;
+    }
+    else
+    {
+        gpu.MemTotalMiB = 0;
+        gpu.MemUsedMiB = 0;
+    }
+
+    if (!card.GttTotalPath.isEmpty())
+    {
+        bool okTotal = false;
+        bool okUsed = false;
+        const qint64 total = Misc::ReadFile(card.GttTotalPath).trimmed().toLongLong(&okTotal);
+        const qint64 used = Misc::ReadFile(card.GttUsedPath).trimmed().toLongLong(&okUsed);
+        gpu.SharedMemTotalMiB = okTotal ? total / (1024LL * 1024LL) : 0;
+        gpu.SharedMemUsedMiB = okUsed ? used / (1024LL * 1024LL) : 0;
+    }
+    else
+    {
+        gpu.SharedMemTotalMiB = 0;
+        gpu.SharedMemUsedMiB = 0;
+    }
+
+    const double memPct = gpu.MemTotalMiB > 0
+                              ? static_cast<double>(gpu.MemUsedMiB) / static_cast<double>(gpu.MemTotalMiB) * 100.0
+                              : 0.0;
+    gpu.MemUsageHistory.Push(memPct);
+
+    const double sharedPct = gpu.SharedMemTotalMiB > 0
+                                 ? static_cast<double>(gpu.SharedMemUsedMiB) / static_cast<double>(gpu.SharedMemTotalMiB) * 100.0
+                                 : 0.0;
+    gpu.SharedMemHistory.Push(sharedPct);
+
+    gpu.CopyTxHistory.Push(0.0);
+    gpu.CopyRxHistory.Push(0.0);
+
+    QSet<QString> seenEngineKeys;
+    auto addEngine = [&](const QString &key, const QString &label, double pct)
+    {
+        GPU::GPUEngineInfo *engine = gpu.FindEngine(key);
+        if (!engine)
+        {
+            auto newEngine = std::make_unique<GPU::GPUEngineInfo>();
+            newEngine->Key = key;
+            newEngine->Label = label;
+            gpu.Engines.push_back(std::move(newEngine));
+            engine = gpu.Engines.back().get();
+        }
+        engine->Pct = qBound(0.0, pct, 100.0);
+        engine->History.Push(engine->Pct);
+        seenEngineKeys.insert(key);
+    };
+
+    if (!card.BusyPath.isEmpty())
+        addEngine(QStringLiteral("gfx"), QStringLiteral("GFX"), gpu.UtilPct);
+
+    for (const auto &enginePath : std::as_const(card.EngineBusyPaths))
+    {
+        bool ok = false;
+        const int pct = Misc::ReadFile(enginePath.second).trimmed().toInt(&ok);
+        addEngine(enginePath.first, enginePath.first.toUpper(), ok ? static_cast<double>(pct) : 0.0);
+    }
+
+    if (!card.RenderNodePath.isEmpty())
+    {
+        const QHash<QString, qint64> curNs = this->scanFdInfoEngines(card);
+        QSet<QString> sysFsKeys;
+        sysFsKeys.insert(QStringLiteral("gfx"));
+        for (const auto &enginePath : std::as_const(card.EngineBusyPaths))
+            sysFsKeys.insert(enginePath.first);
+
+        for (auto it = curNs.cbegin(); it != curNs.cend(); ++it)
+        {
+            if (sysFsKeys.contains(it.key()))
+                continue;
+
+            double pct = 0.0;
+            if (fdInfoElapsedNs > 0 && gpu.PrevFDInfoEngineNs.contains(it.key()))
+            {
+                const qint64 delta = it.value() - gpu.PrevFDInfoEngineNs.value(it.key());
+                pct = static_cast<double>(delta) / static_cast<double>(fdInfoElapsedNs) * 100.0;
+            }
+
+            QString label = it.key();
+            for (int i = 0; i < label.size(); ++i)
+            {
+                if (i == 0 || label[i - 1] == QLatin1Char('-'))
+                    label[i] = label[i].toUpper();
+            }
+            addEngine(it.key(), label, pct);
+        }
+        gpu.PrevFDInfoEngineNs = curNs;
+    }
+
+    zeroMissingEngines(gpu, seenEngineKeys);
+    return true;
+}
+
+bool GpuDrmBackend::sampleIntelCard(DRMCard &card, GPU::GPUInfo &gpu, qint64 fdInfoElapsedNs)
+{
+    gpu.TemperatureC = -1;
+    gpu.CoreClockMHz = -1;
+    gpu.PowerUsageW = -1.0;
+    gpu.UtilPct = 0.0;
+    gpu.CopyTxBps = 0.0;
+    gpu.CopyRxBps = 0.0;
+
+    if (!card.TempPath.isEmpty())
+    {
+        bool ok = false;
+        const int milliC = Misc::ReadFile(card.TempPath).trimmed().toInt(&ok);
+        gpu.TemperatureC = ok ? milliC / 1000 : -1;
+    }
+
+    if (!card.VramTotalPath.isEmpty())
+    {
+        bool okTotal = false;
+        bool okUsed = false;
+        const qint64 total = Misc::ReadFile(card.VramTotalPath).trimmed().toLongLong(&okTotal);
+        const qint64 used = Misc::ReadFile(card.VramUsedPath).trimmed().toLongLong(&okUsed);
+        gpu.MemTotalMiB = okTotal ? total / (1024LL * 1024LL) : 0;
+        gpu.MemUsedMiB = okUsed ? used / (1024LL * 1024LL) : 0;
+    }
+    else
+    {
+        gpu.MemTotalMiB = 0;
+        gpu.MemUsedMiB = 0;
+    }
+
+    if (!card.GttTotalPath.isEmpty())
+    {
+        bool okTotal = false;
+        bool okUsed = false;
+        const qint64 total = Misc::ReadFile(card.GttTotalPath).trimmed().toLongLong(&okTotal);
+        const qint64 used = Misc::ReadFile(card.GttUsedPath).trimmed().toLongLong(&okUsed);
+        gpu.SharedMemTotalMiB = okTotal ? total / (1024LL * 1024LL) : 0;
+        gpu.SharedMemUsedMiB = okUsed ? used / (1024LL * 1024LL) : 0;
+    }
+    else
+    {
+        gpu.SharedMemTotalMiB = 0;
+        gpu.SharedMemUsedMiB = 0;
+    }
+
+    QSet<QString> seenEngineKeys;
+    auto addEngine = [&](const QString &key, const QString &label, double pct)
+    {
+        GPU::GPUEngineInfo *engine = gpu.FindEngine(key);
+        if (!engine)
+        {
+            auto newEngine = std::make_unique<GPU::GPUEngineInfo>();
+            newEngine->Key = key;
+            newEngine->Label = label;
+            gpu.Engines.push_back(std::move(newEngine));
+            engine = gpu.Engines.back().get();
+        }
+        engine->Pct = qBound(0.0, pct, 100.0);
+        engine->History.Push(engine->Pct);
+        seenEngineKeys.insert(key);
+    };
+
+    QHash<QString, qint64> curNs;
+    if (!card.RenderNodePath.isEmpty())
+        curNs = this->scanFdInfoEngines(card);
+
+    double totalUtil = 0.0;
+    for (auto it = curNs.cbegin(); it != curNs.cend(); ++it)
+    {
+        double pct = 0.0;
+        if (fdInfoElapsedNs > 0 && gpu.PrevFDInfoEngineNs.contains(it.key()))
+        {
+            const qint64 delta = it.value() - gpu.PrevFDInfoEngineNs.value(it.key());
+            pct = static_cast<double>(delta) / static_cast<double>(fdInfoElapsedNs) * 100.0;
+        }
+
+        QString label;
+        QString key = it.key();
+        if (key == QLatin1String("rcs"))
+            label = QStringLiteral("Render");
+        else if (key == QLatin1String("ccs"))
+            label = QStringLiteral("Compute");
+        else if (key.startsWith(QLatin1String("ccs")))
+            label = QStringLiteral("Compute ") + key.mid(3);
+        else if (key.startsWith(QLatin1String("vcs")))
+            label = QStringLiteral("Video");
+        else if (key.startsWith(QLatin1String("vecs")))
+            label = QStringLiteral("Video Enhance");
+        else if (key.startsWith(QLatin1String("bcs")))
+            label = QStringLiteral("Copy");
+        else
+            label = key.toUpper();
+
+        addEngine(key, label, pct);
+        totalUtil += pct;
+    }
+
+    gpu.PrevFDInfoEngineNs = curNs;
+
+    if (!card.BusyPath.isEmpty())
+    {
+        bool ok = false;
+        const int pct = Misc::ReadFile(card.BusyPath).trimmed().toInt(&ok);
+        gpu.UtilPct = ok ? qBound(0.0, static_cast<double>(pct), 100.0) : qBound(0.0, totalUtil, 100.0);
+    }
+    else
+    {
+        gpu.UtilPct = qBound(0.0, totalUtil, 100.0);
+    }
+    gpu.UtilHistory.Push(gpu.UtilPct);
+
+    const double memPct = gpu.MemTotalMiB > 0
+                              ? static_cast<double>(gpu.MemUsedMiB) / static_cast<double>(gpu.MemTotalMiB) * 100.0
+                              : 0.0;
+    gpu.MemUsageHistory.Push(memPct);
+
+    const double sharedPct = gpu.SharedMemTotalMiB > 0
+                                 ? static_cast<double>(gpu.SharedMemUsedMiB) / static_cast<double>(gpu.SharedMemTotalMiB) * 100.0
+                                 : 0.0;
+    gpu.SharedMemHistory.Push(sharedPct);
+
+    gpu.CopyTxHistory.Push(0.0);
+    gpu.CopyRxHistory.Push(0.0);
+
+    zeroMissingEngines(gpu, seenEngineKeys);
+    return true;
 }
 
 QHash<QString, qint64> GpuDrmBackend::scanFdInfoEngines(DRMCard &card)
