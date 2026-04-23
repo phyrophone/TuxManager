@@ -89,10 +89,12 @@ class ColorScheme
         QColor AxisLabelColor;
         QColor MemoryLegendTextColor;
         QColor MemoryLegendUsedColor;
+        QColor MemoryLegendCompressedColor;
         QColor MemoryLegendDirtyColor;
         QColor MemoryLegendCachedColor;
         QColor MemoryLegendFreeColor;
         QColor MemoryBarUsedColor;
+        QColor MemoryBarCompressedColor;
         QColor MemoryBarDirtyColor;
         QColor MemoryBarCachedColor;
         QColor MemoryBarFreeColor;

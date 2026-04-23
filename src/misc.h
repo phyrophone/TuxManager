@@ -49,6 +49,9 @@ namespace Misc
     //! Formats a MiB quantity using binary units (B, KB, MB, GB, TB).
     QString FormatMiB(quint64 mebibytes, int precision = 1);
 
+    //! Converts bytes to KiB, rounding up so partial KiB still count toward memory usage.
+    qint64 BytesToKiB(quint64 bytes);
+
     quint16 ReadLe16(const QByteArray &raw, int off);
     quint32 ReadLe32(const QByteArray &raw, int off);
 

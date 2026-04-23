@@ -44,6 +44,8 @@ namespace Perf
             void onUpdated();
 
         private:
+            void updateCompressedVisibility(bool visible);
+
             Ui::MemoryDetailWidget *ui;
             const HistoryBuffer  *m_memHistory { nullptr };
     };

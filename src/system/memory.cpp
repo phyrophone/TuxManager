@@ -21,6 +21,55 @@
 #include <QDir>
 #include <QFile>
 
+namespace
+{
+    struct ZramStats
+    {
+        qint64 CompressedKb { 0 };
+        qint64 MemUsedKb { 0 };
+        bool HasZram { false };
+    };
+
+    ZramStats readZramStats()
+    {
+        ZramStats stats;
+        const QDir zramDir("/sys/block");
+        const QStringList devices = zramDir.entryList(QStringList() << "zram*", QDir::Dirs | QDir::NoDotAndDotDot);
+
+        for (const QString &device : devices)
+        {
+            const QString basePath = zramDir.absoluteFilePath(device);
+            const QString diskSizeText = Misc::ReadFile(basePath + "/disksize");
+            bool sizeOk = false;
+            const quint64 diskSize = diskSizeText.toULongLong(&sizeOk);
+            if (!sizeOk || diskSize == 0)
+                continue;
+
+            stats.HasZram = true;
+
+            QFile mmStatFile(basePath + "/mm_stat");
+            if (!mmStatFile.open(QIODevice::ReadOnly | QIODevice::Text))
+                continue;
+
+            const QStringList fields = QString::fromUtf8(mmStatFile.readLine()).simplified().split(' ', Qt::SkipEmptyParts);
+            mmStatFile.close();
+            if (fields.size() < 3)
+                continue;
+
+            bool origOk = false;
+            bool memOk = false;
+            const quint64 origBytes = fields.at(0).toULongLong(&origOk);
+            const quint64 memBytes = fields.at(2).toULongLong(&memOk);
+            if (origOk)
+                stats.CompressedKb += Misc::BytesToKiB(origBytes);
+            if (memOk)
+                stats.MemUsedKb += Misc::BytesToKiB(memBytes);
+        }
+
+        return stats;
+    }
+}
+
 Memory::Memory()
 {
     this->readHardwareMetadata();
@@ -71,16 +120,23 @@ bool Memory::Sample()
     // htop formula: used = total - free - buffers - page_cache
     // where page_cache = Cached + SReclaimable - Shmem
     const qint64 pageCache = cached + sReclaimable - shmem;
+    const ZramStats zramStats = readZramStats();
+    const qint64 memUsed = qMax(0LL, memTotal - memFree - buffers - pageCache);
 
     this->m_memTotalKb   = memTotal;
     this->m_memAvailKb   = memAvail;
     this->m_memFreeKb    = memFree;
     this->m_memBuffersKb = buffers;
     this->m_memDirtyKb   = dirty + writeback;
+    this->m_zramCompressedKb = zramStats.CompressedKb;
+    this->m_zramMemUsedKb = zramStats.MemUsedKb;
+    this->m_hasZram = zramStats.HasZram;
     // Full page cache including buffers (what we show in stats and composition bar)
     this->m_memCachedKb  = buffers + pageCache;
-    // htop's "used" (processes' non-reclaimable footprint)
-    this->m_memUsedKb    = qMax(0LL, memTotal - memFree - buffers - pageCache);
+    // RAM used, including zram pools.
+    this->m_memUsedKb    = memUsed;
+    // Non-zram in-use RAM for composition views that split compressed memory out separately.
+    this->m_memUsedNonZramKb = qMax(0LL, memUsed - this->m_zramMemUsedKb);
 
     // Graph tracks used / total (htop formula matches the green bar)
     const double frac = (memTotal > 0) ? static_cast<double>(this->m_memUsedKb) / static_cast<double>(memTotal) : 0.0;

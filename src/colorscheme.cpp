@@ -72,10 +72,12 @@ namespace
         { "AxisLabelColor", &ColorScheme::AxisLabelColor },
         { "MemoryLegendTextColor", &ColorScheme::MemoryLegendTextColor },
         { "MemoryLegendUsedColor", &ColorScheme::MemoryLegendUsedColor },
+        { "MemoryLegendCompressedColor", &ColorScheme::MemoryLegendCompressedColor },
         { "MemoryLegendDirtyColor", &ColorScheme::MemoryLegendDirtyColor },
         { "MemoryLegendCachedColor", &ColorScheme::MemoryLegendCachedColor },
         { "MemoryLegendFreeColor", &ColorScheme::MemoryLegendFreeColor },
         { "MemoryBarUsedColor", &ColorScheme::MemoryBarUsedColor },
+        { "MemoryBarCompressedColor", &ColorScheme::MemoryBarCompressedColor },
         { "MemoryBarDirtyColor", &ColorScheme::MemoryBarDirtyColor },
         { "MemoryBarCachedColor", &ColorScheme::MemoryBarCachedColor },
         { "MemoryBarFreeColor", &ColorScheme::MemoryBarFreeColor },
@@ -185,10 +187,12 @@ ColorScheme ColorScheme::DefaultDark()
     scheme.AxisLabelColor = QColor(0x66, 0x66, 0x66);
     scheme.MemoryLegendTextColor = QColor(0xaa, 0xaa, 0xaa);
     scheme.MemoryLegendUsedColor = scheme.MemoryGraphLineColor;
+    scheme.MemoryLegendCompressedColor = QColor(0xbb, 0x88, 0xbb);
     scheme.MemoryLegendDirtyColor = QColor(0xbb, 0x88, 0x00);
     scheme.MemoryLegendCachedColor = QColor(0x55, 0x22, 0x55);
     scheme.MemoryLegendFreeColor = QColor(0x33, 0x33, 0x33);
     scheme.MemoryBarUsedColor = scheme.MemoryGraphLineColor;
+    scheme.MemoryBarCompressedColor = QColor(0x66, 0x33, 0x66);
     scheme.MemoryBarDirtyColor = QColor(0xbb, 0x88, 0x00);
     scheme.MemoryBarCachedColor = QColor(0x55, 0x22, 0x55);
     scheme.MemoryBarFreeColor = QColor(0x11, 0x08, 0x11);
@@ -245,10 +249,12 @@ ColorScheme ColorScheme::DefaultLight()
     scheme.AxisLabelColor = QColor(0x6d, 0x6d, 0x6d);
     scheme.MemoryLegendTextColor = QColor(0x77, 0x77, 0x77);
     scheme.MemoryLegendUsedColor = scheme.MemoryGraphLineColor;
+    scheme.MemoryLegendCompressedColor = QColor(0xc0, 0x6f, 0xc0);
     scheme.MemoryLegendDirtyColor = QColor(0xb0, 0x85, 0x23);
     scheme.MemoryLegendCachedColor = QColor(0x9b, 0x75, 0x9b);
     scheme.MemoryLegendFreeColor = QColor(0x8c, 0x8c, 0x8c);
     scheme.MemoryBarUsedColor = QColor(0xc9, 0x7f, 0xc9);
+    scheme.MemoryBarCompressedColor = QColor(0x9a, 0x57, 0x9a);
     scheme.MemoryBarDirtyColor = QColor(0xd1, 0xa0, 0x3e);
     scheme.MemoryBarCachedColor = QColor(0xd7, 0xbf, 0xd7);
     scheme.MemoryBarFreeColor = QColor(0xe9, 0xe9, 0xe9);

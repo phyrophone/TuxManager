@@ -26,14 +26,15 @@ namespace Perf
 {
     /// Horizontal segmented bar showing memory composition.
     ///
-    /// Four segments are drawn left→right to fill the full widget width:
+    /// Five segments are drawn left→right to fill the full widget width:
     ///   1. Used   — processes' non-reclaimable footprint  (bright purple)
-    ///   2. Dirty  — Dirty + Writeback pages               (amber)
-    ///   3. Cached — reclaimable page cache (clean part)   (muted purple)
-    ///   4. Free   — MemFree                               (near-background)
+    ///   2. Compressed — zram's physical RAM footprint     (teal)
+    ///   3. Dirty  — Dirty + Writeback pages               (amber)
+    ///   4. Cached — reclaimable page cache (clean part)   (muted purple)
+    ///   5. Free   — MemFree                               (near-background)
     ///
     /// All values are in any consistent unit (e.g. kB). They must satisfy:
-    ///   used + dirty + cached + free == total
+    ///   used + compressed + dirty + cached + free == total
     /// (cached here is the full cache including buffers; dirty is a subset of it)
     class MemoryBar : public QWidget
     {
@@ -43,7 +44,7 @@ namespace Perf
             explicit MemoryBar(QWidget *parent = nullptr);
 
             /// Update all segment values. @p cached includes @p dirty (dirty is its subset).
-            void SetSegments(qint64 used, qint64 dirty, qint64 cached, qint64 free, qint64 total);
+            void SetSegments(qint64 used, qint64 compressed, qint64 dirty, qint64 cached, qint64 free, qint64 total);
 
             QSize sizeHint()        const override { return QSize(400, 22); }
             QSize minimumSizeHint() const override { return QSize(80,  12); }
@@ -53,15 +54,16 @@ namespace Perf
             bool event(QEvent *event) override;
 
         private:
-            enum class Segment { None, Used, Dirty, Cached, Free };
+            enum class Segment { None, Used, Compressed, Dirty, Cached, Free };
 
             //! Calculates widths for individual segments based on usage so that they fill entire rect
-            void    segmentWidths(const QRect &r, int &wUsed, int &wDirty, int &wCached, int &wFree) const;
+            void    segmentWidths(const QRect &r, int &wUsed, int &wCompressed, int &wDirty, int &wCached, int &wFree) const;
             //! Used by tooltip - calculates which segment is the mouse pointer hovering
             Segment segmentAtPos(const QPoint &pos) const;
             QString segmentTooltip(Segment seg) const;
 
             qint64 m_used   { 0 };
+            qint64 m_compressed { 0 };
             qint64 m_dirty  { 0 };
             qint64 m_cached { 0 };
             qint64 m_free   { 0 };

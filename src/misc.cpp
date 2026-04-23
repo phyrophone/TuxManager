@@ -114,6 +114,11 @@ QString Misc::FormatMiB(quint64 mebibytes, int precision)
     return FormatBytes(mebibytes * 1024ULL * 1024ULL, precision);
 }
 
+qint64 Misc::BytesToKiB(quint64 bytes)
+{
+    return static_cast<qint64>((bytes + 1023ULL) / 1024ULL);
+}
+
 quint16 Misc::ReadLe16(const QByteArray &raw, int off)
 {
     if (off < 0 || off + 1 >= raw.size())

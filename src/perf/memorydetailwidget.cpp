@@ -42,6 +42,8 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
     WidgetStyle::ApplyTextStyle(this->ui->compositionLabel, scheme->StatLabelColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendUsedDot, scheme->MemoryLegendUsedColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendUsedLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCompressedDot, scheme->MemoryLegendCompressedColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCompressedLabel, scheme->MemoryLegendTextColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendDirtyDot, scheme->MemoryLegendDirtyColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendDirtyLabel, scheme->MemoryLegendTextColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendCachedDot, scheme->MemoryLegendCachedColor, 8);
@@ -74,12 +76,15 @@ MemoryDetailWidget::MemoryDetailWidget(QWidget *parent) : QWidget(parent), ui(ne
     UIHelper::EnableCopyWidgetContextMenu(this->ui->graphWidget);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statInUseValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statAvailValue);
+    UIHelper::EnableCopyLabelContextMenu(this->ui->statCompressedValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statDirtyValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statFreeValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statCachedValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statBuffersValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statDimmSlotsValue);
     UIHelper::EnableCopyLabelContextMenu(this->ui->statMemSpeedValue);
+
+    this->updateCompressedVisibility(false);
 }
 
 MemoryDetailWidget::~MemoryDetailWidget()
@@ -97,6 +102,8 @@ void MemoryDetailWidget::ApplyColorScheme()
     WidgetStyle::ApplyTextStyle(this->ui->compositionLabel, scheme->StatLabelColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendUsedDot, scheme->MemoryLegendUsedColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendUsedLabel, scheme->MemoryLegendTextColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCompressedDot, scheme->MemoryLegendCompressedColor, 8);
+    WidgetStyle::ApplyTextStyle(this->ui->legendCompressedLabel, scheme->MemoryLegendTextColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendDirtyDot, scheme->MemoryLegendDirtyColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendDirtyLabel, scheme->MemoryLegendTextColor, 8);
     WidgetStyle::ApplyTextStyle(this->ui->legendCachedDot, scheme->MemoryLegendCachedColor, 8);
@@ -155,12 +162,15 @@ void MemoryDetailWidget::Init()
 void MemoryDetailWidget::onUpdated()
 {
     const qint64 total   = Metrics::GetMemory()->MemTotalKb();
-    const qint64 used    = Metrics::GetMemory()->MemUsedKb();
+    const qint64 used    = Metrics::GetMemory()->MemUsedNonZramKb();
     const qint64 avail   = Metrics::GetMemory()->MemAvailKb();
     const qint64 free    = Metrics::GetMemory()->MemFreeKb();
     const qint64 cached  = Metrics::GetMemory()->MemCachedKb();   // includes buffers
     const qint64 buffers = Metrics::GetMemory()->MemBuffersKb();
     const qint64 dirty   = Metrics::GetMemory()->MemDirtyKb();
+    const qint64 compressedData = Metrics::GetMemory()->ZramCompressedKb();
+    const qint64 compressedRam = Metrics::GetMemory()->ZramMemUsedKb();
+    const bool hasZram = Metrics::GetMemory()->HasZram();
 
     this->ui->statInUseValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, used)), 1));
     this->ui->statAvailValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, avail)), 1));
@@ -168,14 +178,33 @@ void MemoryDetailWidget::onUpdated()
     this->ui->statBuffersValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, buffers)), 1));
     this->ui->statFreeValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, free)), 1));
     this->ui->statDirtyValue->setText(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, dirty)), 1));
+    if (hasZram)
+    {
+        this->ui->statCompressedValue->setText(tr("%1 (using %2 RAM)")
+                                                   .arg(Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, compressedData)), 1),
+                                                        Misc::FormatKiB(static_cast<quint64>(qMax<qint64>(0, compressedRam)), 1)));
+    } else
+    {
+        this->ui->statCompressedValue->setText(tr("—"));
+    }
+    this->updateCompressedVisibility(hasZram);
 
-    // Composition bar — 4 segments must sum to total
+    // Composition bar — 5 segments must sum to total
     // free   = MemFree
     // cached = Buffers + PageCache  (includes dirty subset)
-    // used   = Total - Free - Cached (htop formula, non-reclaimable)
-    // Verify: used + cached + free == total  ✓
-    this->ui->compositionBar->SetSegments(used, dirty, cached, free, total);
+    // used   = Total - Free - Cached - zram_mem_used
+    // zram   = RAM physically used by zram pools
+    // Verify: used + zram + cached + free == total  ✓
+    this->ui->compositionBar->SetSegments(used, hasZram ? compressedRam : 0, dirty, cached, free, total);
 
     if (this->m_memHistory)
         this->ui->graphWidget->Tick();
+}
+
+void MemoryDetailWidget::updateCompressedVisibility(bool visible)
+{
+    this->ui->legendCompressedDot->setVisible(visible);
+    this->ui->legendCompressedLabel->setVisible(visible);
+    this->ui->compressedLabel->setVisible(visible);
+    this->ui->statCompressedValue->setVisible(visible);
 }

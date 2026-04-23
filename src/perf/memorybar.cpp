@@ -35,13 +35,14 @@ MemoryBar::MemoryBar(QWidget *parent) : QWidget(parent)
     this->setMouseTracking(true);
 }
 
-void MemoryBar::SetSegments(qint64 used, qint64 dirty, qint64 cached, qint64 free, qint64 total)
+void MemoryBar::SetSegments(qint64 used, qint64 compressed, qint64 dirty, qint64 cached, qint64 free, qint64 total)
 {
-    this->m_used   = qMax(0LL, used);
-    this->m_dirty  = qMax(0LL, dirty);
-    this->m_cached = qMax(0LL, cached);
-    this->m_free   = qMax(0LL, free);
-    this->m_total  = (total > 0) ? total : 1;
+    this->m_used       = qMax(0LL, used);
+    this->m_compressed = qMax(0LL, compressed);
+    this->m_dirty      = qMax(0LL, dirty);
+    this->m_cached     = qMax(0LL, cached);
+    this->m_free       = qMax(0LL, free);
+    this->m_total      = (total > 0) ? total : 1;
     this->update();
 }
 
@@ -50,8 +51,8 @@ void MemoryBar::paintEvent(QPaintEvent * /*event*/)
     const ColorScheme *scheme = ColorScheme::GetCurrent();
     QPainter p(this);
     const QRect r = this->rect().adjusted(0, 0, -1, -1);   // leave 1px for border
-    int wUsed = 0, wDirty = 0, wCached = 0, wFree = 0;
-    this->segmentWidths(r, wUsed, wDirty, wCached, wFree);
+    int wUsed = 0, wCompressed = 0, wDirty = 0, wCached = 0, wFree = 0;
+    this->segmentWidths(r, wUsed, wCompressed, wDirty, wCached, wFree);
 
     int x = r.left();
     const int y = r.top();
@@ -65,6 +66,7 @@ void MemoryBar::paintEvent(QPaintEvent * /*event*/)
     };
 
     drawSeg(wUsed,   scheme->MemoryBarUsedColor);
+    drawSeg(wCompressed, scheme->MemoryBarCompressedColor);
     drawSeg(wDirty,  scheme->MemoryBarDirtyColor);
     drawSeg(wCached, scheme->MemoryBarCachedColor);
     drawSeg(wFree,   scheme->MemoryBarFreeColor);
@@ -93,7 +95,7 @@ bool MemoryBar::event(QEvent *event)
     return QWidget::event(event);
 }
 
-void MemoryBar::segmentWidths(const QRect &r, int &wUsed, int &wDirty, int &wCached, int &wFree) const
+void MemoryBar::segmentWidths(const QRect &r, int &wUsed, int &wCompressed, int &wDirty, int &wCached, int &wFree) const
 {
     const double w = static_cast<double>(r.width());
     const double t = static_cast<double>(this->m_total);
@@ -102,11 +104,12 @@ void MemoryBar::segmentWidths(const QRect &r, int &wUsed, int &wDirty, int &wCac
         return static_cast<int>(static_cast<double>(val) / t * w + 0.5);
     };
 
-    wUsed   = segW(this->m_used);
-    wDirty  = segW(this->m_dirty);
+    wUsed       = segW(this->m_used);
+    wCompressed = segW(this->m_compressed);
+    wDirty      = segW(this->m_dirty);
     // Clean cache = full cache − dirty
     wCached = segW(qMax(0LL, this->m_cached - this->m_dirty));
-    wFree   = r.width() - wUsed - wDirty - wCached;  // absorbs rounding
+    wFree   = r.width() - wUsed - wCompressed - wDirty - wCached;  // absorbs rounding
 }
 
 MemoryBar::Segment MemoryBar::segmentAtPos(const QPoint &pos) const
@@ -115,17 +118,19 @@ MemoryBar::Segment MemoryBar::segmentAtPos(const QPoint &pos) const
     if (!r.contains(pos))
         return Segment::None;
 
-    int wUsed = 0, wDirty = 0, wCached = 0, wFree = 0;
-    this->segmentWidths(r, wUsed, wDirty, wCached, wFree);
+    int wUsed = 0, wCompressed = 0, wDirty = 0, wCached = 0, wFree = 0;
+    this->segmentWidths(r, wUsed, wCompressed, wDirty, wCached, wFree);
 
     const int x = pos.x() - r.left();
     if (x < wUsed)
         return Segment::Used;
-    if (x < wUsed + wDirty)
+    if (x < wUsed + wCompressed)
+        return Segment::Compressed;
+    if (x < wUsed + wCompressed + wDirty)
         return Segment::Dirty;
-    if (x < wUsed + wDirty + wCached)
+    if (x < wUsed + wCompressed + wDirty + wCached)
         return Segment::Cached;
-    if (x < wUsed + wDirty + wCached + wFree)
+    if (x < wUsed + wCompressed + wDirty + wCached + wFree)
         return Segment::Free;
     return Segment::None;
 }
@@ -140,6 +145,10 @@ QString MemoryBar::segmentTooltip(Segment seg) const
         case Segment::Used:
             value = this->m_used;
             label = tr("Used");
+            break;
+        case Segment::Compressed:
+            value = this->m_compressed;
+            label = tr("Used (compressed)");
             break;
         case Segment::Dirty:
             value = this->m_dirty;
