@@ -43,8 +43,9 @@
             '';
 
             postFixup = ''
-              # fixes issue where nvml isn't found
-              wrapProgram $out/bin/tux-manager --prefix LD_LIBRARY_PATH = /run/opengl-driver/lib
+              wrapProgram $out/bin/tux-manager \
+                --prefix LD_LIBRARY_PATH = /run/opengl-driver/lib \
+                --add-flag --dont-sanitize-path
             '';
           };
       }

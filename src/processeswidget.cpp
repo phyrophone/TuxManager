@@ -1204,6 +1204,9 @@ QString ProcessesWidget::findTerminalExecutable()
             if (canonical.isEmpty())
                 continue;
 
+            if (!CFG->SanitizePath)
+                return canonical;
+
             for (const QString &prefix : trustedPrefixes)
             {
                 if (canonical.startsWith(prefix))

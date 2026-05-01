@@ -43,7 +43,8 @@ static void print_help()
            "  -V, --version  Show version and exit\n"
            "      --force-drm Force DRM GPU backend and skip NVML detection\n"
            "  -v             Increase log verbosity.\n"
-           "                 Repeat for more detail: -v, -vv, -vvv\n",
+           "                 Repeat for more detail: -v, -vv, -vvv\n"
+           "      --dont-sanitize-path Trust any path included in $PATH\n",
            TUX_MANAGER_PRODUCT_NAME);
 }
 
@@ -84,6 +85,9 @@ int main(int argc, char *argv[])
     QCommandLineOption forceDrmOption(QStringList{"force-drm"}, "Force DRM GPU backend and skip NVML detection.");
     parser.addOption(forceDrmOption);
 
+    QCommandLineOption dontSanitizePath(QStringList{"dont-sanitize-path"}, "Trust any path included in $PATH.");
+    parser.addOption(dontSanitizePath);
+
     parser.process(a);
 
     // Count -v occurrences manually: handles -v, -vv, -vvv and mixed forms.
@@ -103,6 +107,7 @@ int main(int argc, char *argv[])
     // ── Bootstrap ─────────────────────────────────────────────────────────────
     CFG->Load();
     CFG->ForceGpuDrm = parser.isSet(forceDrmOption);
+    CFG->SanitizePath = !parser.isSet(dontSanitizePath);
     LOG_INFO(QString("%1 %2 starting (verbosity=%3)").arg(a.applicationName(), a.applicationVersion()).arg(verbosity));
 
     MainWindow w;

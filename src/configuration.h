@@ -56,6 +56,7 @@ class Configuration : public QObject
         uid_t EUID { 0 };            ///< Effective user ID captured at startup (runtime-only).
         bool IOMetricsEnabled { false }; ///< True when any Processes I/O column is visible (runtime-only).
         bool ForceGpuDrm { false };  ///< Force DRM GPU backend and skip NVML detection (runtime-only).
+        bool SanitizePath { true };    ///< Whether to only use trusted prefixes from $PATH, like /bin/ or /usr/bin/.
         //! Intervals (in ms) available in menus for refresh rate (250ms, 1s, 5s etc.)
         QVector<int> RefreshRateAvailableIntervals;
 

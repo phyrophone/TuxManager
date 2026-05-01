@@ -250,3 +250,13 @@ If you built the package with `package-arch.sh`:
 ```bash
 sudo pacman -U packaging/output/tux-manager-*.pkg.tar.zst
 ```
+
+## Notes
+
+### Non-FHS systems
+
+Tux manager checks that the path to a terminal's biniary is a standard and "trusted" path. This doesn't work for some distros not compliant with FHS. To fix this wrap the package with this flag:
+
+```bash
+tux-manager --dont-sanitize-path
+```
