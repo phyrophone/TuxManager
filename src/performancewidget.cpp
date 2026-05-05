@@ -416,7 +416,7 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
     showGrid->setChecked(CFG->SidePanelGridEnabled);
 
     menu.addSeparator();
-    UIHelper::AddRefreshIntervalContextMenu(&menu);
+    UIHelper::AddRefreshIntervalContextMenu(&menu, nullptr, this->m_active);
 
     menu.addSeparator();
     UIHelper::AddGlobalContextMenuItems(&menu, this);

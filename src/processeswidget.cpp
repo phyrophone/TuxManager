@@ -679,7 +679,7 @@ void ProcessesWidget::onTableContextMenu(const QPoint &pos)
     connect(reniceAction, &QAction::triggered, this, &ProcessesWidget::reniceSelected);
 
     menu.addSeparator();
-    UIHelper::AddRefreshIntervalContextMenu(&menu);
+    UIHelper::AddRefreshIntervalContextMenu(&menu, this->m_refreshTimer, this->m_active);
     UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
@@ -734,7 +734,7 @@ void ProcessesWidget::onTreeContextMenu(const QPoint &pos)
     connect(reniceAction, &QAction::triggered, this, &ProcessesWidget::reniceSelected);
 
     menu.addSeparator();
-    UIHelper::AddRefreshIntervalContextMenu(&menu);
+    UIHelper::AddRefreshIntervalContextMenu(&menu, this->m_refreshTimer, this->m_active);
     UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     menu.exec(this->m_treeView->viewport()->mapToGlobal(pos));

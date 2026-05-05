@@ -231,7 +231,7 @@ void UIHelper::EnableCopyWidgetContextMenu(QWidget *widget, const QString &text)
     });
 }
 
-void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu)
+void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu, QTimer *timer, bool timerOwnerActive)
 {
     QMenu *refreshMenu = menu->addMenu(QObject::tr("Refresh interval"));
 
@@ -245,12 +245,19 @@ void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu)
         a->setChecked(!CFG->RefreshPaused && CFG->RefreshRateMs == ms);
         intervalActions.insert(a, ms);
 
-        QObject::connect(a, &QAction::triggered, menu, [=]()
+        QObject::connect(a, &QAction::triggered, menu, [menu, a, intervalActions, timer, timerOwnerActive]()
         {          
             const int ms = intervalActions.value(a);
             CFG->RefreshPaused = false;
             CFG->RefreshRateMs = ms;
             Metrics::Get()->SetInterval(ms);
+            PerformanceWidget *pw = PerformanceWidget::Get();
+            if (pw && pw->IsActive()) {
+                pw->onProviderUpdated();
+            }
+            if (timer && timerOwnerActive) {
+                timer->start(ms);
+            }
         });
     }
 
@@ -260,8 +267,15 @@ void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu)
     pausedAction->setCheckable(true);
     pausedAction->setChecked(CFG->RefreshPaused);
 
-    QObject::connect(pausedAction, &QAction::triggered, []{
+    QObject::connect(pausedAction, &QAction::triggered, menu, [menu, timer, timerOwnerActive](){
         CFG->RefreshPaused = true;
+        PerformanceWidget *pw = PerformanceWidget::Get();
+        if (pw && pw->IsActive()) {
+            pw->onProviderUpdated();
+        }
+        if (timer && timerOwnerActive) {
+            timer->stop();
+        }
     });
 }
 

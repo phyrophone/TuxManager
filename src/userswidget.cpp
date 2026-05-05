@@ -210,7 +210,7 @@ void UsersWidget::onContextMenu(const QPoint &pos)
         menu.addSeparator();
     }
 
-    UIHelper::AddRefreshIntervalContextMenu(&menu);
+    UIHelper::AddRefreshIntervalContextMenu(&menu, this->m_refreshTimer, this->m_active);
     UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     menu.exec(this->ui->treeWidget->viewport()->mapToGlobal(pos));

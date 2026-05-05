@@ -318,7 +318,7 @@ void ServicesWidget::onTableContextMenu(const QPoint &pos)
     });
 
     menu.addSeparator();
-    UIHelper::AddRefreshIntervalContextMenu(&menu);
+    UIHelper::AddRefreshIntervalContextMenu(&menu, this->m_refreshTimer, this->m_active);
     UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     menu.exec(this->ui->tableView->viewport()->mapToGlobal(pos));
