@@ -417,6 +417,7 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
 
     menu.addSeparator();
     UIHelper::AddRefreshIntervalContextMenu(&menu, nullptr, this->m_active);
+    UIHelper::AddGraphWindowContextMenu(&menu);
 
     menu.addSeparator();
     UIHelper::AddGlobalContextMenuItems(&menu, this);
