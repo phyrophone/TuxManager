@@ -145,27 +145,6 @@ void UIHelper::RestoreTableSelection(QTableView *view,
         vsb->setValue(snapshot.ScrollPos);
 }
 
-// void UIHelper::PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction)
-// {
-//     intervalActions.clear();
-//     pausedAction = nullptr;
-//     if (!menu)
-//         return;
-
-//     for (int ms : CFG->RefreshRateAvailableIntervals)
-//     {
-//         QAction *a = menu->addAction(Misc::SimplifyTimeMS(ms));
-//         a->setCheckable(true);
-//         a->setChecked(!CFG->RefreshPaused && CFG->RefreshRateMs == ms);
-//         intervalActions.insert(a, ms);
-//     }
-
-//     menu->addSeparator();
-//     pausedAction = menu->addAction(QObject::tr("Paused"));
-//     pausedAction->setCheckable(true);
-//     pausedAction->setChecked(CFG->RefreshPaused);
-// }
-
 void UIHelper::AddGlobalContextMenuItems(QMenu *menu, QWidget *parent)
 {
     if (!menu)

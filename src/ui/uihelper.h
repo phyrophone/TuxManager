@@ -56,7 +56,6 @@ namespace UIHelper
                                const std::function<QVariant(const QModelIndex &sourceKeyIndex)> &sourceKeyResolver,
                                const TableSelectionSnapshot &snapshot);
 
-    // void PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction);
     void AddGlobalContextMenuItems(QMenu *menu, QWidget *parent = nullptr);
     void AddGraphContextMenuItems(QMenu *menu, QWidget *graphArea);
     void EnableGraphContextMenu(QWidget *widget);
