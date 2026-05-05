@@ -60,6 +60,7 @@ namespace UIHelper
     void AddGlobalContextMenuItems(QMenu *menu, QWidget *parent = nullptr);
     void AddGraphContextMenuItems(QMenu *menu, QWidget *graphArea);
     void EnableGraphContextMenu(QWidget *widget);
+    void AddGraphWindowContextMenu(QMenu *menu);
     void AddRefreshIntervalContextMenu(QMenu *menu);
     //! Adds a context menu with a Copy action that copies the label text to the clipboard.
     void EnableCopyLabelContextMenu(QLabel *label);

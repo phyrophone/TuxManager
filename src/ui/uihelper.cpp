@@ -21,6 +21,7 @@
 #include "../configuration.h"
 #include "../metrics.h"
 #include "../misc.h"
+#include "../performancewidget.h"
 
 #include <QAbstractItemModel>
 #include <QAction>
@@ -264,12 +265,42 @@ void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu)
     });
 }
 
+void UIHelper::AddGraphWindowContextMenu(QMenu *menu)
+{
+    QMenu *timeMenu = menu->addMenu(QObject::tr("Graph time"));
+    QVector<int> intervals = CFG->DataWindowAvailableIntervals;
+    if (intervals.isEmpty())
+        intervals.append(CFG->PerfGraphWindowSec);
+    QHash<QAction *, int> graphWindowActions;
+
+    for (int sec : intervals)
+    {
+        QAction *a = timeMenu->addAction(Misc::SimplifyTime(sec));
+        a->setCheckable(true);
+        a->setChecked(CFG->PerfGraphWindowSec == sec);
+        graphWindowActions.insert(a, sec);
+
+        QObject::connect(a, &QAction::triggered, menu, [=]()
+        {          
+            const int requestedWindow = graphWindowActions.value(a);
+            CFG->PerfGraphWindowSec = requestedWindow;
+            PerformanceWidget *pw = PerformanceWidget::Get();
+            if (pw)
+            {
+                pw->applyGraphWindowSeconds();
+                if (pw->IsActive())
+                    pw->onProviderUpdated();
+            }
+        });
+    }
+}
+
 void UIHelper::AddGraphContextMenuItems(QMenu *menu, QWidget *graphArea)
 {
     AddRefreshIntervalContextMenu(menu);
+    AddGraphWindowContextMenu(menu);
 
     menu->addSeparator();
-
     AddCopyWidgetAction(menu, graphArea, QObject::tr("Copy graph"));
 }
 

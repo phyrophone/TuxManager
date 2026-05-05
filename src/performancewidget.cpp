@@ -74,8 +74,12 @@ namespace
 // Construction
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+PerformanceWidget *PerformanceWidget::s_instance = nullptr;
+
 PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new Ui::PerformanceWidget)
 {
+    s_instance = this;
+
     // Ensure the metrics are initialized before we start enumerating devices
     Metrics::Get();
 
@@ -122,6 +126,7 @@ PerformanceWidget::PerformanceWidget(QWidget *parent) : QWidget(parent), ui(new 
 
 PerformanceWidget::~PerformanceWidget()
 {
+    s_instance = nullptr;
     delete this->ui;
 }
 
@@ -377,7 +382,6 @@ void PerformanceWidget::SetActive(bool active)
 void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, const QPoint &globalPos)
 {
     QMenu menu(this);
-    QHash<QAction *, int> graphWindowActions;
 
     QAction *cpu = menu.addAction(tr("CPU"));
     cpu->setCheckable(true);
@@ -412,20 +416,6 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
     showGrid->setChecked(CFG->SidePanelGridEnabled);
 
     menu.addSeparator();
-    QMenu *timeMenu = menu.addMenu(tr("Graph time"));
-    QVector<int> intervals = CFG->DataWindowAvailableIntervals;
-    if (intervals.isEmpty())
-        intervals.append(CFG->PerfGraphWindowSec);
-
-    for (int sec : intervals)
-    {
-        QAction *a = timeMenu->addAction(Misc::SimplifyTime(sec));
-        a->setCheckable(true);
-        a->setChecked(CFG->PerfGraphWindowSec == sec);
-        graphWindowActions.insert(a, sec);
-    }
-
-    menu.addSeparator();
     UIHelper::AddRefreshIntervalContextMenu(&menu);
 
     menu.addSeparator();
@@ -434,16 +424,6 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
     QAction *picked = menu.exec(globalPos);
     if (!picked)
         return;
-
-    if (graphWindowActions.contains(picked))
-    {
-        const int requestedWindow = graphWindowActions.value(picked);
-        CFG->PerfGraphWindowSec = requestedWindow;
-        this->applyGraphWindowSeconds();
-        if (this->m_active)
-            this->onProviderUpdated();
-        return;
-    }
 
     if (picked == customizeOrder)
     {
