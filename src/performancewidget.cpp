@@ -378,8 +378,6 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
 {
     QMenu menu(this);
     QHash<QAction *, int> graphWindowActions;
-    QHash<QAction *, int> refreshIntervalActions;
-    QAction *pausedRefreshAction = nullptr;
 
     QAction *cpu = menu.addAction(tr("CPU"));
     cpu->setCheckable(true);
@@ -427,8 +425,10 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
         graphWindowActions.insert(a, sec);
     }
 
-    QMenu *refreshMenu = menu.addMenu(tr("Refresh interval"));
-    UIHelper::PopulateRefreshIntervalMenu(refreshMenu, refreshIntervalActions, pausedRefreshAction);
+    menu.addSeparator();
+    UIHelper::AddRefreshIntervalContextMenu(&menu);
+
+    menu.addSeparator();
     UIHelper::AddGlobalContextMenuItems(&menu, this);
 
     QAction *picked = menu.exec(globalPos);
@@ -444,9 +444,6 @@ void PerformanceWidget::onSidePanelContextMenu(Perf::SidePanelItem * /*item*/, c
             this->onProviderUpdated();
         return;
     }
-
-    if (UIHelper::ApplyRefreshIntervalAction(picked, refreshIntervalActions, pausedRefreshAction))
-        return;
 
     if (picked == customizeOrder)
     {

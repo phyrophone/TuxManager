@@ -144,26 +144,26 @@ void UIHelper::RestoreTableSelection(QTableView *view,
         vsb->setValue(snapshot.ScrollPos);
 }
 
-void UIHelper::PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction)
-{
-    intervalActions.clear();
-    pausedAction = nullptr;
-    if (!menu)
-        return;
+// void UIHelper::PopulateRefreshIntervalMenu(QMenu *menu, QHash<QAction *, int> &intervalActions, QAction *&pausedAction)
+// {
+//     intervalActions.clear();
+//     pausedAction = nullptr;
+//     if (!menu)
+//         return;
 
-    for (int ms : CFG->RefreshRateAvailableIntervals)
-    {
-        QAction *a = menu->addAction(Misc::SimplifyTimeMS(ms));
-        a->setCheckable(true);
-        a->setChecked(!CFG->RefreshPaused && CFG->RefreshRateMs == ms);
-        intervalActions.insert(a, ms);
-    }
+//     for (int ms : CFG->RefreshRateAvailableIntervals)
+//     {
+//         QAction *a = menu->addAction(Misc::SimplifyTimeMS(ms));
+//         a->setCheckable(true);
+//         a->setChecked(!CFG->RefreshPaused && CFG->RefreshRateMs == ms);
+//         intervalActions.insert(a, ms);
+//     }
 
-    menu->addSeparator();
-    pausedAction = menu->addAction(QObject::tr("Paused"));
-    pausedAction->setCheckable(true);
-    pausedAction->setChecked(CFG->RefreshPaused);
-}
+//     menu->addSeparator();
+//     pausedAction = menu->addAction(QObject::tr("Paused"));
+//     pausedAction->setCheckable(true);
+//     pausedAction->setChecked(CFG->RefreshPaused);
+// }
 
 void UIHelper::AddGlobalContextMenuItems(QMenu *menu, QWidget *parent)
 {
@@ -230,31 +230,59 @@ void UIHelper::EnableCopyWidgetContextMenu(QWidget *widget, const QString &text)
     });
 }
 
-bool UIHelper::ApplyRefreshIntervalAction(QAction *picked,
-                                          const QHash<QAction *, int> &intervalActions,
-                                          QAction *pausedAction,
-                                          QTimer *timer,
-                                          bool timerOwnerActive)
+void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu)
 {
-    if (!picked)
-        return false;
+    QMenu *refreshMenu = menu->addMenu(QObject::tr("Refresh interval"));
 
-    if (intervalActions.contains(picked))
+    QHash<QAction *, int> intervalActions;
+    intervalActions.clear();
+
+    for (int ms : CFG->RefreshRateAvailableIntervals)
     {
-        const int ms = intervalActions.value(picked);
-        CFG->RefreshPaused = false;
-        CFG->RefreshRateMs = ms;
-        Metrics::Get()->SetInterval(ms);
-        if (timer && timerOwnerActive)
-            timer->start(ms);
-        return true;
+        QAction *a = refreshMenu->addAction(Misc::SimplifyTimeMS(ms));
+        a->setCheckable(true);
+        a->setChecked(!CFG->RefreshPaused && CFG->RefreshRateMs == ms);
+        intervalActions.insert(a, ms);
+
+        QObject::connect(a, &QAction::triggered, menu, [=]()
+        {          
+            const int ms = intervalActions.value(a);
+            CFG->RefreshPaused = false;
+            CFG->RefreshRateMs = ms;
+            Metrics::Get()->SetInterval(ms);
+        });
     }
 
-    if (picked == pausedAction)
-    {
+    refreshMenu->addSeparator();
+
+    QAction *pausedAction = refreshMenu->addAction(QObject::tr("Paused"));
+    pausedAction->setCheckable(true);
+    pausedAction->setChecked(CFG->RefreshPaused);
+
+    QObject::connect(pausedAction, &QAction::triggered, []{
         CFG->RefreshPaused = true;
-        return true;
-    }
+    });
+}
 
-    return false;
+void UIHelper::AddGraphContextMenuItems(QMenu *menu, QWidget *graphArea)
+{
+    AddRefreshIntervalContextMenu(menu);
+
+    menu->addSeparator();
+
+    AddCopyWidgetAction(menu, graphArea, QObject::tr("Copy graph"));
+}
+
+void UIHelper::EnableGraphContextMenu(QWidget *widget)
+{
+    if (!widget)
+        return;
+
+    widget->setContextMenuPolicy(Qt::CustomContextMenu);
+    QObject::connect(widget, &QWidget::customContextMenuRequested, widget, [widget](const QPoint &pos)
+    {
+        QMenu menu(widget);
+        AddGraphContextMenuItems(&menu, widget);
+        menu.exec(widget->mapToGlobal(pos));
+    });
 }
