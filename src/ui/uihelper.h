@@ -57,9 +57,13 @@ namespace UIHelper
                                const TableSelectionSnapshot &snapshot);
 
     void AddGlobalContextMenuItems(QMenu *menu, QWidget *parent = nullptr);
+    //! Adds context actions relevant to graphs to a context menu.
     void AddGraphContextMenuItems(QMenu *menu, QWidget *graphArea);
+    //! Adds context menu relevant to graphs to a widget.
     void EnableGraphContextMenu(QWidget *widget);
+    //! Adds a "Graph time" contex menu to an existing menu that gives options to change the timespan of a graph.
     void AddGraphWindowContextMenu(QMenu *menu);
+    //! Adds a "Refresh interval" contex menu to an existing menu that gives options to change the refresh rate.
     void AddRefreshIntervalContextMenu(QMenu *menu, QTimer *timer = nullptr, bool timerOwnerActive = false);
     //! Adds a context menu with a Copy action that copies the label text to the clipboard.
     void EnableCopyLabelContextMenu(QLabel *label);
