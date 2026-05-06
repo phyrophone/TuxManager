@@ -196,20 +196,6 @@ QAction *UIHelper::AddCopyWidgetAction(QMenu *menu, QWidget *widget, const QStri
     return copyAction;
 }
 
-void UIHelper::EnableCopyWidgetContextMenu(QWidget *widget, const QString &text)
-{
-    if (!widget)
-        return;
-
-    widget->setContextMenuPolicy(Qt::CustomContextMenu);
-    QObject::connect(widget, &QWidget::customContextMenuRequested, widget, [widget, text](const QPoint &pos)
-    {
-        QMenu menu(widget);
-        AddCopyWidgetAction(&menu, widget, text);
-        menu.exec(widget->mapToGlobal(pos));
-    });
-}
-
 void UIHelper::AddRefreshIntervalContextMenu(QMenu *menu, QTimer *timer, bool timerOwnerActive)
 {
     QMenu *refreshMenu = menu->addMenu(QObject::tr("Refresh interval"));

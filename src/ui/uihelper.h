@@ -69,8 +69,6 @@ namespace UIHelper
     void EnableCopyLabelContextMenu(QLabel *label);
     //! Adds a Copy graph action to an existing menu that copies the widget snapshot to the clipboard.
     QAction *AddCopyWidgetAction(QMenu *menu, QWidget *widget, const QString &text = QString());
-    //! Adds a context menu with a Copy graph action that copies the widget snapshot to the clipboard.
-    void EnableCopyWidgetContextMenu(QWidget *widget, const QString &text = QString());
 }
 
 #endif // UI_UIHELPER_H
