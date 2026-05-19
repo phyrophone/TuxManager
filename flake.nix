@@ -42,10 +42,7 @@
               cp ./packaging/data/io.github.benapetr.TuxManager.desktop $out/share/applications/io.github.benapetr.TuxManager.desktop
             '';
 
-            postFixup = ''
-              # fixes issue where nvml isn't found
-              wrapProgram $out/bin/tux-manager --prefix LD_LIBRARY_PATH = /run/opengl-driver/lib
-            '';
+            qtWrapperArgs = [ "--prefix LD_LIBRARY_PATH = /run/opengl-driver/lib" ];
           };
       }
     );
