@@ -19,13 +19,18 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-#define TUX_MANAGER_VERSION_STRING     "1.0.6"
+#define TUX_MANAGER_VERSION_STRING     "1.0.7"
 #define TUX_MANAGER_PRODUCT_NAME       "TuxManager"
 
 /// Number of historical samples kept per metric (max graph window: 15 min at 1 Hz).
 #define TUX_MANAGER_HISTORY_SIZE       900
 #define TUX_MANAGER_TASK_HISTORY       20
 
+/// Minimum dynamic rate graph scale, in bytes per second, so idle I/O graphs do not collapse to 0
 #define TUX_MANAGER_MIN_RATE           1024.0
+
+// zswap is a runtime option, so we need to check it periodically instead of just once at startup
+// there is no point checking too often
+#define TUX_MANAGER_ZSWAP_ENABLED_CHECK_INTERVAL_MS 5000
 
 #endif // GLOBALS_H

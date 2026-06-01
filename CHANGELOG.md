@@ -1,5 +1,8 @@
-# Future
+# 1.0.7
   * Performance side panel is now resizable
+  * Implemented compressed memory support
+  * Visual improvements of process tree
+  * Refactored run new task
 
 # 1.0.6
   * Memory view now shows compressed memory when zswap is used
