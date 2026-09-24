@@ -130,6 +130,7 @@ QVariant ProcessModel::data(const QModelIndex &index, int role) const
             case ColPriority: return proc.Priority;
             case ColNice:     return proc.Nice;
             case ColCmdline:  return proc.CmdLine;
+            case ColExe:      return proc.Exe;
             default: break;
         }
     }
@@ -432,6 +433,7 @@ QString ProcessModel::columnHeader(Column col)
         case ColPriority: return tr("Priority");
         case ColNice:     return tr("Nice");
         case ColCmdline:  return tr("Command");
+        case ColExe:      return tr("Executable");
         default:          return {};
     }
 }

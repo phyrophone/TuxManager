@@ -50,6 +50,7 @@ namespace OS
             pid_t   PPID          { 0 };
             QString Name;                     ///< Short name  (/proc/pid/comm)
             QString CmdLine;                  ///< Full command (/proc/pid/cmdline)
+            QString Exe;
             char    State         { '?' };    ///< Raw state char: R S D Z T I ...
             uid_t   UID           { 0 };
             QString User;                     ///< Resolved username

@@ -247,6 +247,8 @@ void Process::loadUserAndCmdline(Process &proc)
     }
     if (proc.CmdLine.isEmpty())
         proc.CmdLine = proc.Name; // fallback: use comm name
+
+    proc.Exe = QFileInfo(QString("/proc/%1/exe").arg(proc.PID)).symLinkTarget();
 }
 
 // ── Public: load all processes ────────────────────────────────────────────────
