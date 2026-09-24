@@ -55,6 +55,7 @@ namespace OS
                 ColPriority,
                 ColNice,
                 ColCmdline,
+                ColExe,
                 ColCount           ///< Sentinel — always last
             };
 

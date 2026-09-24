@@ -201,6 +201,7 @@ void ProcessesWidget::setupTable()
     hv->setContextMenuPolicy(Qt::CustomContextMenu);
     hv->setSectionResizeMode(QHeaderView::Interactive);
     hv->setSectionResizeMode(OS::ProcessModel::ColCmdline, QHeaderView::Stretch);
+    hv->setSectionResizeMode(OS::ProcessModel::ColExe, QHeaderView::Stretch);
     connect(hv, &QHeaderView::customContextMenuRequested, this, [this, hv](const QPoint &pos)
     {
         this->showHeaderContextMenu(hv, OS::ProcessModel::ColCount, [this](int col)
@@ -253,6 +254,7 @@ void ProcessesWidget::setupTable()
     hv->hideSection(OS::ProcessModel::ColIoWrites);
     hv->hideSection(OS::ProcessModel::ColIoReadsPerSec);
     hv->hideSection(OS::ProcessModel::ColIoWritesPerSec);
+    hv->hideSection(OS::ProcessModel::ColExe);
     if (!resetProcessHeaderState && !CFG->ProcessListHeaderState.isEmpty())
     {
         hv->restoreState(CFG->ProcessListHeaderState);
@@ -285,6 +287,7 @@ void ProcessesWidget::setupTable()
     treeHeader->setSectionResizeMode(QHeaderView::Interactive);
     treeHeader->setStretchLastSection(false);
     treeHeader->setSectionResizeMode(OS::ProcessTreeModel::ColCmdline, QHeaderView::Stretch);
+    treeHeader->setSectionResizeMode(OS::ProcessTreeModel::ColExe, QHeaderView::Stretch);
     connect(treeHeader, &QHeaderView::customContextMenuRequested, this, [this, treeHeader](const QPoint &pos)
     {
         this->showHeaderContextMenu(treeHeader, OS::ProcessTreeModel::ColCount, [this](int col)
@@ -320,6 +323,7 @@ void ProcessesWidget::setupTable()
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoWrites, true);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoReadsPerSec, true);
     this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColIoWritesPerSec, true);
+    this->m_treeView->setColumnHidden(OS::ProcessTreeModel::ColExe, true);
     connect(this->m_treeView, &QTreeView::expanded, this, [this]() { this->m_treeView->resizeColumnToContents(OS::ProcessTreeModel::ColName); });
     connect(this->m_treeView, &QTreeView::collapsed, this, [this]() { this->m_treeView->resizeColumnToContents(OS::ProcessTreeModel::ColName); });
     if (!resetProcessHeaderState && !CFG->ProcessTreeHeaderState.isEmpty())
