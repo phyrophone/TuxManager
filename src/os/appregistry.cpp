@@ -695,6 +695,9 @@ QString AppRegistry::resolveExec(const QString &exec) const
         if (resolved.isEmpty())
             continue;
 
+        if (resolved.startsWith("/nix/store/"))
+            resolved = resolveNixWrapper(resolved);
+
         const QString basename = QFileInfo(resolved).fileName();
         if (opaqueLaunchers().contains(basename) || interpreters().contains(basename))
             return QString();
@@ -789,4 +792,15 @@ QString AppRegistry::unescapeUnitName(const QString &name)
         bytes.append(raw[i]);
     }
     return QString::fromUtf8(bytes);
+}
+
+// Nix usually wraps executables by renaming them to .[NAME]-wrapped and replacing them with a script with the same name.
+QString AppRegistry::resolveNixWrapper(const QString &path)
+{
+    QFileInfo info(path);
+    QString exe = info.dir().filePath(QString(".%1-wrapped").arg(info.fileName()));
+    if (QFileInfo(exe).exists())
+        return canonicalExecutable(exe);
+    else
+        return path;
 }
