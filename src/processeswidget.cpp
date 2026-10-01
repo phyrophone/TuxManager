@@ -158,11 +158,10 @@ bool ProcessesWidget::selectProcessInTree(pid_t pid)
 
 void ProcessesWidget::setupTable()
 {
-    static constexpr int PROCESS_COLUMN_SCHEMA_VERSION = 2;
+    static constexpr int PROCESS_COLUMN_SCHEMA_VERSION = 3;
     const int savedProcessColumnSchemaVersion = CFG->ProcessColumnSchemaVersion;
-    const bool resetProcessHeaderState = savedProcessColumnSchemaVersion < 1;
-    const bool migrateProcessNameFirstLayout = savedProcessColumnSchemaVersion < 2;
-    if (resetProcessHeaderState && CFG->ProcessListSortColumn > OS::ProcessModel::ColMemVirt)
+    const bool resetProcessHeaderState = savedProcessColumnSchemaVersion < 3;
+    if (savedProcessColumnSchemaVersion < 1 && CFG->ProcessListSortColumn > OS::ProcessModel::ColMemVirt)
         CFG->ProcessListSortColumn += 3;
 
     this->m_proxy->setSourceModel(this->m_model);
@@ -225,6 +224,9 @@ void ProcessesWidget::setupTable()
 
     connect(tv, &QTableView::customContextMenuRequested, this, &ProcessesWidget::onTableContextMenu);
 
+    // Through 1.0.8, PID was the first column. Swap it so names and icons lead both process views.
+    hv->moveSection(hv->visualIndex(OS::ProcessModel::ColName), 0);
+
     // Reasonable default column widths
     tv->setColumnWidth(OS::ProcessModel::ColPid,      60);
     tv->setColumnWidth(OS::ProcessModel::ColName,    160);
@@ -259,12 +261,6 @@ void ProcessesWidget::setupTable()
     {
         hv->restoreState(CFG->ProcessListHeaderState);
     }
-    if (migrateProcessNameFirstLayout)
-    {
-        // Through 1.0.8, PID was the first column. Migrate it once so names and icons
-        // lead both process views, then preserve any column order chosen by the user.
-        hv->moveSection(hv->visualIndex(OS::ProcessModel::ColName), 0);
-    }
     this->m_tableHeaderPersistenceEnabled = true;
 
     this->m_treeView->setModel(this->m_treeProxy);
@@ -288,6 +284,7 @@ void ProcessesWidget::setupTable()
     treeHeader->setStretchLastSection(false);
     treeHeader->setSectionResizeMode(OS::ProcessTreeModel::ColCmdline, QHeaderView::Stretch);
     treeHeader->setSectionResizeMode(OS::ProcessTreeModel::ColExe, QHeaderView::Stretch);
+    treeHeader->moveSection(treeHeader->visualIndex(OS::ProcessTreeModel::ColName), 0);
     connect(treeHeader, &QHeaderView::customContextMenuRequested, this, [this, treeHeader](const QPoint &pos)
     {
         this->showHeaderContextMenu(treeHeader, OS::ProcessTreeModel::ColCount, [this](int col)
@@ -330,8 +327,6 @@ void ProcessesWidget::setupTable()
     {
         treeHeader->restoreState(CFG->ProcessTreeHeaderState);
     }
-    if (migrateProcessNameFirstLayout)
-        treeHeader->moveSection(treeHeader->visualIndex(OS::ProcessTreeModel::ColName), 0);
     this->m_treeView->setColumnWidth(OS::ProcessTreeModel::ColPid, 65);
     this->syncAllProcessColumnVisibility();
     this->m_treeHeaderPersistenceEnabled = true;
