@@ -103,6 +103,7 @@ namespace OS
             QString resolveExec(const QString &exec) const;
             QString resolveOwn(const Process &proc) const;
             static QString unescapeUnitName(const QString &name);
+            static QString resolveNixWrapper(const QString &path);
     };
 }
 
